@@ -11,6 +11,8 @@ use Digitalygo\Envai\Contracts\HttpTransport;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\Curl\CurlTransport;
+use Digitalygo\Envai\Sync\DefinitionsService;
+use Digitalygo\Envai\Tools\Execution\ClientToolRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -63,6 +65,7 @@ final readonly class EnvaiClient
             connectTimeoutSeconds: $config->connectTimeoutSeconds,
             requestTimeoutSeconds: $config->requestTimeoutSeconds,
             streamTimeoutSeconds: $config->streamTimeoutSeconds,
+            config: $config,
         );
     }
 
@@ -136,5 +139,44 @@ final readonly class EnvaiClient
     public function capabilities(): CapabilitiesService
     {
         return $this->services->capabilities();
+    }
+
+    /**
+     * The definitions facade for one connection and definitions path
+     * (project document sections 22.1 and 23.3): compile, plan, apply
+     * and the readiness gate. The connection defaults to the configured
+     * connection name; the path defaults to the configured definitions
+     * path (or `envai`).
+     */
+    public function definitions(?string $definitionsPath = null, ?string $connection = null): DefinitionsService
+    {
+        return $this->services->definitions($definitionsPath, $connection);
+    }
+
+    /**
+     * The workspace facade for one workspace id (chat scope, section 22).
+     */
+    public function workspace(string $workspaceId): WorkspaceScope
+    {
+        return $this->services->workspace($workspaceId);
+    }
+
+    /**
+     * The chat facade for one chat: typed ATP event stream and turn
+     * helpers (section 11).
+     */
+    public function chat(string $workspaceId, string $chatId): ChatRuntime
+    {
+        return $this->services->chat($workspaceId, $chatId);
+    }
+
+    /**
+     * The client tool runtime facade: verification, execution and output
+     * delivery for signed `agent.tool.request` events. The registry is
+     * compiled from the local definitions when none is given.
+     */
+    public function clientTools(?ClientToolRegistry $registry = null): ClientToolRuntime
+    {
+        return $this->services->clientTools($registry);
     }
 }

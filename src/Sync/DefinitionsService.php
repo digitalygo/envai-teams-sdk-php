@@ -8,6 +8,7 @@ use Digitalygo\Envai\Definitions\Compiler\DefinitionCompilationResult;
 use Digitalygo\Envai\Definitions\Compiler\DefinitionCompiler;
 use Digitalygo\Envai\Definitions\Manifest\DefinitionManifest;
 use Digitalygo\Envai\Exceptions\DefinitionsNotSynchronizedException;
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Sync\Planner\RemoteReader;
 use Digitalygo\Envai\Sync\Planner\SyncOptions;
 use Digitalygo\Envai\Sync\Planner\SyncPlan;
@@ -15,6 +16,7 @@ use Digitalygo\Envai\Sync\Planner\SyncPlanner;
 use Digitalygo\Envai\Sync\Reconciler\RemoteWriter;
 use Digitalygo\Envai\Sync\Reconciler\SyncReconciler;
 use Digitalygo\Envai\Sync\Reconciler\SyncReport;
+use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
 use Digitalygo\Envai\Sync\State\ResourceType;
 use Digitalygo\Envai\Sync\State\SyncLock;
@@ -39,9 +41,12 @@ use Psr\Log\LoggerInterface;
  * - requireSynchronized(), team(), agent(), tool(), manifest() and
  *   readyManifest() read state and never acquire the lock.
  *
- * The compiled result is produced without the model catalog (model
- * validation is skipped); the CLI wiring may pass the catalog through
- * the compiler separately.
+ * The compiled result is produced with the model catalog when a catalog
+ * provider is wired: plan() and apply() read the catalog (project
+ * document section 20.2 step 1) and fail closed with a TransportException
+ * when the catalog cannot be read, because agent model references could
+ * not be validated. validate() and the read-only helpers never touch the
+ * catalog: they are pure local phases.
  */
 final class DefinitionsService
 {
@@ -49,6 +54,9 @@ final class DefinitionsService
 
     private SyncReconciler $reconciler;
 
+    /**
+     * @param  \Closure(): (list<string>|null)|null  $catalogProvider  Resolves the model ids of the remote catalog; returning null makes plan()/apply() fail closed (catalog unavailability is never silently skipped).
+     */
     public function __construct(
         private readonly DefinitionCompiler $compiler,
         private readonly SyncStateStore $store,
@@ -58,6 +66,7 @@ final class DefinitionsService
         private readonly ?string $definitionsPath = null,
         private readonly ?ClientToolFactory $factory = null,
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?\Closure $catalogProvider = null,
     ) {
         $this->planner = new SyncPlanner($remoteReader, $store);
         $this->reconciler = new SyncReconciler($remoteWriter, $store);
@@ -194,9 +203,21 @@ final class DefinitionsService
         return $this->store->readyManifest($this->connection);
     }
 
+    /**
+     * The managed resource states recorded for the connection, in store
+     * order. Read-only passthrough used by the CLI status/state commands
+     * to report per-resource state without acquiring the lock.
+     *
+     * @return iterable<ManagedResourceState>
+     */
+    public function resources(): iterable
+    {
+        return $this->store->resources($this->connection);
+    }
+
     private function planLocked(SyncOptions $options): SyncPlan
     {
-        $compiled = $this->compile();
+        $compiled = $this->compile($this->catalogModels());
 
         $this->logger?->info(sprintf(
             'Planning definitions for connection "%s".',
@@ -208,7 +229,7 @@ final class DefinitionsService
 
     private function applyLocked(SyncOptions $options, SyncLock $lock): SyncReport
     {
-        $compiled = $this->compile();
+        $compiled = $this->compile($this->catalogModels());
 
         $this->logger?->info(sprintf(
             'Applying definitions for connection "%s".',
@@ -220,13 +241,44 @@ final class DefinitionsService
         return $this->reconciler->apply($plan, $compiled->manifest, $lock);
     }
 
-    private function compile(): DefinitionCompilationResult
+    /**
+     * @param  list<string>|null  $catalogModels  Model ids of the remote catalog, or null to skip the model check (validate() and the read-only helpers).
+     */
+    private function compile(?array $catalogModels = null): DefinitionCompilationResult
     {
         return $this->compiler->compile(
             $this->definitionsPath ?? 'envai',
             $this->factory,
-            null,
+            $catalogModels,
         );
+    }
+
+    /**
+     * Resolves the model catalog for the remote phase (project document
+     * section 20.2 step 1). Without a wired provider the model check is
+     * skipped (low-level usage). With a provider the catalog is
+     * mandatory: a null result means the catalog could not be read and
+     * the plan/apply fails closed, because agent model references could
+     * not be validated against it.
+     *
+     * @return list<string>|null
+     */
+    private function catalogModels(): ?array
+    {
+        if ($this->catalogProvider === null) {
+            return null;
+        }
+
+        $models = ($this->catalogProvider)();
+
+        if ($models === null) {
+            throw new TransportException(sprintf(
+                'The model catalog could not be read for connection "%s"; failing closed because agent model references cannot be validated (project document section 20.2).',
+                $this->connection,
+            ));
+        }
+
+        return $models;
     }
 
     /**

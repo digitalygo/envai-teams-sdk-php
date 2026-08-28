@@ -15,6 +15,9 @@ final readonly class EnvaiConfig
 {
     /**
      * @param  array<string, string>  $headers  Additional default request headers.
+     * @param  string|null  $definitionsPath  Default path of the local `envai/` definitions directory for the definitions facade; null falls back to `envai`.
+     * @param  string|null  $stateDriver  Default sync state store driver for the definitions facade; null falls back to `file`.
+     * @param  string|null  $stateFilePath  Default state store file path for the `file` driver; null falls back to `.envai`.
      */
     public function __construct(
         public string $baseUrl,
@@ -26,6 +29,9 @@ final readonly class EnvaiConfig
         public ?int $streamTimeoutSeconds = null,
         public array $headers = [],
         public ?RetryPolicy $retryPolicy = null,
+        public ?string $definitionsPath = null,
+        public ?string $stateDriver = null,
+        public ?string $stateFilePath = null,
     ) {
         if (self::isHttpUrl($this->baseUrl) === false) {
             throw new \InvalidArgumentException('baseUrl must be a non-empty http(s) URL.');

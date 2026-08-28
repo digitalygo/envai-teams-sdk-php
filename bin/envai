@@ -3,6 +3,12 @@
 
 declare(strict_types=1);
 
+use Digitalygo\Envai\Support\ConsoleBootstrap;
+use Digitalygo\Envai\Sync\Console\DefinitionsPlanCommand;
+use Digitalygo\Envai\Sync\Console\DefinitionsStateCommand;
+use Digitalygo\Envai\Sync\Console\DefinitionsStatusCommand;
+use Digitalygo\Envai\Sync\Console\DefinitionsSyncCommand;
+use Digitalygo\Envai\Sync\Console\DefinitionsValidateCommand;
 use Symfony\Component\Console\Application;
 
 $autoloadCandidates = [
@@ -31,14 +37,20 @@ $application = new Application('Envai ATP PHP SDK', '0.1.0');
 /*
  * Command registry.
  *
- * Extension point: add the concrete command classes discovered from the
- * Digitalygo\Envai\Sync\Console namespace here as they are implemented in
- * later waves. The list is static and intentionally empty in wave 0.
+ * Every command receives the same definitions factory closure so tests
+ * can inject a fake wiring; the production factory builds the client
+ * from the environment (see ConsoleBootstrap::definitionsFactory()).
  */
-$commands = [];
+$factory = ConsoleBootstrap::definitionsFactory();
 
-foreach ($commands as $command) {
-    $application->add($command);
-}
+$commands = [
+    new DefinitionsValidateCommand($factory),
+    new DefinitionsPlanCommand($factory),
+    new DefinitionsSyncCommand($factory),
+    new DefinitionsStatusCommand($factory),
+    new DefinitionsStateCommand($factory),
+];
+
+$application->addCommands($commands);
 
 $application->run();

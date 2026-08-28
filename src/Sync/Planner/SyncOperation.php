@@ -47,4 +47,41 @@ final readonly class SyncOperation
         public ?DefinitionDiff $diff = null,
         public bool $destructive = false,
     ) {}
+
+    /**
+     * Serializes the operation to the stable machine-readable shape used
+     * by the CLI `--json` output: the identity, classification, action
+     * and policy flags as strings/booleans, the observed remote
+     * identities and a compact `changes` list (path + kind per leaf
+     * difference, without the payload values, which may be large and are
+     * already covered by the manifest hash).
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        $changes = [];
+
+        foreach ($this->diff->entries ?? [] as $entry) {
+            $changes[] = [
+                'path' => $entry->path,
+                'kind' => $entry->kind->value,
+            ];
+        }
+
+        return [
+            'id' => $this->id,
+            'type' => $this->type->value,
+            'local_key' => $this->localKey,
+            'classification' => $this->classification->value,
+            'action' => $this->action->value,
+            'blocking' => $this->blocking,
+            'reason_code' => $this->reasonCode,
+            'remote_id' => $this->remoteId,
+            'remote_name' => $this->remoteName,
+            'remote_marker' => $this->remoteMarker,
+            'destructive' => $this->destructive,
+            'changes' => $changes,
+        ];
+    }
 }
