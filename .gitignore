@@ -7,3 +7,4 @@
 /.phpstan/
 .DS_Store
 /composer.lock
+/debug/

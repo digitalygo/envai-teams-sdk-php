@@ -55,5 +55,12 @@
     },
     "config": {
         "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Digitalygo\\Envai\\Integration\\Laravel\\EnvaiServiceProvider"
+            ]
+        }
     }
 }
