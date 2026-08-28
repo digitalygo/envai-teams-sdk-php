@@ -9,6 +9,9 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>tests/Http</directory>
+            <directory>tests/Models</directory>
+            <directory>tests/Pagination</directory>
         </testsuite>
         <testsuite name="Functional">
             <directory>tests/Functional</directory>

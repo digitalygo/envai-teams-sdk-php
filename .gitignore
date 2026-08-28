@@ -1,5 +1,7 @@
 /vendor/
 /.envai
+/.idea/
+/.vscode/
 /.phpunit.cache/
 /.phpunit.result.cache
 /.phpstan/
