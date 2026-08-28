@@ -325,6 +325,54 @@ final class RequestExecutorTest extends TestCase
         }
     }
 
+    public function test_logger_redacts_query_parameters_from_signed_artifact_uris(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(200));
+
+        $uri = 'https://api.envai.dev/artifacts/download?path=generated%2F01ARZ3NDEK%2Fout.jpeg&signature=6f8d2c4a9b1e5f7a&expires=1786320000';
+
+        $this->executor()->send(HttpRequest::get($uri));
+
+        $this->assertNotEmpty($this->logger->records);
+
+        foreach ($this->logger->records as $record) {
+            $this->assertStringNotContainsString('path=generated', $record['message']);
+            $this->assertStringNotContainsString('signature=6f8d2c4a9b1e5f7a', $record['message']);
+            $this->assertStringNotContainsString('expires=1786320000', $record['message']);
+            $this->assertStringContainsString('https://api.envai.dev/artifacts/download', $record['message']);
+        }
+    }
+
+    public function test_logger_redacts_callback_token_from_provider_webhook_uris(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(200));
+
+        $this->executor()->send(HttpRequest::post('https://api.envai.dev/webhooks/providers/replicate?callback_token=0192f3a4-6b1c'));
+
+        $this->assertNotEmpty($this->logger->records);
+
+        foreach ($this->logger->records as $record) {
+            $this->assertStringNotContainsString('callback_token', $record['message']);
+            $this->assertStringNotContainsString('0192f3a4-6b1c', $record['message']);
+            $this->assertStringContainsString('https://api.envai.dev/webhooks/providers/replicate', $record['message']);
+        }
+    }
+
+    public function test_logger_redacts_userinfo_from_request_uris(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(200));
+
+        $this->executor()->send(HttpRequest::get('https://svc:secret-value@api.envai.dev/up'));
+
+        $this->assertNotEmpty($this->logger->records);
+
+        foreach ($this->logger->records as $record) {
+            $this->assertStringNotContainsString('secret-value', $record['message']);
+            $this->assertStringNotContainsString('svc:secret-value@', $record['message']);
+            $this->assertStringContainsString('https://api.envai.dev/up', $record['message']);
+        }
+    }
+
     public function test_retry_after_takes_precedence_over_computed_delay(): void
     {
         $policy = new RetryPolicy(maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 5000, jitter: false);

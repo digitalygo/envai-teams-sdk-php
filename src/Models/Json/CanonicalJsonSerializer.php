@@ -54,7 +54,7 @@ final class CanonicalJsonSerializer
         }
 
         if (is_int($value)) {
-            return (string) $value;
+            return self::serializeInteger($value);
         }
 
         if (is_float($value)) {
@@ -131,6 +131,24 @@ final class CanonicalJsonSerializer
         }
 
         return '{'.implode(',', $parts).'}';
+    }
+
+    /**
+     * Serializes an integer per RFC 8785 section 3.2.2.2. Integers whose
+     * absolute value exceeds 2^53 are outside the IEEE-754 binary64 safe
+     * range and cannot be represented exactly as JSON numbers: they are
+     * converted to double first and emitted with the ECMAScript
+     * Number::toString rules (the same output JSON.stringify((Number)
+     * $value) produces). Integers within the safe range keep their exact
+     * decimal form.
+     */
+    private static function serializeInteger(int $value): string
+    {
+        if (abs($value) > 9007199254740992) {
+            return self::serializeNumber((float) $value);
+        }
+
+        return (string) $value;
     }
 
     /**

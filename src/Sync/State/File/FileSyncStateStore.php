@@ -50,11 +50,12 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  *   (never the state file itself, whose rename would break inode
  *   identity), blocking up to lockTimeoutSeconds before throwing
  *   RuntimeException. The lock guards the whole state file, i.e. every
- *   connection it contains; release() releases the flock and unlinks the
- *   lock file. Unlinking introduces the well-known stale-inode race when
- *   a process is blocked on the old inode at release time; this store
- *   polls with LOCK_NB so it is only an issue for concurrent lockers of
- *   the same path.
+ *   connection it contains; release() releases the flock only and never
+ *   unlinks the lock file. Unlinking between cycles would reintroduce
+ *   the stale-inode takeover race (a waiter blocked on the old inode and
+ *   a contender on a fresh inode could hold separate locks), so the
+ *   lock file persists on disk by design: it is created on the first
+ *   acquisition and reused on every cycle.
  * - Permissions: the state file and the lock file are created with mode
  *   0600 when the platform supports it.
  * - No credentials: the format has no credential field. base_url holds a
@@ -118,7 +119,7 @@ final class FileSyncStateStore implements SyncStateStore
 
         while (true) {
             if (flock($handle, LOCK_EX | LOCK_NB)) {
-                return new FileSyncLock($this->lockPath(), $handle, $connection);
+                return new FileSyncLock($handle, $connection);
             }
 
             if (microtime(true) >= $deadline) {
@@ -710,9 +711,11 @@ final class FileSyncStateStore implements SyncStateStore
 
 /**
  * flock-based lock token handed out by FileSyncStateStore. release() is
- * idempotent: it releases the flock, closes the handle and unlinks the
- * lock file. The unlink is best-effort and follows the documented
- * stale-inode caveat of the owning store.
+ * idempotent: it releases the flock and closes the handle. The lock file
+ * itself is never unlinked (see the owning store's locking notes):
+ * unlinking would reintroduce the stale-inode race where a waiter on the
+ * old inode and a contender on a fresh inode hold separate locks, so the
+ * file persists on disk by design.
  */
 final class FileSyncLock implements SyncLock
 {
@@ -722,7 +725,6 @@ final class FileSyncLock implements SyncLock
      * @param  resource  $handle  Open handle of the dedicated lock file.
      */
     public function __construct(
-        private readonly string $lockPath,
         private readonly mixed $handle,
         private readonly string $connection,
     ) {}
@@ -741,7 +743,6 @@ final class FileSyncLock implements SyncLock
         $this->released = true;
         flock($this->handle, LOCK_UN);
         fclose($this->handle);
-        @unlink($this->lockPath);
     }
 
     public function isReleased(): bool

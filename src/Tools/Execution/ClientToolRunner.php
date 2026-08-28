@@ -9,6 +9,7 @@ use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
+use Digitalygo\Envai\Tools\Contracts\SafeToolMessageException;
 use Digitalygo\Envai\Tools\Contracts\ToolInvocation;
 use Digitalygo\Envai\Tools\Contracts\ToolResult;
 use Digitalygo\Envai\Tools\Security\ToolRequestVerifier;
@@ -59,9 +60,13 @@ use Psr\Log\LoggerInterface;
  *    404 -> markAmbiguous, any other failure -> markAmbiguous and the run
  *    reports delivery_failed with the exception recorded; there is no blind
  *    retry;
- * 9. handler exceptions are deliverable outcomes: a sanitized
- *    `{"code":"handler_error","message":...}` error (message only, never a
- *    stack trace) is submitted through the same delivery flow.
+ * 9. handler exceptions are deliverable outcomes: a controlled
+ *    `{"code":"handler_error","message":...}` error is submitted through
+ *    the same delivery flow. The message is generic by default
+ *    ("The client tool handler failed.") and never carries raw exception
+ *    text across the trust boundary; a handler that throws
+ *    SafeToolMessageException opts in to exposing its own message (still
+ *    UTF-8-checked and length-capped).
  *
  * Logging is deliberately restricted to call ids, tool names and outcomes;
  * arguments and outputs are never logged by default.
@@ -73,6 +78,8 @@ final readonly class ClientToolRunner
     private const MIN_DEADLINE_SECONDS = 1.0;
 
     private const HANDLER_ERROR_MESSAGE_LIMIT = 2000;
+
+    private const GENERIC_HANDLER_ERROR_MESSAGE = 'The client tool handler failed.';
 
     /**
      * Handlers currently executing inside this runner instance.
@@ -499,12 +506,24 @@ final readonly class ClientToolRunner
         };
     }
 
+    /**
+     * Maps a handler exception onto the message exposed to the platform.
+     *
+     * Fail-closed default: only SafeToolMessageException messages cross
+     * the trust boundary (the handler author's explicit opt-in); every
+     * other exception yields a generic message with no exception text.
+     * The safe path still applies the UTF-8 and length guards.
+     */
     private static function sanitizeHandlerMessage(\Throwable $exception): string
     {
+        if (! $exception instanceof SafeToolMessageException) {
+            return self::GENERIC_HANDLER_ERROR_MESSAGE;
+        }
+
         $message = $exception->getMessage();
 
         if ($message === '') {
-            return 'The handler threw '.$exception::class.' without a message.';
+            return self::GENERIC_HANDLER_ERROR_MESSAGE;
         }
 
         if (preg_match('//u', $message) !== 1) {

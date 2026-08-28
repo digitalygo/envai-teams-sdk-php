@@ -56,9 +56,14 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  *
  * Locking is table-based and portable: acquireLock() inserts a row keyed
  * by connection; a second acquisition hits the unique constraint and
- * waits up to lockTimeoutSeconds, then throws RuntimeException. A row
- * older than lockTimeoutSeconds is considered stale (the holder crashed)
- * and is taken over. release() deletes the row by connection + owner, so
+ * waits up to lockTimeoutSeconds (the acquisition wait), then throws
+ * RuntimeException. A row is only stolen when its age exceeds
+ * staleLockSeconds (default 3600.0, independent of the acquisition
+ * timeout): an apply that runs longer than the acquisition wait must not
+ * be taken over just because a contender waited that long, so the stale
+ * threshold is a separate knob. Multi-node deployments must keep
+ * applies short or serialize external work; full fencing tokens are a
+ * future evolution. release() deletes the row by connection + owner, so
  * a stale takeover cannot be undone by the previous holder. Caveats per
  * platform:
  *
@@ -91,6 +96,7 @@ final class PdoSyncStateStore implements SyncStateStore
         private readonly \PDO $pdo,
         private readonly string $tablePrefix = 'envai_sync_',
         private readonly float $lockTimeoutSeconds = 10.0,
+        private readonly float $staleLockSeconds = 3600.0,
         private readonly bool $autoMigrate = false,
         private readonly ?\Closure $nowProvider = null,
     ) {
@@ -503,7 +509,7 @@ final class PdoSyncStateStore implements SyncStateStore
             return true; // Unparseable timestamps are treated as stale.
         }
 
-        return (float) $this->now()->format('U.u') - (float) $acquired->format('U.u') > $this->lockTimeoutSeconds;
+        return (float) $this->now()->format('U.u') - (float) $acquired->format('U.u') > $this->staleLockSeconds;
     }
 
     private function fetchLockAcquiredAt(string $connection): ?string

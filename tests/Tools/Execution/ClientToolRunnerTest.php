@@ -17,6 +17,7 @@ use Digitalygo\Envai\Tests\Tools\Support\TestKeys;
 use Digitalygo\Envai\Tests\Tools\Support\ThrowingClientToolFactory;
 use Digitalygo\Envai\Tests\Tools\Support\ToolOutputPayload;
 use Digitalygo\Envai\Tests\Tools\Support\ToolRequestFactory;
+use Digitalygo\Envai\Tools\Contracts\SafeToolMessageException;
 use Digitalygo\Envai\Tools\Contracts\ToolResult;
 use Digitalygo\Envai\Tools\Execution\ClientToolRunner;
 use Digitalygo\Envai\Tools\Execution\RunnerOptions;
@@ -337,7 +338,7 @@ final class ClientToolRunnerTest extends TestCase
         $this->assertSame($output, $harness->submission('call_01')['output']);
     }
 
-    public function test_handler_exception_delivers_a_sanitized_controlled_error(): void
+    public function test_handler_exception_delivers_a_controlled_generic_error(): void
     {
         $tool = new FlexibleTool(throw: new \RuntimeException('boom'));
         $harness = new RunnerHarness(
@@ -355,13 +356,30 @@ final class ClientToolRunnerTest extends TestCase
         $this->assertTrue($submission['isError']);
         $payload = ToolOutputPayload::decode($submission['output']);
         $this->assertSame('handler_error', $payload->string('code'));
-        $this->assertSame('boom', $payload->string('message'));
-        $this->assertStringNotContainsString('#0 ', $payload->string('message'));
+        $this->assertSame('The client tool handler failed.', $payload->string('message'));
+        $this->assertStringNotContainsString('boom', $payload->string('message'));
     }
 
-    public function test_handler_exception_message_is_truncated_to_a_safe_length(): void
+    public function test_safe_tool_message_exception_exposes_its_message(): void
     {
-        $tool = new FlexibleTool(throw: new \RuntimeException(str_repeat('y', 5000)));
+        $tool = new FlexibleTool(throw: new SafeToolMessageException('The upstream quota is exhausted; retry later.'));
+        $harness = new RunnerHarness(
+            registry: ['echo' => FlexibleTool::class],
+            instances: [FlexibleTool::class => $tool],
+        );
+
+        $result = $harness->runner->handle($harness->event('call_01', 'echo', []), self::CHAT_ID);
+
+        $this->assertSame(ToolRunOutcome::HandlerError, $result->outcome);
+
+        $payload = ToolOutputPayload::decode($harness->submission('call_01')['output']);
+        $this->assertSame('handler_error', $payload->string('code'));
+        $this->assertSame('The upstream quota is exhausted; retry later.', $payload->string('message'));
+    }
+
+    public function test_safe_handler_exception_message_is_truncated_to_a_safe_length(): void
+    {
+        $tool = new FlexibleTool(throw: new SafeToolMessageException(str_repeat('y', 5000)));
         $harness = new RunnerHarness(
             registry: ['echo' => FlexibleTool::class],
             instances: [FlexibleTool::class => $tool],
@@ -371,6 +389,34 @@ final class ClientToolRunnerTest extends TestCase
 
         $payload = ToolOutputPayload::decode($harness->submission('call_01')['output']);
         $this->assertLessThanOrEqual(2000, strlen($payload->string('message')));
+    }
+
+    public function test_safe_handler_exception_with_invalid_utf8_message_is_sanitized(): void
+    {
+        $tool = new FlexibleTool(throw: new SafeToolMessageException("\xC3\x28"));
+        $harness = new RunnerHarness(
+            registry: ['echo' => FlexibleTool::class],
+            instances: [FlexibleTool::class => $tool],
+        );
+
+        $harness->runner->handle($harness->event('call_01', 'echo', []), self::CHAT_ID);
+
+        $payload = ToolOutputPayload::decode($harness->submission('call_01')['output']);
+        $this->assertSame('The handler error message is not valid UTF-8.', $payload->string('message'));
+    }
+
+    public function test_empty_safe_handler_exception_message_falls_back_to_the_generic_message(): void
+    {
+        $tool = new FlexibleTool(throw: new SafeToolMessageException(''));
+        $harness = new RunnerHarness(
+            registry: ['echo' => FlexibleTool::class],
+            instances: [FlexibleTool::class => $tool],
+        );
+
+        $harness->runner->handle($harness->event('call_01', 'echo', []), self::CHAT_ID);
+
+        $payload = ToolOutputPayload::decode($harness->submission('call_01')['output']);
+        $this->assertSame('The client tool handler failed.', $payload->string('message'));
     }
 
     public function test_factory_failure_is_delivered_as_a_handler_error(): void
@@ -393,7 +439,7 @@ final class ClientToolRunnerTest extends TestCase
         $this->assertSame(ToolRunOutcome::HandlerError, $result->outcome);
         $payload = ToolOutputPayload::decode($harness->submission('call_01')['output']);
         $this->assertSame('handler_error', $payload->string('code'));
-        $this->assertSame('cannot instantiate', $payload->string('message'));
+        $this->assertSame('The client tool handler failed.', $payload->string('message'));
     }
 
     public function test_replay_after_resolved_skips_the_handler_and_submits_nothing(): void

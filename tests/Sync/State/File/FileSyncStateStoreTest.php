@@ -166,6 +166,21 @@ final class FileSyncStateStoreTest extends SyncTestCase
         $second->acquireLock('production');
     }
 
+    public function test_lock_file_persists_after_release(): void
+    {
+        $store = $this->store();
+        $lock = $store->acquireLock('production');
+
+        $this->assertFileExists($this->path.'.lock');
+
+        $lock->release();
+
+        // The lock file is intentionally kept on disk: unlinking between
+        // cycles would reintroduce the stale-inode takeover race, so the
+        // same inode is reused for every acquire/release cycle.
+        $this->assertFileExists($this->path.'.lock');
+    }
+
     public function test_state_file_permissions_are_0600(): void
     {
         if (DIRECTORY_SEPARATOR === '\\') {

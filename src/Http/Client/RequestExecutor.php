@@ -25,7 +25,10 @@ use Psr\Log\LoggerInterface;
  * absent. Retries apply exclusively to RetrySafety::Safe requests, only for
  * retryable statuses or connect-phase transport failures, and honor
  * Retry-After through the RetryPolicy. Logging happens at debug level and
- * never includes headers, bodies or credentials.
+ * never includes headers, bodies or credentials. URIs in log messages
+ * are redacted through UriRedactor (userinfo, query and fragment are
+ * stripped), so signed artifact URLs and webhook callback tokens never
+ * reach the log stream.
  */
 final readonly class RequestExecutor
 {
@@ -129,12 +132,12 @@ final readonly class RequestExecutor
     {
         $request = $this->applyDefaultHeaders($request);
 
-        $this->log(sprintf('Streaming %s %s.', $request->method, $request->uri));
+        $this->log(sprintf('Streaming %s %s.', $request->method, UriRedactor::redact($request->uri)));
 
         try {
             $response = $this->transport->send($request);
         } catch (TransportException $e) {
-            $this->log(sprintf('Streaming transport failure for %s %s: %s.', $request->method, $request->uri, $e->getMessage()));
+            $this->log(sprintf('Streaming transport failure for %s %s: %s.', $request->method, UriRedactor::redact($request->uri), $e->getMessage()));
 
             throw $e;
         }
@@ -200,15 +203,15 @@ final readonly class RequestExecutor
 
     private function execute(HttpRequest $request, int $attempt): HttpResponse
     {
-        $this->log(sprintf('Sending %s %s (attempt %d).', $request->method, $request->uri, $attempt));
+        $this->log(sprintf('Sending %s %s (attempt %d).', $request->method, UriRedactor::redact($request->uri), $attempt));
 
         try {
             $response = $this->transport->send($request);
         } catch (TransportException $e) {
-            $this->log(sprintf('Transport failure for %s %s: %s.', $request->method, $request->uri, $e->getMessage()));
+            $this->log(sprintf('Transport failure for %s %s: %s.', $request->method, UriRedactor::redact($request->uri), $e->getMessage()));
 
             if ($this->canRetryTransport($request, $e, $attempt)) {
-                $this->log(sprintf('Retrying %s %s after transport failure (attempt %d).', $request->method, $request->uri, $attempt));
+                $this->log(sprintf('Retrying %s %s after transport failure (attempt %d).', $request->method, UriRedactor::redact($request->uri), $attempt));
                 $this->delay($request, $attempt + 1, null);
 
                 return $this->execute($request, $attempt + 1);
@@ -219,13 +222,13 @@ final readonly class RequestExecutor
 
         if ($this->canRetryStatus($request, $response, $attempt)) {
             $retryAfter = ErrorMapper::retryAfterSeconds($response->headers);
-            $this->log(sprintf('Retrying %s %s after HTTP %d (attempt %d).', $request->method, $request->uri, $response->status, $attempt));
+            $this->log(sprintf('Retrying %s %s after HTTP %d (attempt %d).', $request->method, UriRedactor::redact($request->uri), $response->status, $attempt));
             $this->delay($request, $attempt + 1, $retryAfter);
 
             return $this->execute($request, $attempt + 1);
         }
 
-        $this->log(sprintf('Received HTTP %d for %s %s (attempt %d).', $response->status, $request->method, $request->uri, $attempt));
+        $this->log(sprintf('Received HTTP %d for %s %s (attempt %d).', $response->status, $request->method, UriRedactor::redact($request->uri), $attempt));
 
         return $response;
     }

@@ -15,9 +15,15 @@ namespace Digitalygo\Envai\Models\Image;
  * rules, and in particular it never resolves DNS, so a hostname that
  * resolves to a private address is only caught server side.
  *
- * The webhook checks run against the literal host: loopback names
- * (localhost, *.localhost), literal loopback/private/link-local/metadata IP
- * addresses (IPv4 and IPv6) are rejected.
+ * The webhook checks run against the literal host after normalization:
+ * lowercase, brackets stripped, IPv4-mapped IPv6 (dotted-quad and hex
+ * forms) expanded to the embedded dotted quad, 0-padded IPv4 octets
+ * normalized to their numeric value, IPv6 canonicalized (inet_ntop).
+ * Loopback names (localhost, *.localhost) and literal
+ * loopback/private/link-local/metadata addresses (IPv4 and IPv6,
+ * including :: and ::1) are rejected. DNS rebinding remains out of
+ * scope: the host is never resolved, so a name that resolves to a
+ * private address is only caught server side.
  */
 final readonly class ImageGenerationRequest
 {
@@ -235,19 +241,111 @@ final readonly class ImageGenerationRequest
             return true;
         }
 
-        $ip = filter_var($host, FILTER_VALIDATE_IP);
+        $normalized = self::normalizeIpLiteral($host);
 
-        if ($ip === false) {
+        if ($normalized === null) {
+            // A DNS name or malformed literal: not classified. DNS
+            // rebinding stays out of scope (the server resolves the
+            // host, never this local check).
             return false;
         }
 
-        $v4 = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
-
-        if ($v4 !== false) {
-            return self::isBlockedIpv4($v4);
+        if (str_contains($normalized, ':')) {
+            return self::isBlockedIpv6($normalized);
         }
 
-        return self::isBlockedIpv6($ip);
+        return self::isBlockedIpv4($normalized);
+    }
+
+    /**
+     * Normalizes an IP literal so the block lists see a canonical
+     * address: IPv4-mapped IPv6 (RFC 4291 section 2.5.5.2, dotted-quad
+     * and hex forms) is expanded to its embedded dotted quad, 0-padded
+     * decimal octets are converted to their numeric value, and IPv6
+     * literals are canonicalized through inet_pton/inet_ntop (so the
+     * expanded loopback "0:0:0:0:0:0:0:1" is classified as "::1").
+     * Returns null when the value is not an IP literal (DNS name or
+     * malformed address).
+     */
+    private static function normalizeIpLiteral(string $host): ?string
+    {
+        if (str_starts_with($host, '::ffff:')) {
+            $embedded = substr($host, strlen('::ffff:'));
+
+            if (str_contains($embedded, '.')) {
+                return self::normalizeIpv4Octets(explode('.', $embedded));
+            }
+
+            $hex = '';
+
+            foreach (explode(':', $embedded) as $group) {
+                if ($group === '' || strlen($group) > 4 || ! ctype_xdigit($group)) {
+                    return null;
+                }
+
+                $hex .= str_pad($group, 4, '0', STR_PAD_LEFT);
+            }
+
+            if (strlen($hex) !== 8) {
+                return null;
+            }
+
+            return long2ip((int) hexdec($hex));
+        }
+
+        if (! str_contains($host, ':')) {
+            if (! str_contains($host, '.')) {
+                return null; // DNS name.
+            }
+
+            return self::normalizeIpv4Octets(explode('.', $host));
+        }
+
+        $packed = @inet_pton($host);
+
+        if ($packed === false) {
+            return null;
+        }
+
+        $expanded = inet_ntop($packed);
+
+        if ($expanded === false) {
+            return null;
+        }
+
+        return $expanded;
+    }
+
+    /**
+     * Normalizes a 4-octet IPv4 dotted quad: every octet is parsed as a
+     * decimal number (leading zeros are allowed and normalized away) and
+     * must fit in 0..255. Returns null for malformed quads.
+     *
+     * @param  list<string>  $octets
+     */
+    private static function normalizeIpv4Octets(array $octets): ?string
+    {
+        if (count($octets) !== 4) {
+            return null;
+        }
+
+        $normalized = [];
+
+        foreach ($octets as $octet) {
+            if ($octet === '' || ! ctype_digit($octet)) {
+                return null;
+            }
+
+            $value = (int) $octet;
+
+            if ($value > 255) {
+                return null;
+            }
+
+            $normalized[] = (string) $value;
+        }
+
+        return implode('.', $normalized);
     }
 
     /**

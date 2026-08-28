@@ -115,11 +115,25 @@ final class CanonicalJsonSerializerTest extends TestCase
         }
     }
 
-    public function test_integer_numbers_are_serialized_plain(): void
+    public function test_integer_numbers_within_the_safe_range_are_serialized_plain(): void
     {
         $this->assertSame('42', CanonicalJsonSerializer::serialize(42));
         $this->assertSame('-9007199254740991', CanonicalJsonSerializer::serialize(-9007199254740991));
-        $this->assertSame('9223372036854775807', CanonicalJsonSerializer::serialize(PHP_INT_MAX));
+        $this->assertSame('9007199254740991', CanonicalJsonSerializer::serialize(9007199254740991));
+        $this->assertSame('9007199254740992', CanonicalJsonSerializer::serialize(9007199254740992));
+        $this->assertSame('-9007199254740992', CanonicalJsonSerializer::serialize(-9007199254740992));
+    }
+
+    public function test_integers_beyond_the_safe_range_serialize_as_doubles_per_rfc8785(): void
+    {
+        // Integers with |value| > 2**53 cannot be represented exactly as
+        // JSON numbers: the value is converted to double (round to
+        // nearest even) and serialized with the ECMAScript rules, i.e.
+        // the same output JSON.stringify((Number) $value) produces.
+        $this->assertSame('9007199254740992', CanonicalJsonSerializer::serialize(9007199254740993));
+        $this->assertSame('-9007199254740992', CanonicalJsonSerializer::serialize(-9007199254740993));
+        $this->assertSame('9223372036854776000', CanonicalJsonSerializer::serialize(PHP_INT_MAX));
+        $this->assertSame('-9223372036854776000', CanonicalJsonSerializer::serialize(-PHP_INT_MAX));
     }
 
     public function test_exponent_thresholds_follow_ecmascript_rules(): void

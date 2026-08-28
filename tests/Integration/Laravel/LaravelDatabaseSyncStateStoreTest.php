@@ -149,16 +149,15 @@ final class LaravelDatabaseSyncStateStoreTest extends IntegrationTestCase
 
     public function test_stale_lock_is_taken_over(): void
     {
-        $t0 = new \DateTimeImmutable('2026-08-28T10:00:00+00:00');
-        $first = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, lockTimeoutSeconds: 10.0, nowProvider: fn (): \DateTimeImmutable => $t0);
+        $first = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, staleLockSeconds: 0.0);
 
         $lock = $first->acquireLock('production');
 
         $this->assertFalse($lock->isReleased());
 
-        // The holder "crashed"; a second store with a later clock sees the
-        // row as stale and takes it over.
-        $second = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, lockTimeoutSeconds: 10.0, nowProvider: fn (): \DateTimeImmutable => $t0->modify('+11 seconds'));
+        // A staleLockSeconds of 0 treats any held row as stale, as if the
+        // holder crashed without releasing.
+        $second = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, staleLockSeconds: 0.0);
 
         $taken = $second->acquireLock('production');
 
@@ -180,10 +179,10 @@ final class LaravelDatabaseSyncStateStoreTest extends IntegrationTestCase
         );
     }
 
-    public function test_fresh_lock_is_not_taken_over(): void
+    public function test_fresh_lock_is_not_taken_over_below_the_stale_threshold(): void
     {
         $now = new \DateTimeImmutable('2026-08-28T10:00:00+00:00');
-        $first = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, lockTimeoutSeconds: 10.0, nowProvider: fn (): \DateTimeImmutable => $now);
+        $first = new LaravelDatabaseSyncStateStore($this->connection, self::PREFIX, lockTimeoutSeconds: 10.0, staleLockSeconds: 3600.0, nowProvider: fn (): \DateTimeImmutable => $now);
         $first->acquireLock('production')->release();
 
         $lock = $first->acquireLock('production');

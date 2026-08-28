@@ -63,13 +63,12 @@ final class PdoSyncStateStoreTest extends SyncTestCase
 
     public function test_stale_lock_takeover(): void
     {
-        $storeA = $this->store(lockTimeoutSeconds: 0.3, autoMigrate: true);
+        $storeA = $this->store(lockTimeoutSeconds: 10.0, staleLockSeconds: 0.0, autoMigrate: true);
         $lockA = $storeA->acquireLock('production');
 
-        // Make the lock row stale, as if the previous holder crashed.
-        $this->pdo->exec("UPDATE envai_sync_locks SET acquired_at = '2026-01-01T00:00:00.000000+00:00' WHERE connection = 'production'");
-
-        $storeB = $this->store(lockTimeoutSeconds: 0.3, autoMigrate: true);
+        // A staleLockSeconds of 0 treats any held row as stale, as if the
+        // previous holder crashed before releasing.
+        $storeB = $this->store(lockTimeoutSeconds: 0.3, staleLockSeconds: 0.0, autoMigrate: true);
         $lockB = $storeB->acquireLock('production');
 
         $this->assertFalse($lockB->isReleased());
@@ -164,9 +163,9 @@ final class PdoSyncStateStoreTest extends SyncTestCase
         $this->assertNotSame('', $dsn);
     }
 
-    private function store(float $lockTimeoutSeconds = 10.0, bool $autoMigrate = false, ?\Closure $nowProvider = null): PdoSyncStateStore
+    private function store(float $lockTimeoutSeconds = 10.0, float $staleLockSeconds = 3600.0, bool $autoMigrate = false, ?\Closure $nowProvider = null): PdoSyncStateStore
     {
-        return new PdoSyncStateStore($this->pdo, 'envai_sync_', lockTimeoutSeconds: $lockTimeoutSeconds, autoMigrate: $autoMigrate, nowProvider: $nowProvider);
+        return new PdoSyncStateStore($this->pdo, 'envai_sync_', lockTimeoutSeconds: $lockTimeoutSeconds, staleLockSeconds: $staleLockSeconds, autoMigrate: $autoMigrate, nowProvider: $nowProvider);
     }
 
     private function countRows(string $table): int

@@ -84,6 +84,38 @@ final class ImageTest extends TestCase
         }
     }
 
+    public function test_image_generation_request_validate_rejects_normalized_loopback_and_unspecified_literals(): void
+    {
+        foreach ([
+            '[0:0:0:0:0:0:0:1]',
+            '[::ffff:127.0.0.1]',
+            '[::ffff:7f00:1]',
+            '127.000.000.001',
+            '[::]',
+        ] as $host) {
+            $request = $this->request(['webhook_url' => 'https://'.$host.'/webhook']);
+
+            $this->assertContains(
+                'webhook_url must not target loopback, private, link-local or metadata addresses.',
+                $request->validate(),
+                sprintf('Expected %s to be rejected.', $host),
+            );
+        }
+    }
+
+    public function test_image_generation_request_validate_accepts_public_ip_webhooks(): void
+    {
+        foreach ([
+            'https://8.8.8.8/webhook',
+            'https://[2606:4700:4700::1111]/webhook',
+            'https://[::ffff:8.8.8.8]/webhook',
+        ] as $url) {
+            $request = $this->request(['webhook_url' => $url]);
+
+            $this->assertSame([], $request->validate(), sprintf('Expected %s to pass local validation.', $url));
+        }
+    }
+
     public function test_image_generation_request_validate_rejects_private_and_metadata_ip_webhooks(): void
     {
         foreach (['https://10.0.0.5/webhook', 'https://192.168.1.10/webhook', 'https://172.16.0.1/webhook', 'https://169.254.169.254/latest/meta-data/'] as $url) {
