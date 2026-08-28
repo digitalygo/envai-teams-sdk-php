@@ -12,6 +12,7 @@ use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\Curl\CurlTransport;
 use Digitalygo\Envai\Sync\DefinitionsService;
+use Digitalygo\Envai\Sync\State\SyncStateStore;
 use Digitalygo\Envai\Tools\Execution\ClientToolRegistry;
 use Psr\Log\LoggerInterface;
 
@@ -36,10 +37,14 @@ final readonly class EnvaiClient
 
     private ServiceContainer $services;
 
+    /**
+     * @param  \Closure(string, array<string, mixed>): SyncStateStore|null  $stateStoreResolver  Resolves the sync state store for a driver name and its options; the optional Laravel integration uses it for the `laravel` driver, the default resolution goes through StateStoreFactory.
+     */
     public function __construct(
         EnvaiConfig $config,
         ?HttpTransport $transport = null,
         ?LoggerInterface $logger = null,
+        ?\Closure $stateStoreResolver = null,
     ) {
         $this->config = $config;
         $this->transport = $transport ?? new CurlTransport;
@@ -66,6 +71,7 @@ final readonly class EnvaiClient
             requestTimeoutSeconds: $config->requestTimeoutSeconds,
             streamTimeoutSeconds: $config->streamTimeoutSeconds,
             config: $config,
+            stateStoreResolver: $stateStoreResolver,
         );
     }
 
@@ -147,10 +153,12 @@ final readonly class EnvaiClient
      * and the readiness gate. The connection defaults to the configured
      * connection name; the path defaults to the configured definitions
      * path (or `envai`).
+     *
+     * @param  \Closure(string, array<string, mixed>): SyncStateStore|null  $stateStoreResolver  Resolver override for the sync state store; when omitted the resolver wired at construction (if any) or StateStoreFactory is used.
      */
-    public function definitions(?string $definitionsPath = null, ?string $connection = null): DefinitionsService
+    public function definitions(?string $definitionsPath = null, ?string $connection = null, ?\Closure $stateStoreResolver = null): DefinitionsService
     {
-        return $this->services->definitions($definitionsPath, $connection);
+        return $this->services->definitions($definitionsPath, $connection, $stateStoreResolver);
     }
 
     /**

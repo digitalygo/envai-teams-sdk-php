@@ -5,3 +5,8 @@ parameters:
     tmpDir: .phpstan
     excludePaths:
         - .phpstan
+        # The optional Laravel integration references Illuminate classes
+        # that the core package never requires. It is type-checked in a
+        # dedicated run inside the Laravel test worktree, where the
+        # Illuminate packages are installed as dev dependencies.
+        - src/Integration/Laravel

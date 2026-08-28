@@ -17,6 +17,7 @@
             <directory>tests/Definitions</directory>
             <directory>tests/Sync</directory>
             <directory>tests/Tools</directory>
+            <directory>tests/Integration/Laravel</directory>
         </testsuite>
         <testsuite name="Functional">
             <directory>tests/Functional</directory>

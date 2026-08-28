@@ -30,6 +30,7 @@ use Digitalygo\Envai\Sync\Client\ClientRemoteReader;
 use Digitalygo\Envai\Sync\Client\ClientRemoteWriter;
 use Digitalygo\Envai\Sync\Client\StateStoreFactory;
 use Digitalygo\Envai\Sync\DefinitionsService;
+use Digitalygo\Envai\Sync\State\SyncStateStore;
 use Digitalygo\Envai\Tools\Contracts\ReflectionClientToolFactory;
 use Digitalygo\Envai\Tools\Execution\ClientToolRegistry;
 use Digitalygo\Envai\Tools\Security\JwksResolver;
@@ -96,6 +97,9 @@ final class ServiceContainer
      */
     private array $clientToolRuntimes = [];
 
+    /**
+     * @param  \Closure(string, array<string, mixed>): SyncStateStore|null  $stateStoreResolver  Resolves the sync state store for a driver name and its options; the optional Laravel integration uses it for the `laravel` driver, the default resolution goes through StateStoreFactory.
+     */
     public function __construct(
         private RequestExecutor $executor,
         private UriResolver $uris,
@@ -108,6 +112,7 @@ final class ServiceContainer
             baseUrl: 'https://api.invalid',
             apiKey: new SensitiveString('unused'),
         ),
+        private readonly ?\Closure $stateStoreResolver = null,
     ) {}
 
     public function workspaces(): WorkspacesService
@@ -229,8 +234,10 @@ final class ServiceContainer
      * connection name; the path defaults to the configured definitions
      * path (or `envai`). The state store driver defaults to `file` (or
      * the configured driver) with the configured file path.
+     *
+     * @param  \Closure(string, array<string, mixed>): SyncStateStore|null  $stateStoreResolver  Resolver override; when omitted the resolver wired at construction (if any) or StateStoreFactory is used. The cache is keyed by connection + path only: the resolver must be stable per client.
      */
-    public function definitions(?string $definitionsPath = null, ?string $connection = null): DefinitionsService
+    public function definitions(?string $definitionsPath = null, ?string $connection = null, ?\Closure $stateStoreResolver = null): DefinitionsService
     {
         $connection ??= $this->config->connectionName;
         $path = $definitionsPath ?? $this->config->definitionsPath ?? 'envai';
@@ -244,10 +251,7 @@ final class ServiceContainer
         $reader = new ClientRemoteReader($this->tools(), $this->agents(), $this->teams(), $this->models());
         $writer = new ClientRemoteWriter($this->tools(), $this->agents(), $this->teams());
 
-        $store = (new StateStoreFactory)->create(
-            $this->config->stateDriver ?? 'file',
-            ['path' => $this->config->stateFilePath ?? '.envai'],
-        );
+        $store = $this->stateStore($stateStoreResolver);
 
         return $this->definitions[$key] = new DefinitionsService(
             compiler: new DefinitionCompiler,
@@ -259,6 +263,28 @@ final class ServiceContainer
             factory: new ReflectionClientToolFactory,
             catalogProvider: fn (): ?array => $reader->listModelIds(),
         );
+    }
+
+    /**
+     * Resolves the sync state store for the configured driver: through
+     * the resolver closure when one is wired (the optional Laravel
+     * integration resolves its `laravel` driver there), otherwise
+     * through StateStoreFactory.
+     *
+     * @param  \Closure(string, array<string, mixed>): SyncStateStore|null  $stateStoreResolver
+     */
+    private function stateStore(?\Closure $stateStoreResolver): SyncStateStore
+    {
+        $driver = $this->config->stateDriver ?? 'file';
+        $options = ['path' => $this->config->stateFilePath ?? '.envai'];
+
+        $resolver = $stateStoreResolver ?? $this->stateStoreResolver;
+
+        if ($resolver !== null) {
+            return $resolver($driver, $options);
+        }
+
+        return (new StateStoreFactory)->create($driver, $options);
     }
 
     /**
