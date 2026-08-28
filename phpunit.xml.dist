@@ -12,6 +12,10 @@
             <directory>tests/Http</directory>
             <directory>tests/Models</directory>
             <directory>tests/Pagination</directory>
+            <directory>tests/Client</directory>
+            <directory>tests/Streaming</directory>
+            <directory>tests/Definitions</directory>
+            <directory>tests/Tools</directory>
         </testsuite>
         <testsuite name="Functional">
             <directory>tests/Functional</directory>
