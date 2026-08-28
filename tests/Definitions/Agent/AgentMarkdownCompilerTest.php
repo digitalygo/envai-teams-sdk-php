@@ -12,7 +12,7 @@ use Digitalygo\Envai\Tests\Definitions\DefinitionsTestCase;
 
 final class AgentMarkdownCompilerTest extends DefinitionsTestCase
 {
-    public function test_compiles_the_project_document_example_verbatim(): void
+    public function test_compiles_the_project_document_example(): void
     {
         $path = $this->writeAgentFile('researcher', <<<'MARKDOWN'
         ---
@@ -61,7 +61,7 @@ final class AgentMarkdownCompilerTest extends DefinitionsTestCase
         $this->assertSame(['temperature' => 0.2, 'timeout_seconds' => 180], $agent->config->toArray());
         $this->assertSame([], $agent->extra);
         $this->assertSame(
-            "\nYou are a research specialist.\n\nCollect evidence for the assigned task and report uncertainty explicitly.",
+            "You are a research specialist.\n\nCollect evidence for the assigned task and report uncertainty explicitly.",
             $agent->systemPrompt,
         );
     }
@@ -100,7 +100,7 @@ final class AgentMarkdownCompilerTest extends DefinitionsTestCase
 
         $this->assertSame([
             'name' => 'researcher',
-            'system_prompt' => "\nYou are a research specialist.\n\nCollect evidence for the assigned task and report uncertainty explicitly.",
+            'system_prompt' => "You are a research specialist.\n\nCollect evidence for the assigned task and report uncertainty explicitly.",
             'mode' => 'subagent',
             'can_write_knowledge' => false,
             'can_write_skills' => false,
@@ -136,16 +136,19 @@ final class AgentMarkdownCompilerTest extends DefinitionsTestCase
 
         $agent = (new AgentMarkdownCompiler)->compileFile($path);
 
-        $this->assertSame("\nLine one.\nLine two.\nLast line.\n", $agent->systemPrompt);
+        $this->assertSame("Line one.\nLine two.\nLast line.", $agent->systemPrompt);
     }
 
-    public function test_body_is_not_trimmed(): void
+    public function test_body_is_trimmed_to_match_the_platform_normalization(): void
     {
         $path = $this->writeAgentFile('agent', "---\nformat: 1\nname: agent\nmode: subagent\n---\n   \nBody with surrounding whitespace.   \n  ");
 
         $agent = (new AgentMarkdownCompiler)->compileFile($path);
 
-        $this->assertSame("   \nBody with surrounding whitespace.   \n  ", $agent->systemPrompt);
+        // The control plane stores prompts with leading and trailing
+        // whitespace stripped, so the compiler trims the body to keep the
+        // desired payload identical to the remote and sync drift-free.
+        $this->assertSame('Body with surrounding whitespace.', $agent->systemPrompt);
     }
 
     public function test_unknown_frontmatter_fields_are_preserved_as_extra(): void

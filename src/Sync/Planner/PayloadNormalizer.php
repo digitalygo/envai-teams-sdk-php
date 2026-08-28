@@ -140,6 +140,11 @@ final class PayloadNormalizer
                     }
                 }
 
+                // Server-side enrichment of member records: the agent name
+                // duplicates agent_definition_id and the position mirrors
+                // the array order, so both normalize away for comparison.
+                unset($member['name'], $member['position']);
+
                 $members[] = $member;
             }
 

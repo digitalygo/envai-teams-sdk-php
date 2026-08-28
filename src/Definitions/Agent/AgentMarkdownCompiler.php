@@ -66,8 +66,9 @@ final class AgentMarkdownCompiler
 
     /**
      * Splits a file into its YAML frontmatter and its markdown body. The
-     * body is never trimmed: everything after the closing delimiter line
-     * is preserved as-is (with newlines already normalized to \n).
+     * body is returned as-is here; the final system prompt trims its
+     * leading and trailing whitespace to match the platform's
+     * normalization (with newlines already normalized to \n).
      *
      * @return array{0: string, 1: string}
      */
@@ -163,7 +164,7 @@ final class AgentMarkdownCompiler
             localKey: $localKey,
             name: $name,
             description: $description,
-            systemPrompt: $body,
+            systemPrompt: trim($body),
             mode: $mode,
             model: $model,
             serverTools: $serverTools,
