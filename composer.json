@@ -23,7 +23,12 @@
         "ext-fileinfo": "Required to detect the MIME type of multipart file uploads",
         "ext-pdo_mysql": "Required to use the MySQL or MariaDB database state store",
         "ext-pdo_pgsql": "Required to use the PostgreSQL database state store",
-        "ext-pdo_sqlite": "Required to use the SQLite database state store"
+        "ext-pdo_sqlite": "Required to use the SQLite database state store",
+        "illuminate/config": "Required to publish and read the package config (^11.0|^12.0|^13.0)",
+        "illuminate/console": "Required to register the Envai artisan commands (^11.0|^12.0|^13.0)",
+        "illuminate/contracts": "Required for the Laravel service provider and its contracts (^11.0|^12.0|^13.0)",
+        "illuminate/database": "Required to use the Laravel database sync state store (^11.0|^12.0|^13.0)",
+        "illuminate/support": "Required for the ServiceProvider and support classes used by the Laravel integration (^11.0|^12.0|^13.0)"
     },
     "autoload": {
         "psr-4": {
@@ -41,7 +46,12 @@
     "scripts": {
         "test": "phpunit",
         "stan": "phpstan analyse",
-        "fix": "pint"
+        "fix": "pint",
+        "check": [
+            "pint --test",
+            "phpstan analyse",
+            "phpunit"
+        ]
     },
     "config": {
         "sort-packages": true
