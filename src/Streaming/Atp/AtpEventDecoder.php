@@ -56,18 +56,34 @@ use Digitalygo\Envai\Streaming\Events\UnknownEvent;
  *
  * Additive unknown fields are tolerated at every level and preserved in the
  * matching `extra` property.
+ *
+ * `agent.tool.request` `args` is preserved wire-faithfully: the alpha
+ * gateway omits the `args` field when the LLM passes no arguments and
+ * signs the preimage over `{}`, so absent or null `args` decode to an
+ * empty object; nested objects and arrays keep their JSON semantics
+ * (`{}` vs `[]`) at every depth via the typed JsonObject/JsonArray
+ * structure.
  */
 final class AtpEventDecoder
 {
     public function decode(string $json): AtpEvent
     {
-        $decoded = $this->decodeObject($json);
+        $tree = $this->decodeObject($json);
+
+        /** @var array<string, mixed> $decoded */
+        $decoded = self::assoc($tree);
         $this->assertProtocolVersion($decoded);
 
         $envelope = $this->buildEnvelope($decoded);
 
         /** @var array<string, mixed> $data */
         $data = $decoded['data'];
+
+        // The decoded object tree keeps the wire distinction between `{}`
+        // and `[]` that the associative form loses; args-bearing events
+        // read their args from it.
+        $dataNode = get_object_vars($tree)['data'] ?? null;
+        $treeData = $dataNode instanceof \stdClass ? $dataNode : new \stdClass;
 
         if ($envelope->type === 'ping') {
             return $this->decodePing($envelope, $data);
@@ -94,19 +110,19 @@ final class AtpEventDecoder
             'agent.reasoning.delta' => $this->decodeAgentReasoningDelta($envelope, $data),
             'agent.reasoning.done' => $this->decodeAgentReasoningDone($envelope, $data),
             'agent.delegated' => $this->decodeAgentDelegated($envelope, $data),
-            'agent.tool.start' => $this->decodeAgentToolStart($envelope, $data),
+            'agent.tool.start' => $this->decodeAgentToolStart($envelope, $data, $treeData),
             'agent.tool.delta' => $this->decodeAgentToolDelta($envelope, $data),
             'agent.tool.complete' => $this->decodeAgentToolComplete($envelope, $data),
-            'agent.tool.request' => $this->decodeAgentToolRequest($envelope, $data),
+            'agent.tool.request' => $this->decodeAgentToolRequest($envelope, $data, $treeData),
             'agent.tool.result' => $this->decodeAgentToolResult($envelope, $data),
-            'agent.escalate' => $this->decodeAgentEscalate($envelope, $data),
+            'agent.escalate' => $this->decodeAgentEscalate($envelope, $data, $treeData),
             'agent.escalation.result' => $this->decodeAgentEscalationResult($envelope, $data),
             'agent.artifact' => $this->decodeAgentArtifact($envelope, $data),
             'agent.context.compacting' => $this->decodeAgentContextCompacting($envelope, $data),
             'agent.context.compacted' => $this->decodeAgentContextCompacted($envelope, $data),
             'agent.done' => $this->decodeAgentDone($envelope, $data),
             'agent.failed' => $this->decodeAgentFailed($envelope, $data),
-            'approval.request' => $this->decodeApprovalRequest($envelope, $data),
+            'approval.request' => $this->decodeApprovalRequest($envelope, $data, $treeData),
             'approval.response' => $this->decodeApprovalResponse($envelope, $data),
             'approval.expire' => $this->decodeApprovalExpire($envelope, $data),
             default => new UnknownEvent($envelope, new JsonObject($data)),
@@ -114,9 +130,11 @@ final class AtpEventDecoder
     }
 
     /**
-     * @return array<string, mixed>
+     * Decodes the wire payload once as a JSON object tree (stdClass for
+     * objects, arrays for lists) so empty containers keep their JSON
+     * semantics.
      */
-    private function decodeObject(string $json): array
+    private function decodeObject(string $json): \stdClass
     {
         try {
             $decoded = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
@@ -128,10 +146,38 @@ final class AtpEventDecoder
             throw new ProtocolViolationException(sprintf('ATP event must be a JSON object, got %s.', get_debug_type($decoded)));
         }
 
-        /** @var array<string, mixed> $envelope */
-        $envelope = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        /** @var \stdClass $decoded */
+        return $decoded;
+    }
 
-        return $envelope;
+    /**
+     * Converts the decoded JSON object tree to the associative shape
+     * json_decode(..., true) produces, so every existing reader keeps
+     * working unchanged.
+     */
+    private static function assoc(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $result = [];
+
+            foreach (get_object_vars($value) as $key => $item) {
+                $result[$key] = self::assoc($item);
+            }
+
+            return $result;
+        }
+
+        if (is_array($value)) {
+            $items = [];
+
+            foreach ($value as $item) {
+                $items[] = self::assoc($item);
+            }
+
+            return $items;
+        }
+
+        return $value;
     }
 
     /**
@@ -446,13 +492,13 @@ final class AtpEventDecoder
     /**
      * @param  array<string, mixed>  $data
      */
-    private function decodeAgentToolStart(EventEnvelope $envelope, array $data): AtpEvent
+    private function decodeAgentToolStart(EventEnvelope $envelope, array $data, \stdClass $treeData): AtpEvent
     {
         $violations = [];
         $callId = Payload::string($data, 'call_id', $violations, 'agent.tool.start');
         $toolName = Payload::string($data, 'tool_name', $violations, 'agent.tool.start');
         $kind = Payload::toolKind($data, 'kind', $violations, 'agent.tool.start');
-        $args = Payload::object($data, 'args', $violations, 'agent.tool.start');
+        $args = Payload::treeObject($treeData, 'args', $violations, 'agent.tool.start');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
@@ -460,7 +506,7 @@ final class AtpEventDecoder
 
         assert($callId !== null && $toolName !== null && $kind !== null && $args !== null);
 
-        return new AgentToolStartEvent($envelope, $callId, $toolName, $kind, new JsonObject($args), Payload::extra($data, ['call_id', 'tool_name', 'kind', 'args']));
+        return new AgentToolStartEvent($envelope, $callId, $toolName, $kind, $args, Payload::extra($data, ['call_id', 'tool_name', 'kind', 'args']));
     }
 
     /**
@@ -504,14 +550,14 @@ final class AtpEventDecoder
     /**
      * @param  array<string, mixed>  $data
      */
-    private function decodeAgentToolRequest(EventEnvelope $envelope, array $data): AtpEvent
+    private function decodeAgentToolRequest(EventEnvelope $envelope, array $data, \stdClass $treeData): AtpEvent
     {
         $violations = [];
         $callId = Payload::string($data, 'call_id', $violations, 'agent.tool.request');
         $toolName = Payload::string($data, 'tool_name', $violations, 'agent.tool.request');
         $kind = Payload::toolKind($data, 'kind', $violations, 'agent.tool.request');
-        $args = Payload::object($data, 'args', $violations, 'agent.tool.request');
         $signature = Payload::signature($data, 'signature', $violations, 'agent.tool.request');
+        $args = Payload::requestArgs($treeData, $violations, 'agent.tool.request');
 
         if ($kind !== null && $kind !== ToolKind::Client) {
             $violations[] = sprintf('agent.tool.request: payload field "kind" must be "client", got "%s".', $kind->value);
@@ -523,7 +569,7 @@ final class AtpEventDecoder
 
         assert($callId !== null && $toolName !== null && $kind !== null && $args !== null && $signature !== null);
 
-        return new AgentToolRequestEvent($envelope, $callId, $toolName, $kind, new JsonObject($args), $signature, Payload::extra($data, ['call_id', 'tool_name', 'kind', 'args', 'signature']));
+        return new AgentToolRequestEvent($envelope, $callId, $toolName, $kind, $args, $signature, Payload::extra($data, ['call_id', 'tool_name', 'kind', 'args', 'signature']));
     }
 
     /**
@@ -548,14 +594,14 @@ final class AtpEventDecoder
     /**
      * @param  array<string, mixed>  $data
      */
-    private function decodeAgentEscalate(EventEnvelope $envelope, array $data): AtpEvent
+    private function decodeAgentEscalate(EventEnvelope $envelope, array $data, \stdClass $treeData): AtpEvent
     {
         $violations = [];
         $escalationId = Payload::string($data, 'escalation_id', $violations, 'agent.escalate');
         $agentId = Payload::string($data, 'agent_id', $violations, 'agent.escalate');
         $reason = Payload::string($data, 'reason', $violations, 'agent.escalate');
         $toolName = Payload::string($data, 'tool_name', $violations, 'agent.escalate');
-        $args = Payload::object($data, 'args', $violations, 'agent.escalate');
+        $args = Payload::treeObject($treeData, 'args', $violations, 'agent.escalate');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
@@ -563,7 +609,7 @@ final class AtpEventDecoder
 
         assert($escalationId !== null && $agentId !== null && $reason !== null && $toolName !== null && $args !== null);
 
-        return new AgentEscalateEvent($envelope, $escalationId, $agentId, $reason, $toolName, new JsonObject($args), Payload::extra($data, ['escalation_id', 'agent_id', 'reason', 'tool_name', 'args']));
+        return new AgentEscalateEvent($envelope, $escalationId, $agentId, $reason, $toolName, $args, Payload::extra($data, ['escalation_id', 'agent_id', 'reason', 'tool_name', 'args']));
     }
 
     /**
@@ -671,13 +717,13 @@ final class AtpEventDecoder
     /**
      * @param  array<string, mixed>  $data
      */
-    private function decodeApprovalRequest(EventEnvelope $envelope, array $data): AtpEvent
+    private function decodeApprovalRequest(EventEnvelope $envelope, array $data, \stdClass $treeData): AtpEvent
     {
         $violations = [];
         $approvalId = Payload::string($data, 'approval_id', $violations, 'approval.request');
         $originAgentId = Payload::string($data, 'origin_agent_id', $violations, 'approval.request');
         $toolName = Payload::string($data, 'tool_name', $violations, 'approval.request');
-        $args = Payload::object($data, 'args', $violations, 'approval.request');
+        $args = Payload::treeObject($treeData, 'args', $violations, 'approval.request');
         $reason = Payload::string($data, 'reason', $violations, 'approval.request');
         $deadline = Payload::string($data, 'deadline', $violations, 'approval.request');
 
@@ -687,7 +733,7 @@ final class AtpEventDecoder
 
         assert($approvalId !== null && $originAgentId !== null && $toolName !== null && $args !== null && $reason !== null && $deadline !== null);
 
-        return new ApprovalRequestEvent($envelope, $approvalId, $originAgentId, $toolName, new JsonObject($args), $reason, $deadline, Payload::extra($data, ['approval_id', 'origin_agent_id', 'tool_name', 'args', 'reason', 'deadline']));
+        return new ApprovalRequestEvent($envelope, $approvalId, $originAgentId, $toolName, $args, $reason, $deadline, Payload::extra($data, ['approval_id', 'origin_agent_id', 'tool_name', 'args', 'reason', 'deadline']));
     }
 
     /**

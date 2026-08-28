@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Tests\Streaming\Events;
 
 use Digitalygo\Envai\Exceptions\ProtocolVersionException;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
+use Digitalygo\Envai\Models\Json\CanonicalJsonSerializer;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Streaming\Atp\AtpEventDecoder;
@@ -378,6 +379,83 @@ final class AtpEventDecoderTest extends TestCase
 
         $this->assertInstanceOf(AgentStartedEvent::class, $event);
         $this->assertNull($event->parentId);
+    }
+
+    public function test_tool_request_without_args_decodes_with_empty_object_args(): void
+    {
+        // The alpha gateway omits the `args` field entirely when the LLM
+        // passes no arguments; it must decode to an empty object (`{}`),
+        // never a list (`[]`).
+        $envelope = Fixtures::sample('agent.tool.request');
+        unset($envelope['data']['args']);
+
+        $event = $this->decoder->decode($this->json($envelope));
+
+        $this->assertInstanceOf(AgentToolRequestEvent::class, $event);
+        $this->assertInstanceOf(JsonObject::class, $event->args);
+        $this->assertTrue($event->args->isEmpty());
+        $this->assertSame('{}', CanonicalJsonSerializer::serialize($event->args));
+    }
+
+    public function test_tool_request_with_explicit_empty_object_args_keeps_object_semantics(): void
+    {
+        $envelope = Fixtures::sample('agent.tool.request');
+        $envelope['data']['args'] = new \stdClass;
+
+        $event = $this->decoder->decode($this->json($envelope));
+
+        $this->assertInstanceOf(AgentToolRequestEvent::class, $event);
+        $this->assertTrue($event->args->isEmpty());
+        $this->assertSame('{}', CanonicalJsonSerializer::serialize($event->args));
+    }
+
+    public function test_tool_request_args_preserve_nested_object_and_list_semantics(): void
+    {
+        $envelope = Fixtures::sample('agent.tool.request');
+        $envelope['data']['args'] = ['a' => new \stdClass, 'b' => [1, 2], 'c' => ['d' => new \stdClass]];
+
+        $event = $this->decoder->decode($this->json($envelope));
+
+        $this->assertInstanceOf(AgentToolRequestEvent::class, $event);
+        $this->assertSame('{"a":{},"b":[1,2],"c":{"d":{}}}', CanonicalJsonSerializer::serialize($event->args));
+        $this->assertInstanceOf(JsonObject::class, $event->args->get('a'));
+        $this->assertTrue($event->args->get('a')->isEmpty());
+        $this->assertInstanceOf(JsonArray::class, $event->args->get('b'));
+        $this->assertSame([1, 2], $event->args->get('b')->toArray());
+        $this->assertInstanceOf(JsonObject::class, $event->args->get('c'));
+        $this->assertInstanceOf(JsonObject::class, $event->args->get('c')->get('d'));
+    }
+
+    public function test_tool_request_args_as_list_is_a_violation_event(): void
+    {
+        $envelope = Fixtures::sample('agent.tool.request');
+        $envelope['data']['args'] = [1, 2];
+
+        $event = $this->decoder->decode($this->json($envelope));
+
+        $this->assertInstanceOf(ProtocolViolationEvent::class, $event);
+        $this->assertStringContainsString('must be an object', $event->violations[0]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function argsBearingEventsProvider(): iterable
+    {
+        yield 'agent.tool.start' => ['agent.tool.start'];
+        yield 'agent.escalate' => ['agent.escalate'];
+        yield 'approval.request' => ['approval.request'];
+    }
+
+    #[DataProvider('argsBearingEventsProvider')]
+    public function test_args_bearing_events_preserve_nested_object_semantics(string $type): void
+    {
+        $envelope = Fixtures::sample($type);
+        $envelope['data']['args'] = ['a' => new \stdClass];
+
+        $event = $this->decoder->decode($this->json($envelope));
+
+        $this->assertSame('{"a":{}}', CanonicalJsonSerializer::serialize($event->args));
     }
 
     public function test_client_tool_request_preserves_args_raw_and_signature(): void

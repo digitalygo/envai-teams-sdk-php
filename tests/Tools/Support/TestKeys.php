@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Tests\Tools\Support;
 
 use Digitalygo\Envai\Models\Json\CanonicalJsonSerializer;
+use Digitalygo\Envai\Models\Json\JsonObject;
 
 /**
  * Ed25519 key and JWKS helpers for the client tool runtime tests.
@@ -67,12 +68,17 @@ final class TestKeys
      * Signs the canonical preimage `call_id + "\n" + tool_name + "\n" +
      * canonical_json(args)` with the given secret key.
      *
+     * Args are canonicalized through the JsonObject wrapper so an empty
+     * argument list signs over `{}`, exactly like the gateway signer
+     * (which falls back to `{}` when args are missing or cannot be
+     * canonicalized).
+     *
      * @param  array<string, mixed>  $args
      * @param  non-empty-string  $secretKey
      */
     public static function sign(string $callId, string $toolName, array $args, string $secretKey): string
     {
-        $preimage = $callId."\n".$toolName."\n".CanonicalJsonSerializer::serialize($args);
+        $preimage = $callId."\n".$toolName."\n".CanonicalJsonSerializer::serialize(new JsonObject($args));
 
         return self::b64url(sodium_crypto_sign_detached($preimage, $secretKey));
     }

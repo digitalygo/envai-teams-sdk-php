@@ -21,7 +21,10 @@ use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
  *   use sig);
  * - the preimage is exactly
  *   `call_id + "\n" + tool_name + "\n" + canonical_json(args)` where the
- *   args are canonicalized per RFC 8785 over the raw decoded structure;
+ *   args are canonicalized per RFC 8785 over the typed JsonObject itself;
+ *   the wrapper carries the object/list semantics at depth 0 and the
+ *   decoder types every nested value, so a request without arguments
+ *   canonicalizes to `{}`, exactly like the gateway signer;
  * - the signature is base64url (padded or unpadded, both accepted) and is
  *   verified with sodium_crypto_sign_verify_detached.
  *
@@ -99,7 +102,7 @@ final class ToolRequestVerifier
     private function preimage(AgentToolRequestEvent $event): string
     {
         try {
-            $canonicalArgs = CanonicalJsonSerializer::serialize($event->args->toArray());
+            $canonicalArgs = CanonicalJsonSerializer::serialize($event->args);
         } catch (\InvalidArgumentException) {
             throw self::failure('the tool arguments cannot be canonicalized');
         }

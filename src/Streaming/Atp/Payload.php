@@ -181,6 +181,104 @@ final class Payload
     }
 
     /**
+     * Reads the `args` payload field of `agent.tool.request` from the
+     * decoded object tree, applying the documented alpha divergence: the
+     * live gateway omits the `args` field entirely when the LLM passes no
+     * arguments and signs the preimage over the empty object `{}`.
+     *
+     * Absent or null `args` therefore decode to an empty JsonObject
+     * (object semantics, never a list). A present value must be a JSON
+     * object; it is converted to a typed JsonObject whose nested values
+     * preserve `{}` vs `[]` at every depth.
+     *
+     * @param  list<string>  $violations
+     */
+    public static function requestArgs(\stdClass $data, array &$violations, string $type): ?JsonObject
+    {
+        $fields = get_object_vars($data);
+
+        if (! array_key_exists('args', $fields) || $fields['args'] === null) {
+            return new JsonObject([]);
+        }
+
+        return self::treeObject($data, 'args', $violations, $type);
+    }
+
+    /**
+     * Validates an args-like JSON object payload field against the
+     * decoded object tree (json_decode with objects, not associative
+     * arrays): the field must be present and a JSON object, not a list.
+     * Empty containers keep their wire semantics, so `{}` is accepted and
+     * `[]` is rejected, and the object is returned as a typed JsonObject
+     * preserving nested `{}` vs `[]` at every depth.
+     *
+     * @param  list<string>  $violations
+     */
+    public static function treeObject(\stdClass $data, string $key, array &$violations, string $type): ?JsonObject
+    {
+        $fields = get_object_vars($data);
+
+        if (! array_key_exists($key, $fields)) {
+            $violations[] = sprintf('%s: payload field "%s" is required.', $type, $key);
+
+            return null;
+        }
+
+        $value = $fields[$key];
+
+        if (! $value instanceof \stdClass) {
+            $violations[] = sprintf('%s: payload field "%s" must be an object, got %s.', $type, $key, get_debug_type($value));
+
+            return null;
+        }
+
+        $result = [];
+
+        foreach (get_object_vars($value) as $itemKey => $item) {
+            if (is_string($itemKey)) {
+                $result[$itemKey] = self::typed($item);
+            }
+        }
+
+        return new JsonObject($result);
+    }
+
+    /**
+     * Converts a value decoded from the JSON object tree into the typed
+     * Json structure: JSON objects become JsonObject, JSON arrays become
+     * JsonArray, recursively; scalars and null stay untouched. Because
+     * stdClass distinguishes an empty object from an empty array, this
+     * preserves `{}` vs `[]` at every depth, which plain associative
+     * arrays cannot.
+     */
+    public static function typed(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $result = [];
+
+            foreach (get_object_vars($value) as $key => $item) {
+                if (is_string($key)) {
+                    $result[$key] = self::typed($item);
+                }
+            }
+
+            return new JsonObject($result);
+        }
+
+        if (is_array($value)) {
+            $items = [];
+
+            foreach ($value as $item) {
+                $items[] = self::typed($item);
+            }
+
+            return new JsonArray($items);
+        }
+
+        return $value;
+    }
+
+    /**
      * Validates a nested Usage object. `costUsd`, `durationMs` and
      * `spriteMs` stay nullable because the alpha can emit incomplete usage.
      *
