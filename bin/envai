@@ -1,0 +1,44 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Symfony\Component\Console\Application;
+
+$autoloadCandidates = [
+    __DIR__.'/../vendor/autoload.php',
+    __DIR__.'/../../../autoload.php',
+];
+
+$autoloaded = false;
+
+foreach ($autoloadCandidates as $autoload) {
+    if (is_file($autoload)) {
+        require $autoload;
+        $autoloaded = true;
+
+        break;
+    }
+}
+
+if (! $autoloaded) {
+    fwrite(STDERR, 'Unable to locate the Composer autoloader. Run `composer install` first.'.PHP_EOL);
+    exit(1);
+}
+
+$application = new Application('Envai ATP PHP SDK', '0.1.0');
+
+/*
+ * Command registry.
+ *
+ * Extension point: add the concrete command classes discovered from the
+ * Digitalygo\Envai\Sync\Console namespace here as they are implemented in
+ * later waves. The list is static and intentionally empty in wave 0.
+ */
+$commands = [];
+
+foreach ($commands as $command) {
+    $application->add($command);
+}
+
+$application->run();

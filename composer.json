@@ -1,0 +1,49 @@
+{
+    "name": "digitalygo/atp-php-sdk",
+    "description": "Official PHP SDK for Envai: a framework-independent typed HTTP client and an ATP v2 runtime for chat, streaming, definitions and client tools.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-pdo": "*",
+        "ext-sodium": "*",
+        "psr/log": "^3.0",
+        "symfony/console": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.27",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.5"
+    },
+    "suggest": {
+        "ext-fileinfo": "Required to detect the MIME type of multipart file uploads",
+        "ext-pdo_mysql": "Required to use the MySQL or MariaDB database state store",
+        "ext-pdo_pgsql": "Required to use the PostgreSQL database state store",
+        "ext-pdo_sqlite": "Required to use the SQLite database state store"
+    },
+    "autoload": {
+        "psr-4": {
+            "Digitalygo\\Envai\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Digitalygo\\Envai\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/envai"
+    ],
+    "scripts": {
+        "test": "phpunit",
+        "stan": "phpstan analyse",
+        "fix": "pint"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

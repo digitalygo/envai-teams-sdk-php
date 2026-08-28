@@ -1,0 +1,7 @@
+/vendor/
+/.envai
+/.phpunit.cache/
+/.phpunit.result.cache
+/.phpstan/
+.DS_Store
+/composer.lock
