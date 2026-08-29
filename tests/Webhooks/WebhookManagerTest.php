@@ -41,6 +41,8 @@ final class WebhookManagerTest extends TestCase
         $this->assertNotNull($result->event);
         $this->assertSame(hash('sha256', '{"event_id":"evt_1","type":"created"}'), $result->payloadHash);
         $this->assertSame('evt_1', $result->event?->eventId);
+        $this->assertSame('created', $store->claimedKey?->eventType);
+        $this->assertSame('req_1', $store->claimedKey?->requestId);
     }
 
     public function test_verifier_failure_has_no_store_or_dispatch_side_effect(): void
@@ -259,10 +261,8 @@ final class RecordingVerifier implements WebhookVerifier
             throw $this->failure;
         }
 
-        return new WebhookVerificationResult('evt_1', 'created');
+        return new WebhookVerificationResult('evt_1', 'created', requestId: 'req_1');
     }
-
-    private array $emptyOrder = [];
 }
 
 final class RecordingDispatcher implements WebhookDispatcher
@@ -293,13 +293,13 @@ final class RecordingDispatcher implements WebhookDispatcher
             throw $this->failure;
         }
     }
-
-    private array $emptyOrder = [];
 }
 
 final class RecordingStore implements WebhookIdempotencyStore
 {
     public int $claimCalls = 0;
+
+    public ?WebhookIdempotencyKey $claimedKey = null;
 
     public int $markDispatchedCalls = 0;
 
@@ -327,6 +327,7 @@ final class RecordingStore implements WebhookIdempotencyStore
     public function claim(WebhookIdempotencyKey $key): WebhookClaimResult
     {
         $this->claimCalls++;
+        $this->claimedKey = $key;
         $this->order[] = 'claim';
 
         if ($this->claimFailure !== null) {
@@ -351,6 +352,4 @@ final class RecordingStore implements WebhookIdempotencyStore
         $this->markFailedCalls++;
         $this->order[] = 'mark_failed';
     }
-
-    private array $emptyOrder = [];
 }

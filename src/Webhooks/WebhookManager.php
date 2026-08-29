@@ -45,7 +45,13 @@ final readonly class WebhookManager
         $payloadHash = hash('sha256', $request->rawBody);
 
         try {
-            $key = new WebhookIdempotencyKey($scope, $verification->eventId, $payloadHash);
+            $key = new WebhookIdempotencyKey(
+                scope: $scope,
+                eventId: $verification->eventId,
+                payloadHash: $payloadHash,
+                eventType: $verification->eventType,
+                requestId: $verification->requestId,
+            );
             $claim = $this->idempotencyStore->claim($key);
         } catch (\Throwable) {
             return new WebhookProcessingResult(WebhookOutcome::StoreFailed, $payloadHash);
