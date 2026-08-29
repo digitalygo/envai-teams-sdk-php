@@ -418,6 +418,101 @@ final class ImageTest extends TestCase
         $this->assertSame(['family' => 'image'], $entry->extra);
     }
 
+    public function test_model_setting_hydrates_live_numeric_ranges_without_casting(): void
+    {
+        foreach ([
+            'float range' => ['guidance', 'float', [1.5, 10]],
+            'integer range' => ['guidance_scale', 'float', [1, 20]],
+            'mixed range' => ['safety_tolerance', 'mixed', [0, 6]],
+        ] as $case => [$key, $type, $range]) {
+            $setting = ModelSetting::fromArray([
+                'key' => $key,
+                'type' => $type,
+                'providers' => ['replicate'],
+                'range' => $range,
+            ]);
+
+            $this->assertSame($range, $setting->range, $case);
+        }
+    }
+
+    public function test_model_setting_rejects_non_numeric_and_non_finite_range_values(): void
+    {
+        foreach ([
+            'string' => [[1, '20'], 'got string at index 1.'],
+            'boolean' => [[1, true], 'got bool at index 1.'],
+            'nan' => [[NAN, 20], 'got a non-finite float at index 0.'],
+            'infinity' => [[1, INF], 'got a non-finite float at index 1.'],
+        ] as $case => [$range, $expectedMessage]) {
+            try {
+                ModelSetting::fromArray([
+                    'key' => 'guidance',
+                    'type' => 'float',
+                    'providers' => ['replicate'],
+                    'range' => $range,
+                ]);
+
+                $this->fail(sprintf('Expected %s range to be rejected.', $case));
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertStringContainsString($expectedMessage, $exception->getMessage(), $case);
+            }
+        }
+    }
+
+    public function test_model_setting_rejects_non_list_range(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('must be a list of finite numbers, got an associative array.');
+
+        ModelSetting::fromArray([
+            'key' => 'guidance',
+            'type' => 'float',
+            'providers' => ['replicate'],
+            'range' => ['min' => 1.5, 'max' => 10],
+        ]);
+    }
+
+    public function test_model_setting_rejects_ranges_without_exactly_two_bounds(): void
+    {
+        foreach ([
+            'empty' => [],
+            'one bound' => [1],
+            'three bounds' => [1, 10, 20],
+        ] as $case => $range) {
+            try {
+                ModelSetting::fromArray([
+                    'key' => 'guidance',
+                    'type' => 'float',
+                    'providers' => ['replicate'],
+                    'range' => $range,
+                ]);
+
+                $this->fail(sprintf('Expected %s range to be rejected.', $case));
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertStringContainsString(
+                    'must contain exactly two values (minimum and maximum)',
+                    $exception->getMessage(),
+                    $case,
+                );
+            }
+        }
+    }
+
+    public function test_model_setting_round_trips_mixed_numeric_range(): void
+    {
+        $payload = [
+            'key' => 'guidance',
+            'type' => 'float',
+            'providers' => ['replicate'],
+            'range' => [1.5, 10],
+        ];
+
+        $setting = ModelSetting::fromArray($payload);
+
+        $this->assertSame($payload, $setting->toArray());
+        $this->assertSame('[1.5,10]', json_encode($setting->toArray()['range'], JSON_THROW_ON_ERROR));
+    }
+
     public function test_provider_webhook_payload_passes_through(): void
     {
         $payload = ProviderWebhookPayload::fromArray(['id' => 'job-matched', 'status' => 'processing', 'custom' => ['nested' => true]]);

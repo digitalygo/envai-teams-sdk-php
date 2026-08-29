@@ -19,7 +19,7 @@ final readonly class ModelSetting implements ArrayHydratable
     /**
      * @param  list<string>  $providers
      * @param  list<string>|null  $enum
-     * @param  list<int>|null  $range
+     * @param  list<int|float>|null  $range
      * @param  array<string, mixed>  $extra  Unknown payload keys preserved for forward compatibility.
      */
     public function __construct(
@@ -46,7 +46,7 @@ final readonly class ModelSetting implements ArrayHydratable
             providers: Wire::stringList($data, 'providers', $context),
             default: $data['default'] ?? null,
             enum: self::nullableStringList($data, 'enum', $context),
-            range: self::nullableIntList($data, 'range', $context),
+            range: self::nullableNumericList($data, 'range', $context),
             defaultsByProvider: Wire::nullableJsonObject($data, 'defaults_by_provider', $context),
             extra: Wire::extra($data, ['key', 'type', 'providers', 'default', 'enum', 'range', 'defaults_by_provider']),
         );
@@ -67,9 +67,9 @@ final readonly class ModelSetting implements ArrayHydratable
 
     /**
      * @param  array<string, mixed>  $data
-     * @return list<int>|null
+     * @return list<int|float>|null
      */
-    private static function nullableIntList(array $data, string $key, string $context): ?array
+    private static function nullableNumericList(array $data, string $key, string $context): ?array
     {
         if (! array_key_exists($key, $data) || $data[$key] === null) {
             return null;
@@ -79,21 +79,49 @@ final readonly class ModelSetting implements ArrayHydratable
 
         if (! is_array($value)) {
             throw new \InvalidArgumentException(sprintf(
-                '%s payload field "%s" must be an array, got %s.',
+                '%s payload field "%s" must be a list of finite numbers, got %s.',
                 $context,
                 $key,
                 get_debug_type($value),
             ));
         }
 
+        if (! array_is_list($value)) {
+            throw new \InvalidArgumentException(sprintf(
+                '%s payload field "%s" must be a list of finite numbers, got an associative array.',
+                $context,
+                $key,
+            ));
+        }
+
+        if (count($value) !== 2) {
+            throw new \InvalidArgumentException(sprintf(
+                '%s payload field "%s" must contain exactly two values (minimum and maximum), got %d.',
+                $context,
+                $key,
+                count($value),
+            ));
+        }
+
         $items = [];
 
-        foreach ($value as $item) {
-            if (! is_int($item)) {
+        foreach ($value as $index => $item) {
+            if (! is_int($item) && ! is_float($item)) {
                 throw new \InvalidArgumentException(sprintf(
-                    '%s payload field "%s" must be a list of integers, got a non-integer entry.',
+                    '%s payload field "%s" must be a list of finite numbers, got %s at index %d.',
                     $context,
                     $key,
+                    get_debug_type($item),
+                    $index,
+                ));
+            }
+
+            if (is_float($item) && ! is_finite($item)) {
+                throw new \InvalidArgumentException(sprintf(
+                    '%s payload field "%s" must contain only finite numbers, got a non-finite float at index %d.',
+                    $context,
+                    $key,
+                    $index,
                 ));
             }
 
