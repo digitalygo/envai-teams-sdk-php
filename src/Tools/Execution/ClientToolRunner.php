@@ -222,11 +222,23 @@ final readonly class ClientToolRunner
             return $this->handlerError($identity, $verified->callId, $exception);
         }
 
-        // Keep typed arguments intact through verification, then unwrap them
-        // for schema validation and the native handler contract.
-        /** @var array<string, mixed> $arguments */
         $arguments = self::toNative($verified->args);
-        $violations = self::validateArguments($arguments, $tool->schema());
+
+        if (! is_array($arguments)) {
+            throw new ProtocolViolationException('Verified client tool arguments must be a native array after conversion.');
+        }
+
+        $nativeArguments = [];
+
+        foreach ($arguments as $key => $value) {
+            if (! is_string($key)) {
+                throw new ProtocolViolationException('Verified client tool argument keys must remain strings after native conversion.');
+            }
+
+            $nativeArguments[$key] = $value;
+        }
+
+        $violations = self::validateArguments($nativeArguments, $tool->schema());
 
         if ($violations !== []) {
             $output = ToolResult::json([
@@ -243,7 +255,7 @@ final readonly class ClientToolRunner
             chatId: $identity->chatId,
             turnId: $event->envelope->turnId ?? '',
             callId: $verified->callId,
-            arguments: $arguments,
+            arguments: $nativeArguments,
         );
 
         $this->inFlight->add($verified->callId);
@@ -431,9 +443,6 @@ final readonly class ClientToolRunner
         );
     }
 
-    /**
-     * Recursively converts verified JSON wrappers to native PHP values.
-     */
     private static function toNative(mixed $value): mixed
     {
         if ($value instanceof JsonObject) {

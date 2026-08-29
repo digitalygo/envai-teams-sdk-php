@@ -740,11 +740,6 @@ final class ClientToolRunnerTest extends TestCase
         $this->assertIsArray($tool->receivedInvocations[0]->arguments['items'][0]['labels']);
     }
 
-    /**
-     * Builds a signed `agent.tool.request` wire envelope for runner tests.
-     *
-     * @param  array<string, mixed>  $args
-     */
     private function requestWire(string $callId, string $toolName, string $kid, string $signature, array $args): string
     {
         return json_encode([
