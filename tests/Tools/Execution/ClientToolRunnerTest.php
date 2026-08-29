@@ -10,7 +10,11 @@ use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\ServerException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Common\ApiError;
+use Digitalygo\Envai\Models\Json\CanonicalJsonSerializer;
+use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Streaming\Atp\AtpEventDecoder;
+use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Tests\Tools\Support\FlexibleTool;
 use Digitalygo\Envai\Tests\Tools\Support\RunnerHarness;
 use Digitalygo\Envai\Tests\Tools\Support\TestKeys;
@@ -658,5 +662,111 @@ final class ClientToolRunnerTest extends TestCase
         $record = $harness->record('call_01');
         $this->assertNotNull($record);
         $this->assertSame(ClientToolCallStatus::Ambiguous, $record->status);
+    }
+
+    public function test_signed_decoded_typed_arguments_are_unwrapped_after_verification(): void
+    {
+        $tool = new FlexibleTool(schema: [
+            'type' => 'object',
+            'properties' => [
+                'settings' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'region' => ['type' => 'string'],
+                        'overrides' => ['type' => 'object'],
+                    ],
+                ],
+                'items' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'object'],
+                ],
+            ],
+            'required' => ['settings', 'items'],
+        ]);
+        $harness = new RunnerHarness(
+            registry: ['report' => FlexibleTool::class],
+            instances: [FlexibleTool::class => $tool],
+        );
+
+        $callId = 'call_typed_01';
+        $toolName = 'report';
+        $wireArgs = [
+            'settings' => [
+                'region' => 'eu',
+                'overrides' => new \stdClass,
+            ],
+            'items' => [
+                ['id' => 'one', 'labels' => ['primary']],
+                new \stdClass,
+            ],
+        ];
+        $canonical = '{"items":[{"id":"one","labels":["primary"]},{}],"settings":{"overrides":{},"region":"eu"}}';
+        $signature = TestKeys::signPayload(
+            $callId."\n".$toolName."\n".$canonical,
+            $harness->keys['secret'],
+        );
+        $event = (new AtpEventDecoder)->decode($this->requestWire($callId, $toolName, $harness->kid, $signature, $wireArgs));
+
+        $this->assertInstanceOf(AgentToolRequestEvent::class, $event);
+        $this->assertSame($canonical, CanonicalJsonSerializer::serialize($event->args));
+
+        $verified = $harness->verifier->verify($event);
+        $settings = $verified->args->get('settings');
+        $this->assertInstanceOf(JsonObject::class, $settings);
+        $overrides = $settings->get('overrides');
+        $this->assertInstanceOf(JsonObject::class, $overrides);
+        $this->assertSame('{}', CanonicalJsonSerializer::serialize($overrides));
+        $this->assertInstanceOf(JsonArray::class, $verified->args->get('items'));
+
+        $result = $harness->runner->handle($event, self::CHAT_ID);
+
+        $this->assertSame(ToolRunOutcome::Executed, $result->outcome);
+        $this->assertSame(1, $tool->invocations);
+        $this->assertCount(1, $tool->receivedInvocations);
+        $this->assertSame([
+            'settings' => [
+                'region' => 'eu',
+                'overrides' => [],
+            ],
+            'items' => [
+                ['id' => 'one', 'labels' => ['primary']],
+                [],
+            ],
+        ], $tool->receivedInvocations[0]->arguments);
+        $this->assertIsArray($tool->receivedInvocations[0]->arguments['settings']);
+        $this->assertIsArray($tool->receivedInvocations[0]->arguments['settings']['overrides']);
+        $this->assertIsArray($tool->receivedInvocations[0]->arguments['items']);
+        $this->assertIsArray($tool->receivedInvocations[0]->arguments['items'][0]);
+        $this->assertIsArray($tool->receivedInvocations[0]->arguments['items'][0]['labels']);
+    }
+
+    /**
+     * Builds a signed `agent.tool.request` wire envelope for runner tests.
+     *
+     * @param  array<string, mixed>  $args
+     */
+    private function requestWire(string $callId, string $toolName, string $kid, string $signature, array $args): string
+    {
+        return json_encode([
+            'v' => 2,
+            'id' => 'evt_typed_01',
+            'seq' => 1,
+            'ts' => '2026-08-29T14:00:00Z',
+            'chat_id' => self::CHAT_ID,
+            'turn_id' => 'cmpl_test_1',
+            'agent' => null,
+            'type' => 'agent.tool.request',
+            'data' => [
+                'kind' => 'client',
+                'call_id' => $callId,
+                'tool_name' => $toolName,
+                'args' => $args,
+                'signature' => [
+                    'alg' => 'EdDSA',
+                    'kid' => $kid,
+                    'sig' => $signature,
+                ],
+            ],
+        ], JSON_THROW_ON_ERROR);
     }
 }

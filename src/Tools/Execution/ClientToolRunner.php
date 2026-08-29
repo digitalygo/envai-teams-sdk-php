@@ -7,6 +7,8 @@ namespace Digitalygo\Envai\Tools\Execution;
 use Digitalygo\Envai\Exceptions\ApiException;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\TransportException;
+use Digitalygo\Envai\Models\Json\JsonArray;
+use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
 use Digitalygo\Envai\Tools\Contracts\SafeToolMessageException;
@@ -220,7 +222,11 @@ final readonly class ClientToolRunner
             return $this->handlerError($identity, $verified->callId, $exception);
         }
 
-        $violations = self::validateArguments($verified->args->toArray(), $tool->schema());
+        // Keep typed arguments intact through verification, then unwrap them
+        // for schema validation and the native handler contract.
+        /** @var array<string, mixed> $arguments */
+        $arguments = self::toNative($verified->args);
+        $violations = self::validateArguments($arguments, $tool->schema());
 
         if ($violations !== []) {
             $output = ToolResult::json([
@@ -237,7 +243,7 @@ final readonly class ClientToolRunner
             chatId: $identity->chatId,
             turnId: $event->envelope->turnId ?? '',
             callId: $verified->callId,
-            arguments: $verified->args->toArray(),
+            arguments: $arguments,
         );
 
         $this->inFlight->add($verified->callId);
@@ -423,6 +429,44 @@ final readonly class ClientToolRunner
             self::MIN_DEADLINE_SECONDS,
             (float) $registered->timeoutSeconds - $this->options->submissionMarginSeconds,
         );
+    }
+
+    /**
+     * Recursively converts verified JSON wrappers to native PHP values.
+     */
+    private static function toNative(mixed $value): mixed
+    {
+        if ($value instanceof JsonObject) {
+            $converted = [];
+
+            foreach ($value->toArray() as $key => $item) {
+                $converted[$key] = self::toNative($item);
+            }
+
+            return $converted;
+        }
+
+        if ($value instanceof JsonArray) {
+            $converted = [];
+
+            foreach ($value->toArray() as $item) {
+                $converted[] = self::toNative($item);
+            }
+
+            return $converted;
+        }
+
+        if (is_array($value)) {
+            $converted = [];
+
+            foreach ($value as $key => $item) {
+                $converted[$key] = self::toNative($item);
+            }
+
+            return $converted;
+        }
+
+        return $value;
     }
 
     /**
