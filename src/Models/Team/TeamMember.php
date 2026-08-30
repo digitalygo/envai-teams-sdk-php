@@ -28,7 +28,7 @@ final readonly class TeamMember implements ArrayHydratable
     /**
      * @param  array<string, mixed>  $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data): static
     {
         $context = 'TeamMember';
 

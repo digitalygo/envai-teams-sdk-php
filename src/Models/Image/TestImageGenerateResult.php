@@ -31,7 +31,7 @@ final readonly class TestImageGenerateResult implements ArrayHydratable
     /**
      * @param  array<string, mixed>  $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data): static
     {
         $context = 'TestImageGenerateResult';
         $rawFiles = Wire::presentOrFail($data, 'files', $context);

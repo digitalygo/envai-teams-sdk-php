@@ -290,7 +290,19 @@ final readonly class ImageGenerationRequest
                 return null;
             }
 
-            return long2ip((int) hexdec($hex));
+            $packed = @hex2bin($hex);
+
+            if ($packed === false) {
+                return null;
+            }
+
+            $expanded = inet_ntop($packed);
+
+            if ($expanded === false) {
+                return null;
+            }
+
+            return $expanded;
         }
 
         if (! str_contains($host, ':')) {

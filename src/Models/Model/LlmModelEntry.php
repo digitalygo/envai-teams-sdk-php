@@ -34,7 +34,7 @@ final readonly class LlmModelEntry implements ArrayHydratable, ModelListEntry
     /**
      * @param  array<string, mixed>  $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data): static
     {
         $context = 'LlmModelEntry';
 

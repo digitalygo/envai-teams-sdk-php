@@ -33,7 +33,7 @@ final readonly class Team implements ArrayHydratable
     /**
      * @param  array<string, mixed>  $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data): static
     {
         $context = 'Team';
         $rawMembers = $data['members'] ?? null;
