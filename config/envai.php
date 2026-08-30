@@ -33,4 +33,16 @@ return [
         'connection' => env('ENVAI_STATE_DB_CONNECTION'),
         'table_prefix' => 'envai_sync_',
     ],
+
+    'webhooks' => [
+        'enabled' => env('ENVAI_WEBHOOKS_ENABLED', false),
+        'path' => env('ENVAI_WEBHOOKS_PATH', 'api/envai/webhooks'),
+        'verifier' => null,
+        'response_policy' => null,
+        'connection' => null,
+        'database_connection' => null,
+        'table' => 'envai_webhook_receipts',
+        'max_body_bytes' => 1048576,
+        'rate_limit_per_minute' => 30,
+    ],
 ];

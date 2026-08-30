@@ -31,7 +31,7 @@ final class EnvaiConfigTest extends IntegrationTestCase
     {
         $config = $this->config();
 
-        $this->assertSame(['default', 'connections', 'definitions', 'state'], array_keys($config));
+        $this->assertSame(['default', 'connections', 'definitions', 'state', 'webhooks'], array_keys($config));
     }
 
     public function test_default_connection_is_production(): void
@@ -81,6 +81,32 @@ final class EnvaiConfigTest extends IntegrationTestCase
     public function test_state_driver_defaults_to_file(): void
     {
         $this->assertSame('file', $this->config()['state']['driver']);
+    }
+
+    public function test_webhooks_shape_has_safe_defaults(): void
+    {
+        $webhooks = $this->config()['webhooks'];
+
+        $this->assertSame([
+            'enabled',
+            'path',
+            'verifier',
+            'response_policy',
+            'connection',
+            'database_connection',
+            'table',
+            'max_body_bytes',
+            'rate_limit_per_minute',
+        ], array_keys($webhooks));
+        $this->assertFalse($webhooks['enabled']);
+        $this->assertSame('api/envai/webhooks', $webhooks['path']);
+        $this->assertNull($webhooks['verifier']);
+        $this->assertNull($webhooks['response_policy']);
+        $this->assertNull($webhooks['connection']);
+        $this->assertNull($webhooks['database_connection']);
+        $this->assertSame('envai_webhook_receipts', $webhooks['table']);
+        $this->assertSame(1048576, $webhooks['max_body_bytes']);
+        $this->assertSame(30, $webhooks['rate_limit_per_minute']);
     }
 
     public function test_env_driven_values_are_read(): void
