@@ -6,13 +6,54 @@ The package is pre-1.0 and documents the behavior of the Envai `alpha` snapshot.
 
 ## Installation
 
-```bash
-composer require digitalygo/atp-php-sdk
+For a private GitHub repository, add the VCS repository to the consuming application's `composer.json`:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/digitalygo/envai-api-php-sdk"
+        }
+    ],
+    "require": {
+        "digitalygo/atp-php-sdk": "^0.1"
+    }
+}
 ```
+
+Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install a compatible pre-1.0 release:
+
+```bash
+composer config --global --auth github-oauth.github.com <TOKEN>
+composer require digitalygo/atp-php-sdk:^0.1
+```
+
+Commit the updated `composer.json` and `composer.lock`; subsequent environments can run `composer install` with the same GitHub authentication.
+
+## Versioning
+
+Versions use SemVer derived from Conventional Commits and managed by release-please: `feat:` produces a minor release, `fix:` a patch release, and breaking changes produce a minor release while the package is pre-1.0. Consumers install released tags.
 
 Requirements: PHP `^8.2`; the `curl`, `json`, `mbstring`, `pdo` and `sodium` extensions; a PSR-3 logger if you want log injection; Symfony Console and Symfony YAML for the core CLI.
 
 The core does not depend on Laravel. Illuminate packages (`illuminate/config`, `illuminate/console`, `illuminate/contracts`, `illuminate/database`, `illuminate/support`) are optional suggestions used only by the Laravel integration. PDO drivers for MySQL, PostgreSQL and SQLite are optional and only needed for the database state store.
+
+### Prerelease channels
+
+- The `alpha` and `beta` branches are prerelease channels. Each branch carries its own `release-please-config.json` with `"prerelease": true` and `"prerelease-type"` set to the channel name. They produce tags such as `v0.2.0-alpha.1` and `v0.2.0-beta.3`; GitHub marks those releases as pre-releases.
+- To promote a prerelease, merge its channel branch into `main`. The `Release` workflow then proposes the matching stable version.
+- Composer hides prerelease versions when `minimum-stability` is `stable`, the default. Opt in with a stability flag:
+
+```json
+{
+    "require": {
+        "digitalygo/atp-php-sdk": "^0.2@beta"
+    }
+}
+```
+
+`@beta` allows beta, alpha and dev versions. `@alpha` allows alpha and dev versions.
 
 ## Framework-independent configuration
 

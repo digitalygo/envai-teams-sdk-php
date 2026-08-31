@@ -1,0 +1,49 @@
+# Pre-release channels for digitalygo/atp-php-sdk.
+#
+# The alpha and beta branches each carry their own release-please-config.json
+# with "prerelease": true and their own "prerelease-type" (alpha / beta), so a
+# single workflow serves both channels: release-please reads the config and
+# the manifest from the tip of the target branch.
+#
+# Merging a prerelease release PR on a channel branch tags vX.Y.Z-alpha.N or
+# vX.Y.Z-beta.N and creates the GitHub Release as a pre-release. The first
+# release of a new minor has no number (e.g. 0.2.0-beta), later ones
+# increment it (0.2.0-beta.1, 0.2.0-beta.2, ...).
+#
+# Promoting to a stable release: merge the channel branch into main and merge
+# the release PR that the Release workflow opens. Expect deliberate merge
+# conflicts in release-please-config.json (keep main's version),
+# .release-please-manifest.json (keep main's version) and CHANGELOG.md
+# (keep both changelog sections).
+#
+# Action pinning: third-party actions are pinned by major-version tag
+# (@v5). Full-SHA pinning guarantees immutability but turns every
+# bump into a manual chore; tag pinning is the accepted tradeoff for
+# this repository.
+
+name: Pre-release
+
+on:
+  push:
+    branches: [alpha, beta]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prerelease-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Pre-release (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release
+        uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target-branch: ${{ github.ref_name }}
