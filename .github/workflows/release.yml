@@ -1,0 +1,35 @@
+# Release versions are derived from Conventional Commits by release-please.
+# This library stays pre-1.0; bump-minor-pre-major follows project document
+# section 32, so breaking changes bump the minor version until 1.0.0.
+# Merging the release PR creates the vX.Y.Z tag and GitHub Release; Composer
+# resolves this package from that tag.
+#
+# Action pinning: third-party actions are pinned by major-version tag
+# (@v5). Full-SHA pinning guarantees immutability but turns every
+# bump into a manual chore; tag pinning is the accepted tradeoff for
+# this repository.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release
+        uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
