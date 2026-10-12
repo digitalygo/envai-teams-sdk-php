@@ -150,6 +150,16 @@
           "minimum": 0,
           "default": 0,
           "description": "Time spent in the ephemeral Sprite sandbox, 0 when no code tool ran."
+        },
+        "sprite_ram_gb_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sprite RAM billed in GB-milliseconds, 0 when no code tool ran."
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tool invocations counted in the usage window."
         }
       }
     },
@@ -739,7 +749,39 @@
     "agent.context.compacting": {
       "type": "object",
       "additionalProperties": false,
-      "description": "No payload. Context compaction begins."
+      "description": "Context compaction begins. All fields are optional telemetry carried by the current implementation; a client must not require any of them.",
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "pattern": "^cmpl_[0-7][0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{25}$",
+          "description": "Turn id `cmpl_<ulid>` the compaction belongs to."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why compaction triggered, for example `tokens`."
+        },
+        "context_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Pre-compaction estimate of the context tokens."
+        },
+        "threshold_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Token count that triggered compaction: `window_tokens` times `threshold`."
+        },
+        "window_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Model context window in tokens."
+        },
+        "threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Fraction of the context window that triggers compaction, in (0, 1]."
+        }
+      }
     },
     "agent.context.compacted": {
       "type": "object",
@@ -751,6 +793,16 @@
         "new_context": {
           "type": "string",
           "description": "The summarized context that replaces the pruned history."
+        },
+        "turn_id": {
+          "type": "string",
+          "pattern": "^cmpl_[0-7][0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{25}$",
+          "description": "Turn id `cmpl_<ulid>` the compaction belongs to."
+        },
+        "context_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Pre-compaction estimate of the context tokens that were summarized."
         }
       }
     },
@@ -908,6 +960,54 @@
             "properties": {
               "seq": {
                 "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "turn.started",
+                  "turn.completed",
+                  "turn.cancelled",
+                  "turn.failed",
+                  "turn.steered",
+                  "agent.started",
+                  "agent.plan",
+                  "agent.text.delta",
+                  "agent.text.done",
+                  "agent.reasoning.delta",
+                  "agent.reasoning.done",
+                  "agent.delegated",
+                  "agent.tool.start",
+                  "agent.tool.delta",
+                  "agent.tool.complete",
+                  "agent.tool.request",
+                  "agent.tool.result",
+                  "agent.escalate",
+                  "agent.escalation.result",
+                  "agent.artifact",
+                  "agent.context.compacting",
+                  "agent.context.compacted",
+                  "agent.done",
+                  "agent.failed",
+                  "approval.request",
+                  "approval.response",
+                  "approval.expire"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "turn_id": {
+                "type": "string",
+                "pattern": "^cmpl_[0-7][0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{25}$"
               }
             }
           }

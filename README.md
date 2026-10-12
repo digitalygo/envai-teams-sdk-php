@@ -4,32 +4,40 @@ The official PHP SDK for Envai. It provides a framework-independent, typed HTTP 
 
 The package is pre-1.0 and documents the behavior of the Envai `alpha` snapshot. The limits of that implementation are called out in the [alpha limitations](#alpha-limitations) section.
 
+Current contract target: `envai-teams` commit `55275860c9a950eaad8e39e9d2b728149084779c`. See [current-server compatibility and migration notes](docs/CURRENT_SERVER_COMPATIBILITY.md), especially the new opaque-ID artifact download API and client-tool validation safeguards.
+
 ## Installation
 
-For a private GitHub repository, add the VCS repository to the consuming application's `composer.json`:
+The new Composer identity is `digitalygo/envai-teams-sdk-php`; PHP namespaces
+remain `Digitalygo\Envai`. This change is **unreleased**. Production consumers
+must wait for a real tagged release containing the rename before changing their
+requirement and lockfile. Existing tags and their source are not rewritten.
+
+For opt-in testing of this draft PR, add the private VCS repository and use its
+actual development branch in the consuming application's `composer.json`:
 
 ```json
 {
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/digitalygo/envai-api-php-sdk"
+            "url": "https://github.com/digitalygo/envai-teams-sdk-php"
         }
     ],
     "require": {
-        "digitalygo/atp-php-sdk": "^0.1"
+        "digitalygo/envai-teams-sdk-php": "dev-codex/current-server-compatibility-20261012"
     }
 }
 ```
 
-Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install a compatible pre-1.0 release:
+Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install the review branch:
 
 ```bash
 composer config --global --auth github-oauth.github.com <TOKEN>
-composer require digitalygo/atp-php-sdk:^0.1
+composer require digitalygo/envai-teams-sdk-php:dev-codex/current-server-compatibility-20261012
 ```
 
-Commit the updated `composer.json` and `composer.lock`; subsequent environments can run `composer install` with the same GitHub authentication.
+The development branch is for evaluation only. For the release-first migration, wait for the first new-name tag, require that actual version, and commit the resulting `composer.json` and `composer.lock`. Subsequent environments run `composer install` with the same GitHub authentication.
 
 ## Versioning
 
@@ -48,7 +56,7 @@ The core does not depend on Laravel. Illuminate packages (`illuminate/config`, `
 ```json
 {
     "require": {
-        "digitalygo/atp-php-sdk": "^0.2@beta"
+        "digitalygo/envai-teams-sdk-php": "^0.2@beta"
     }
 }
 ```

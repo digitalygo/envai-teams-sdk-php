@@ -11,10 +11,6 @@ use Digitalygo\Envai\Exceptions\ReplayGapException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
 use Digitalygo\Envai\Streaming\Events\PingEvent;
-use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
-use Digitalygo\Envai\Streaming\Events\TurnCancelledEvent;
-use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
-use Digitalygo\Envai\Streaming\Events\TurnFailedEvent;
 use Digitalygo\Envai\Streaming\Sse\SseParser;
 use Psr\Log\LoggerInterface;
 
@@ -129,34 +125,6 @@ final class ChatEventStream implements \IteratorAggregate
                     return;
                 }
 
-                $bytes = $this->connection->read($this->readChunkSize);
-
-                if ($bytes === null) {
-                    $this->token?->throwIfCancelled();
-
-                    if ($this->recovering) {
-                        $this->connection->close();
-                        $this->reconnectAttempts++;
-
-                        if ($this->reconnectAttempts >= $this->maxReconnectAttempts) {
-                            throw new TransportException(sprintf(
-                                'Replay recovery failed: %d reconnect attempt(s) delivered no events after the gap at seq %d.',
-                                $this->reconnectAttempts,
-                                $this->gapSeq,
-                            ));
-                        }
-
-                        $this->backoff();
-                        $this->openReconnectConnection();
-
-                        continue;
-                    }
-
-                    return;
-                }
-
-                $this->parser->feed($bytes);
-
                 while (($frame = $this->parser->nextFrame()) !== null) {
                     $this->token?->throwIfCancelled();
 
@@ -213,6 +181,35 @@ final class ChatEventStream implements \IteratorAggregate
 
                     yield $event;
                 }
+
+                $bytes = $this->connection->read($this->readChunkSize);
+
+                if ($bytes === null) {
+                    $this->token?->throwIfCancelled();
+
+                    if ($this->recovering) {
+                        $this->connection->close();
+                        $this->reconnectAttempts++;
+
+                        if ($this->reconnectAttempts >= $this->maxReconnectAttempts) {
+                            throw new TransportException(sprintf(
+                                'Replay recovery failed: %d reconnect attempt(s) delivered no events after the gap at seq %d.',
+                                $this->reconnectAttempts,
+                                $this->gapSeq,
+                            ));
+                        }
+
+                        $this->backoff();
+                        $this->openReconnectConnection();
+
+                        continue;
+                    }
+
+                    return;
+                }
+
+                $this->parser->feed($bytes);
+
             }
         } finally {
             $this->close();
@@ -238,7 +235,7 @@ final class ChatEventStream implements \IteratorAggregate
     }
 
     /**
-     * Blocks reading until the first `ping`, a terminal turn event, EOF or
+     * Blocks reading until the first `ping`, EOF or
      * the timeout elapses, whichever comes first.
      *
      * This is the send-message race workaround: the Envai alpha registers
@@ -285,12 +282,8 @@ final class ChatEventStream implements \IteratorAggregate
                     return true;
                 }
 
-                if ($this->isTerminal($event)) {
-                    $this->advanceCursor($event);
-
-                    return false;
-                }
-
+                // Historical terminal events are replay, not proof that the
+                // new live subscription is ready. Continue until the ping.
                 $this->advanceCursor($event);
             }
         }
@@ -393,21 +386,5 @@ final class ChatEventStream implements \IteratorAggregate
         if ($this->learnedChatId === null) {
             $this->learnedChatId = $event->envelope->chatId;
         }
-    }
-
-    private function isTerminal(AtpEvent $event): bool
-    {
-        if ($event instanceof TurnCompletedEvent || $event instanceof TurnCancelledEvent || $event instanceof TurnFailedEvent) {
-            return true;
-        }
-
-        if ($event instanceof ProtocolViolationEvent) {
-            return match ($event->envelope->type) {
-                'turn.completed', 'turn.cancelled', 'turn.failed' => true,
-                default => false,
-            };
-        }
-
-        return false;
     }
 }

@@ -235,9 +235,7 @@ final class Payload
         $result = [];
 
         foreach (get_object_vars($value) as $itemKey => $item) {
-            if (is_string($itemKey)) {
-                $result[$itemKey] = self::typed($item);
-            }
+            $result[$itemKey] = self::typed($item);
         }
 
         return new JsonObject($result);
@@ -257,9 +255,7 @@ final class Payload
             $result = [];
 
             foreach (get_object_vars($value) as $key => $item) {
-                if (is_string($key)) {
-                    $result[$key] = self::typed($item);
-                }
+                $result[$key] = self::typed($item);
             }
 
             return new JsonObject($result);
@@ -313,7 +309,9 @@ final class Payload
             costUsd: $costUsd,
             durationMs: $durationMs,
             spriteMs: $spriteMs,
-            extra: self::extra($value, ['input_tokens', 'output_tokens', 'cost_usd', 'duration_ms', 'sprite_ms']),
+            extra: self::extra($value, ['input_tokens', 'output_tokens', 'cost_usd', 'duration_ms', 'sprite_ms', 'sprite_ram_gb_ms', 'tool_calls']),
+            spriteRamGbMs: self::nullableInt($value, 'sprite_ram_gb_ms', $violations, $context),
+            toolCalls: self::nullableInt($value, 'tool_calls', $violations, $context),
         );
     }
 

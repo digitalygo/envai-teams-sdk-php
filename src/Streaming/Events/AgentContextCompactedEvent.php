@@ -17,6 +17,8 @@ final readonly class AgentContextCompactedEvent extends AtpEvent
         EventEnvelope $envelope,
         public string $newContext,
         array $extra = [],
+        public ?string $turnId = null,
+        public ?int $contextTokens = null,
     ) {
         parent::__construct($envelope, $extra);
     }

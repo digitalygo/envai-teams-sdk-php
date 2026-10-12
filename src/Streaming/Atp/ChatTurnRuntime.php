@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Streaming\Atp;
 
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
 
@@ -32,9 +33,17 @@ final class ChatTurnRuntime
      */
     public function send(string $message): ChatMessageAccepted
     {
-        $this->stream->waitLiveConfirmation();
+        try {
+            if (! $this->stream->waitLiveConfirmation()) {
+                throw new TransportException('The event stream ended or timed out before live confirmation; the message was not sent.');
+            }
 
-        return $this->sender->send($this->chatId(), $message);
+            return $this->sender->send($this->chatId(), $message);
+        } catch (\Throwable $exception) {
+            $this->stream->close();
+
+            throw $exception;
+        }
     }
 
     /**

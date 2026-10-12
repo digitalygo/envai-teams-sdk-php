@@ -46,8 +46,9 @@ paths:
         orchestrator loop, and the turn is identified by the orchestrator
         completion id `cmpl_<ulid>` returned as `turn_id`. The server emits
         `turn.started` with the message as the turn input. The request is
-        rejected with 409 when a turn is already in progress for the chat and
-        with 404 when the chat does not exist.
+        rejected with 409 when a turn is already in progress for the chat,
+        with 503 `server_error`/`gateway_draining` while the gateway is
+        draining, and with 404 when the chat does not exist.
       tags:
         - Chat execution
       parameters:
@@ -85,6 +86,8 @@ paths:
                   details: null
         '422':
           $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/GatewayDrainingError'
 
   /chats/{chat_id}/events:
     get:
@@ -1514,11 +1517,12 @@ paths:
       summary: List the LLM model catalog
       description: >
         Returns the LLM model catalog with team entries and the platform
-        defaults per role. LLM entries report `deprecated` and `sunset_at`;
-        removed models never appear, deprecated models appear with
-        `deprecated: true`. Team entries are the caller's teams. The response
-        is a top-level `{object, data, defaults}` object without a data
-        wrapper.
+        defaults per role. LLM entries report `deprecated` and `sunset_at` and
+        carry the informational OpenRouter metadata synchronized from the
+        upstream catalog; models unavailable upstream and models past sunset
+        never appear, deprecated models appear with `deprecated: true`. Team
+        entries are the caller's teams. The response is a top-level
+        `{object, data, defaults}` object without a data wrapper.
       tags:
         - Models
       security:
@@ -1720,8 +1724,8 @@ paths:
         `igr_<ulid>`. Requires an authenticated api key or web session: a
         missing or invalid token is rejected with 401. Access is scoped to the
         authenticated user: a record owned by another user, a legacy record
-        without an owner or an unknown id all answer the same 404. Timestamps
-        `submitted_at`, `completed_at` and `expires_at` are null until the
+        without an owner or an unknown id all answer the same 404. `expires_at` is always present and is exactly two hours after
+        creation; `submitted_at` and `completed_at` are null until the
         corresponding lifecycle phase happens; `result`, `error`, `files`,
         `price`, `usage`, `cost_usd` and `duration_ms` appear only when
         available.
@@ -1756,8 +1760,9 @@ paths:
         missing or invalid token is rejected with 401, and the route is
         throttled to 20 requests per minute per user (429 when exceeded). The
         file must be an image of type png, jpeg, webp or gif and at most 10240
-        kilobytes. The uploaded record is retained for 24 hours and returns id
-        `upl_<ulid>`. A per user disk quota applies: the summed `size` of the
+        kilobytes. The record is staged for two hours and binds to exactly one
+        generation; a bound upload cannot be reused by another generation. It
+        returns id `upl_<ulid>`. A per user disk quota applies: the summed `size` of the
         user's unexpired uploads cannot exceed the configurable
         `envai.images.upload_quota_bytes` cap (default 200 MiB), and crossing
         it answers 422 `The upload storage quota has been exceeded.`. When the
@@ -1825,22 +1830,25 @@ paths:
       operationId: downloadArtifact
       summary: Download a generated artifact
       description: >
-        Serves a generated artifact from the local disk through a relative
-        signed URL. The `path` and `signature` query parameters are required
-        and the signature must be valid (`signed:relative` middleware),
-        otherwise the request is rejected with 403. The optional `expires`
-        parameter is included in every temporary signed URL emitted by the
-        application; a permanent signed URL may omit it. The path must start
-        with `generated/` and must not contain traversal sequences or repeated
-        slashes, otherwise the request is rejected with 400. The body is the
-        raw artifact with the detected content type (png, jpeg, webp, svg or
+        Serves a generated artifact through a relative signed URL. The
+        `generation` (`igr_<ulid>`) and `artifact` (`art_<ulid>`) query
+        parameters are opaque identifiers covered by the signature, so
+        tampering with either value or with the signature is rejected with
+        403, and the caller can never select a disk or an object path. The
+        optional `expires` parameter is included in every temporary signed URL
+        and never exceeds the generation deadline. An expired signature, or an
+        unknown, expired, foreign, keyless or malformed generation, returns a
+        generic 404. The body is the decrypted
+        artifact with the recorded content type (png, jpeg, webp, svg or
         octet-stream), `Content-Disposition: attachment`,
-        `X-Content-Type-Options: nosniff` and a restrictive
-        `Content-Security-Policy`. No authentication.
+        `X-Content-Type-Options: nosniff`, a restrictive
+        `Content-Security-Policy` and `Cache-Control: no-store`. No
+        authentication.
       tags:
         - Artifacts
       parameters:
-        - $ref: '#/components/parameters/ArtifactPath'
+        - $ref: '#/components/parameters/ArtifactGeneration'
+        - $ref: '#/components/parameters/ArtifactArtifact'
         - $ref: '#/components/parameters/ArtifactExpires'
         - $ref: '#/components/parameters/ArtifactSignature'
       security: []
@@ -1884,8 +1892,11 @@ paths:
               schema:
                 type: string
                 example: "default-src 'none'; style-src 'unsafe-inline'"
-        '400':
-          $ref: '#/components/responses/InvalidRequestError'
+            Cache-Control:
+              description: Always `no-store`
+              schema:
+                type: string
+                example: no-store
         '403':
           $ref: '#/components/responses/AccessDeniedError'
         '404':
@@ -1903,10 +1914,12 @@ paths:
         provider specific JSON object; an empty body is tolerated by the
         parsers. The optional `callback_token` query
         parameter matches the attempt callback token, with fallback to
-        provider job and request id lookup. Webhooks that match an attempt are
-        applied to the lifecycle, unmatched webhooks are recorded as orphan
-        events and duplicates are ignored; all three cases answer 200 with
-        `{status: ok}` without a data wrapper. Signature headers are optional
+        provider job and request id lookup. A webhook is processed only when it matches an
+        active request and attempt. Unknown, unmatched, expired and late
+        callbacks return the same generic 200 `{status: ok}` without a data
+        wrapper and persist no row, hash or payload; matched duplicates are
+        dropped idempotently. Every callback passes through one uniform
+        provider webhook rate limit applied before matching. Signature headers are optional
         per provider: replicate uses Svix style `webhook-id`,
         `webhook-timestamp` and `webhook-signature`, fal uses
         `X-Fal-Webhook-Request-Id`, `X-Fal-Webhook-User-Id`,
@@ -1948,6 +1961,8 @@ paths:
           $ref: '#/components/responses/ProviderMethodNotAllowedError'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -2144,23 +2159,34 @@ components:
       schema:
         type: string
         example: abc123def456
-    ArtifactPath:
-      name: path
+    ArtifactGeneration:
+      name: generation
       in: query
       required: true
       description: >
-        Artifact path on the local disk. Must start with `generated/` and must
-        not contain traversal sequences or repeated slashes.
+        Opaque generation id `igr_<ulid>`. The value is covered by the
+        signature.
       schema:
         type: string
-        example: generated/01ARZ3NDEK/01ARZ3NDEK_0.jpeg
+        pattern: '^igr_[0-9A-Za-z]{26}$'
+        example: igr_01ARZ3NDEKTSV4RRFFQ69G5FAV
+    ArtifactArtifact:
+      name: artifact
+      in: query
+      required: true
+      description: >
+        Opaque artifact id `art_<ulid>`. The value is covered by the
+        signature.
+      schema:
+        type: string
+        pattern: '^art_[0-9A-Za-z]{26}$'
+        example: art_01ARZ3NDEKTSV4RRFFQ69G5FAV
     ArtifactExpires:
       name: expires
       in: query
       required: false
       description: >
-        Signed URL expiration timestamp. All temporary signed URLs emitted by
-        the application include it, but a permanent signed URL may omit it.
+        Signed URL expiration timestamp, never beyond the generation deadline.
       schema:
         type: integer
         format: int64
@@ -2351,7 +2377,12 @@ components:
           type:
             - string
             - 'null'
-          description: Running agent instance id, null or absent targets the orchestrator
+          pattern: '^ag_[0-7][0-9a-hjkmnp-tv-zA-HJKMNP-TV-Z]{25}$'
+          description: >
+            Running agent instance id `ag_<ulid>`, null or absent targets the
+            orchestrator. A value that is present but does not match the agent
+            id shape, including the explicit empty string, is rejected with
+            422 validation_error and no event is recorded.
           example: ag_01j5abcdefghjkmnpqrstvwxyz
 
     ForkChatRequest:
@@ -2478,9 +2509,11 @@ components:
         is a positive discovery list rather than a parser allowlist, `tool_kinds`
         lists the supported tool kinds and `features` positively advertised
         protocol surfaces. A feature name does not by itself prove that every
-        intended semantic is implemented; for example alpha advertises `steer`
-        while only recording `turn.steered`. Clients remain forward compatible
-        with valid ATP events absent from this response.
+        intended semantic is implemented; for example the server advertises
+        `replay` while retention is an in-memory window. `steer` is not
+        advertised: the endpoint records `turn.steered` but does not inject the
+        text into the running LLM loop. Clients remain forward compatible with
+        valid ATP events absent from this response.
       required:
         - protocol_version
         - families
@@ -2502,7 +2535,7 @@ components:
               - agent
         event_types:
           type: array
-          description: Dotted event types currently advertised by the server; additive and not an exhaustive parser allowlist
+          description: Dotted event types the server actually emits; additive and not an exhaustive parser allowlist
           items:
             type: string
           example:
@@ -2513,22 +2546,16 @@ components:
             - turn.failed
             - turn.steered
             - agent.started
-            - agent.plan
             - agent.text.delta
             - agent.text.done
-            - agent.reasoning.delta
-            - agent.reasoning.done
             - agent.delegated
             - agent.tool.start
-            - agent.tool.delta
             - agent.tool.complete
             - agent.tool.request
             - agent.tool.result
+            - agent.context.compacting
+            - agent.context.compacted
             - agent.done
-            - agent.failed
-            - approval.request
-            - approval.response
-            - approval.expire
         tool_kinds:
           type: array
           description: Tool kinds supported by the server
@@ -2548,7 +2575,6 @@ components:
               - replay
               - fork
               - restore
-              - steer
               - ping
               - background_delegation
               - client_tools
@@ -3806,8 +3832,11 @@ components:
       type: object
       description: >
         LLM entry of the catalog. `owned_by` is the model provider. Models
-        past sunset are removed from the catalog and never appear; deprecated
-        models appear with `deprecated: true` until sunset.
+        that are unavailable upstream or past sunset are removed from the
+        catalog and never appear; deprecated models appear with
+        `deprecated: true` until sunset. The OpenRouter metadata fields are
+        informational copies of the upstream catalog: `pricing` never drives
+        billing, which uses the provider `usage.cost`.
       required:
         - id
         - object
@@ -3848,6 +3877,149 @@ components:
           format: date-time
           description: ISO 8601 sunset date, null when the model is never removed
           example: '2027-05-21T00:00:00+00:00'
+        display_name:
+          type:
+            - string
+            - 'null'
+          description: Human readable model name from the upstream catalog
+          example: Claude Sonnet 4.5
+        description:
+          type:
+            - string
+            - 'null'
+          description: Model description from the upstream catalog
+        canonical_slug:
+          type:
+            - string
+            - 'null'
+          description: Permanent upstream slug for the model
+        hugging_face_id:
+          type:
+            - string
+            - 'null'
+          description: Hugging Face model id when the upstream catalog publishes one
+        context_length:
+          type:
+            - integer
+            - 'null'
+          description: Maximum context window size in tokens
+          example: 200000
+        max_completion_tokens:
+          type:
+            - integer
+            - 'null'
+          description: Maximum completion tokens reported by the top provider
+          example: 8192
+        pricing:
+          $ref: '#/components/schemas/OpenRouterPricing'
+        architecture:
+          $ref: '#/components/schemas/OpenRouterArchitecture'
+        supported_parameters:
+          type:
+            - array
+            - 'null'
+          description: Parameter names accepted by the model
+          items:
+            type: string
+        default_parameters:
+          type:
+            - object
+            - 'null'
+          description: Default parameter values published by the upstream catalog
+          additionalProperties: true
+        reasoning:
+          type:
+            - object
+            - 'null'
+          description: Reasoning capabilities published by the upstream catalog
+          additionalProperties: true
+        knowledge_cutoff:
+          type:
+            - string
+            - 'null'
+          format: date
+          description: Knowledge cutoff date published by the upstream catalog
+          example: '2024-06-30'
+        upstream_expiration_date:
+          type:
+            - string
+            - 'null'
+          format: date
+          description: >
+            Upstream deprecation date. It is informational and never sets the
+            local `sunset_at` lifecycle field.
+          example: '2026-12-31'
+        alias_target:
+          $ref: '#/components/schemas/OpenRouterAliasTarget'
+        is_moderated:
+          type:
+            - boolean
+            - 'null'
+          description: Whether the top provider moderates the model
+        synced_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When the entry was last synchronized from the upstream catalog
+
+    OpenRouterPricing:
+      type:
+        - object
+        - 'null'
+      description: >
+        Informational pricing copied verbatim from the upstream catalog.
+        Values are exact decimal strings and are never converted to floats;
+        nested provider overrides are preserved as published. Billing uses the
+        provider `usage.cost`, not this object.
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: number
+          - type: array
+          - type: object
+
+    OpenRouterArchitecture:
+      type:
+        - object
+        - 'null'
+      description: Technical capabilities published by the upstream catalog
+      properties:
+        modality:
+          type:
+            - string
+            - 'null'
+        input_modalities:
+          type: array
+          items:
+            type: string
+        output_modalities:
+          type: array
+          items:
+            type: string
+        tokenizer:
+          type:
+            - string
+            - 'null'
+        instruct_type:
+          type:
+            - string
+            - 'null'
+
+    OpenRouterAliasTarget:
+      type:
+        - object
+        - 'null'
+      description: Alias target published by the upstream catalog for router models
+      properties:
+        name:
+          type:
+            - string
+            - 'null'
+        slug:
+          type:
+            - string
+            - 'null'
 
     TeamModelEntry:
       type: object
@@ -4203,6 +4375,7 @@ components:
         - webhook_url
         - status_url
         - created_at
+        - expires_at
       properties:
         id:
           type: string
@@ -4242,6 +4415,11 @@ components:
           format: date-time
           description: ISO 8601 creation timestamp
           example: '2026-08-11T10:00:00+00:00'
+        expires_at:
+          type: string
+          format: date-time
+          description: ISO 8601 deadline, exactly two hours after creation and never null
+          example: '2026-08-11T12:00:00+00:00'
 
     ImageGenerationLifecycleStatus:
       type: string
@@ -4324,11 +4502,9 @@ components:
           format: date-time
           description: ISO 8601 completion timestamp, null until a terminal state
         expires_at:
-          type:
-            - string
-            - 'null'
+          type: string
           format: date-time
-          description: ISO 8601 result retention expiry, null when not set
+          description: ISO 8601 deadline, exactly two hours after creation and never null
         result:
           type: object
           description: Normalized result payload persisted at finalization, present when available
@@ -4419,45 +4595,32 @@ components:
               additionalProperties: true
         files:
           type: array
-          description: Result files, present when the generation produced files
+          description: Public result files, present when the generation produced files
           items:
             type: object
             required:
-              - disk
-              - path
+              - artifact_id
               - mime_type
               - size
+              - download_url
             properties:
-              disk:
+              artifact_id:
                 type: string
-                description: Storage disk holding the file
-              path:
-                type: string
-                description: File path on the disk
+                description: Opaque artifact identifier `art_<ulid>`
               mime_type:
                 type: string
                 description: Detected mime type
               size:
                 type: integer
                 format: int64
-                description: File size in bytes
-              public_url:
-                type:
-                  - string
-                  - 'null'
-                description: >
-                  Public URL of the file. Raster images are exposed through
-                  `public_url`; absent or null when the file is only available
-                  through a signed download URL.
+                description: Plaintext file size in bytes
               download_url:
                 type:
                   - string
                   - 'null'
                 description: >
-                  Signed download URL of the file. SVG files are exposed
-                  through `download_url`; absent or null when the file has a
-                  public URL. Either `public_url` or `download_url` (or both)
-                  can be absent.
+                  Relative signed download URL carrying the opaque generation
+                  and artifact identifiers.
         price:
           $ref: '#/components/schemas/ImagePrice'
         usage:
@@ -4532,7 +4695,7 @@ components:
 
     ImageUploadRecord:
       type: object
-      description: Uploaded input image record retained for 24 hours
+      description: Uploaded input image record staged for two hours and bindable to one generation
       required:
         - id
         - mime_type
@@ -4562,7 +4725,7 @@ components:
         expires_at:
           type: string
           format: date-time
-          description: ISO 8601 retention expiry, 24 hours after creation
+          description: ISO 8601 staging expiry, exactly two hours after upload; one upload binds to exactly one generation, after which the parent generation deadline is authoritative
           example: '2026-08-12T10:00:00+00:00'
         created_at:
           type: string
@@ -5004,6 +5167,19 @@ components:
             error:
               type: server_error
               message: An unexpected error occurred.
+              details: null
+
+    GatewayDrainingError:
+      description: The gateway is draining and does not accept new turns
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              type: server_error
+              code: gateway_draining
+              message: The gateway is draining and does not accept new turns.
               details: null
 
     AccessDeniedError:

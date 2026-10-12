@@ -341,10 +341,6 @@ final class PdoSyncStateStore implements SyncStateStore
             return null;
         }
 
-        if (! is_array($row)) {
-            throw new \RuntimeException('The state query returned an unexpected row shape.');
-        }
-
         return $row;
     }
 

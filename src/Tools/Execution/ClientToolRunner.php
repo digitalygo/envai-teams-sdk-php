@@ -43,9 +43,8 @@ use Psr\Log\LoggerInterface;
  *    already_ambiguous mean the handler MUST NOT run again and nothing is
  *    submitted (the platform already has an outcome or the call is in flight
  *    elsewhere);
- * 5. arguments are validated against the tool schema: top-level required
- *    properties and declared per-property types are checked; additional
- *    properties and nested schemas are deliberately NOT enforced. Invalid
+ * 5. arguments are validated against the complete local JSON Schema before
+ *    the handler runs, preserving object/list distinctions. Invalid
  *    arguments deliver a controlled `{"code":"invalid_arguments","violations":[...]}`
  *    error without running the handler;
  * 6. deadline: `timeout_seconds - submissionMarginSeconds` floored at 1
@@ -109,6 +108,10 @@ final readonly class ClientToolRunner
      */
     public function handle(AgentToolRequestEvent $event, string $chatId): ToolRunResult
     {
+        if ($chatId !== $event->envelope->chatId) {
+            throw new ProtocolViolationException('Client tool request chat does not match the execution chat.');
+        }
+
         // BINDING step 1: verification is fail-closed and happens before
         // anything touches the store or the sender.
         $verified = $this->verifier->verify($event);
@@ -228,17 +231,12 @@ final readonly class ClientToolRunner
             throw new ProtocolViolationException('Verified client tool arguments must be a native array after conversion.');
         }
 
-        $nativeArguments = [];
+        $schema = $tool->schema();
+        $violations = self::validateArguments($verified->args->toArray(), $schema);
 
-        foreach ($arguments as $key => $value) {
-            if (! is_string($key)) {
-                throw new ProtocolViolationException('Verified client tool argument keys must remain strings after native conversion.');
-            }
-
-            $nativeArguments[$key] = $value;
+        if ($violations === []) {
+            $violations = ToolArgumentsValidator::validate($verified->args, $schema);
         }
-
-        $violations = self::validateArguments($nativeArguments, $tool->schema());
 
         if ($violations !== []) {
             $output = ToolResult::json([
@@ -255,7 +253,7 @@ final readonly class ClientToolRunner
             chatId: $identity->chatId,
             turnId: $event->envelope->turnId ?? '',
             callId: $verified->callId,
-            arguments: $nativeArguments,
+            arguments: $arguments,
         );
 
         $this->inFlight->add($verified->callId);
@@ -292,6 +290,16 @@ final readonly class ClientToolRunner
 
         $output = $result instanceof ToolResult ? $result->output : $result;
         $isError = $result instanceof ToolResult && $result->isError;
+
+        if ($output === '') {
+            $output = ToolResult::json([
+                'code' => 'empty_output',
+                'message' => 'The client tool returned an empty output, which the gateway does not accept.',
+            ])->output;
+            $delivery = $this->deliver($identity, $identity->chatId, $verified->callId, $output, isError: true);
+
+            return new ToolRunResult($verified->callId, self::runOutcome(ToolRunOutcome::EmptyOutput, $delivery), $delivery['outputSubmitted'], $delivery['storeStatus'], $delivery['error']);
+        }
 
         if (strlen($output) > self::OUTPUT_LIMIT_BYTES) {
             $output = ToolResult::json([
@@ -485,9 +493,9 @@ final readonly class ClientToolRunner
      * Checks: every top-level property listed in `required` must be present;
      * every declared property with an explicit `type` must match one of
      * string, number, integer, boolean, array or object. additionalProperties
-     * and nested schemas are deliberately NOT enforced.
+     * and nested schemas are subsequently enforced by ToolArgumentsValidator.
      *
-     * @param  array<string, mixed>  $arguments
+     * @param  array<array-key, mixed>  $arguments
      * @param  array<string, mixed>  $schema
      * @return list<string>
      */
@@ -540,8 +548,9 @@ final readonly class ClientToolRunner
             'number' => is_int($value) || is_float($value),
             'integer' => is_int($value) || (is_float($value) && is_finite($value) && floor($value) === $value),
             'boolean' => is_bool($value),
-            'array' => is_array($value),
-            'object' => is_array($value) && ! array_is_list($value),
+            'array' => $value instanceof JsonArray || (is_array($value) && array_is_list($value)),
+            'object' => $value instanceof JsonObject || (is_array($value) && ! array_is_list($value)),
+            'null' => $value === null,
             default => true,
         };
     }

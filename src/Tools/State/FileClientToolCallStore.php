@@ -161,7 +161,7 @@ final class FileClientToolCallStore implements ClientToolCallStore
         }
 
         if (trim($json) === '') {
-            return [];
+            throw FileException::local(sprintf('State file "%s" is empty; refusing to reset client tool execution state.', $this->path));
         }
 
         try {

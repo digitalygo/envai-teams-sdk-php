@@ -30,7 +30,7 @@ final readonly class ProviderWebhookPayload implements ArrayHydratable
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function toArray(): array
     {

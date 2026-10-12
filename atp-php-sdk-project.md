@@ -2,8 +2,8 @@
 
 ## Documento di progetto
 
-- **Repository previsto:** `digitalygo/atp-php-sdk`
-- **Package Composer previsto:** `digitalygo/atp-php-sdk`
+- **Repository previsto:** `digitalygo/envai-teams-sdk-php`
+- **Package Composer previsto:** `digitalygo/envai-teams-sdk-php`
 - **Stato:** proposta approvata per l'implementazione
 - **Versione del documento:** 1.0
 - **Data:** 27 agosto 2026
@@ -13,7 +13,7 @@
 
 ## 1. Sintesi
 
-`digitalygo/atp-php-sdk` sarà l'SDK PHP ufficiale per Envai.
+`digitalygo/envai-teams-sdk-php` sarà l'SDK PHP ufficiale per Envai.
 
 La libreria offrirà due superfici complementari:
 
@@ -40,7 +40,7 @@ I client tool sono user-scoped. Non dipendono dal workspace e sono condivisi fra
 
 Le seguenti decisioni sono normative per il progetto:
 
-- il repository si chiama `digitalygo/atp-php-sdk`;
+- il repository si chiama `digitalygo/envai-teams-sdk-php`;
 - il core resta framework-independent;
 - il contratto nativo dei client tool appartiene al core;
 - l'integrazione Laravel è opzionale;
@@ -114,7 +114,7 @@ Sono esclusi dalla prima implementazione:
 L'architettura logica è:
 
 ```text
-digitalygo/atp-php-sdk
+digitalygo/envai-teams-sdk-php
 ├── core SDK
 ├── native tool contract
 ├── optional Laravel integration
@@ -125,7 +125,7 @@ digitalygo/atp-php-sdk
 La prima release implementerà:
 
 ```text
-digitalygo/atp-php-sdk
+digitalygo/envai-teams-sdk-php
 ├── core SDK
 ├── native tool contract
 └── optional Laravel integration
@@ -1665,7 +1665,7 @@ Mitigazione:
 
 ## 37. Risultato atteso
 
-`digitalygo/atp-php-sdk` fornirà un'unica libreria PHP modulare che permette di:
+`digitalygo/envai-teams-sdk-php` fornirà un'unica libreria PHP modulare che permette di:
 
 - configurare Envai;
 - dichiarare agenti, tool e team nel repository applicativo;

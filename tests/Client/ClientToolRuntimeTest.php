@@ -31,7 +31,7 @@ final class ClientToolRuntimeTest extends TestCase
         $client = $this->client($transport);
         $registry = ClientToolRegistry::fromArray(['lookup_order' => FlexibleTool::class]);
 
-        $event = ToolRequestFactory::signed('call_01', 'lookup_order', ['order_id' => 'ord_123'], $keys['secret'], $kid);
+        $event = ToolRequestFactory::signed('call_01', 'lookup_order', ['order_id' => 'ord_123'], $keys['secret'], $kid, chatId: 'cht_01');
 
         $result = $client->clientTools($registry)->runner()->handle($event, 'cht_01');
 
@@ -71,7 +71,7 @@ final class ClientToolRuntimeTest extends TestCase
         $client = $this->client($transport);
         $registry = ClientToolRegistry::fromArray(['lookup_order' => FlexibleTool::class]);
 
-        $event = ToolRequestFactory::signed('call_02', 'lookup_order', ['order_id' => 'ord_456'], $keys['secret'], $kid);
+        $event = ToolRequestFactory::signed('call_02', 'lookup_order', ['order_id' => 'ord_456'], $keys['secret'], $kid, chatId: 'cht_02');
 
         $results = $client->clientTools($registry)->handleEvents([$event], 'cht_02');
 
@@ -93,7 +93,7 @@ final class ClientToolRuntimeTest extends TestCase
         $client = $this->client($transport);
         $registry = ClientToolRegistry::fromArray(['lookup_order' => FlexibleTool::class]);
 
-        $event = ToolRequestFactory::signed('call_03', 'not_registered', ['a' => 1], $keys['secret'], $kid);
+        $event = ToolRequestFactory::signed('call_03', 'not_registered', ['a' => 1], $keys['secret'], $kid, chatId: 'cht_03');
 
         $result = $client->clientTools($registry)->runner()->handle($event, 'cht_03');
 
@@ -119,7 +119,7 @@ final class ClientToolRuntimeTest extends TestCase
 
         // Signed with a different key: verification must fail closed.
         $other = TestKeys::generate();
-        $event = ToolRequestFactory::signed('call_04', 'lookup_order', ['order_id' => 'ord_789'], $other['secret'], TestKeys::kid(1));
+        $event = ToolRequestFactory::signed('call_04', 'lookup_order', ['order_id' => 'ord_789'], $other['secret'], TestKeys::kid(1), chatId: 'cht_04');
 
         $this->expectException(ProtocolViolationException::class);
 
@@ -151,7 +151,7 @@ final class ClientToolRuntimeTest extends TestCase
 
         $client = new EnvaiClient($config, $transport);
 
-        $event = ToolRequestFactory::signed('call_05', 'lookup_order', ['order_id' => 'ord_111'], $keys['secret'], $kid);
+        $event = ToolRequestFactory::signed('call_05', 'lookup_order', ['order_id' => 'ord_111'], $keys['secret'], $kid, chatId: 'cht_05');
 
         $result = $client->clientTools()->runner()->handle($event, 'cht_05');
 

@@ -94,6 +94,7 @@ final class ToolRequestVerifier
             $entry->kty !== self::KEY_KTY
             || $entry->crv !== self::KEY_CRV
             || $entry->use !== self::KEY_USE
+            || $entry->alg !== self::ALG_EDDSA
         ) {
             throw self::failure('the resolved signing key is not an Ed25519 signature key');
         }

@@ -176,6 +176,10 @@ final readonly class ImagesService
     }
 
     /**
+     * Legacy path-based artifact download for older servers only.
+     *
+     * @deprecated Use downloadGenerationArtifact() with opaque generation and artifact IDs.
+     *
      * Downloads a generated artifact through a relative signed URL (GET
      * /artifacts/download?path=...&signature=...&expires=...). Public
      * endpoint: no Authorization header is sent. The body streams into the
@@ -188,6 +192,34 @@ final readonly class ImagesService
         if ($expires !== null) {
             $query['expires'] = $expires;
         }
+
+        return $this->requests->stream(
+            'GET',
+            '/artifacts/download',
+            $query,
+            null,
+            $sink,
+            AuthenticationMode::None,
+        );
+    }
+
+    /**
+     * Downloads a current-server artifact by the opaque identifiers and
+     * signature supplied in its download_url. No bearer token is sent.
+     * Expiry must be copied from the signed URL, never recomputed locally.
+     */
+    public function downloadGenerationArtifact(string $generation, string $artifact, string $signature, ?int $expires = null, ?ResponseBodySink $sink = null): DownloadResult
+    {
+        $query = ['generation' => $generation, 'artifact' => $artifact];
+
+        if ($expires !== null) {
+            $query['expires'] = $expires;
+        }
+
+        // Laravel validates the original query ordering: signature is last,
+        // after the alphabetically sorted signed generation/artifact fields.
+        ksort($query);
+        $query['signature'] = $signature;
 
         return $this->requests->stream(
             'GET',

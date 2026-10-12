@@ -11,12 +11,12 @@ namespace Digitalygo\Envai\Streaming\Events;
  * payload (data) fields of the event, preserved for forward compatibility.
  * The envelope `raw` array keeps the original decoded wire payload.
  *
- * @param  array<string, mixed>  $extra  Unknown payload fields preserved for forward compatibility.
+ * @param  array<array-key, mixed>  $extra  Unknown payload fields preserved for forward compatibility.
  */
 abstract readonly class AtpEvent
 {
     /**
-     * @param  array<string, mixed>  $extra  Unknown payload fields preserved for forward compatibility.
+     * @param  array<array-key, mixed>  $extra  Unknown payload fields preserved for forward compatibility.
      */
     public function __construct(
         public EventEnvelope $envelope,

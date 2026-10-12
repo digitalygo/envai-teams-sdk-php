@@ -1,5 +1,5 @@
 {
-    "name": "digitalygo/atp-php-sdk",
+    "name": "digitalygo/envai-teams-sdk-php",
     "description": "Official PHP SDK for Envai: a framework-independent typed HTTP client and an ATP v2 runtime for chat, streaming, definitions and client tools.",
     "type": "library",
     "license": "MIT",
@@ -10,6 +10,7 @@
         "ext-mbstring": "*",
         "ext-pdo": "*",
         "ext-sodium": "*",
+        "opis/json-schema": "^2.6",
         "psr/log": "^3.0",
         "symfony/console": "^7.4 || ^8.0",
         "symfony/yaml": "^7.4 || ^8.0"

@@ -1,4 +1,4 @@
-# Pre-release channels for digitalygo/atp-php-sdk.
+# Pre-release channels for digitalygo/envai-teams-sdk-php.
 #
 # The alpha and beta branches each carry their own release-please-config.json
 # with "prerelease": true and their own "prerelease-type" (alpha / beta), so a

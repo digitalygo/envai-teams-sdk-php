@@ -30,6 +30,7 @@ final readonly class ImageGenerationAcceptedRecord implements ArrayHydratable
         public string $statusUrl,
         public string $createdAt,
         public array $extra = [],
+        public ?string $expiresAt = null,
     ) {}
 
     /**
@@ -49,7 +50,8 @@ final readonly class ImageGenerationAcceptedRecord implements ArrayHydratable
             webhookUrl: Wire::string($data, 'webhook_url', $context),
             statusUrl: Wire::string($data, 'status_url', $context),
             createdAt: Wire::string($data, 'created_at', $context),
-            extra: Wire::extra($data, ['id', 'status', 'provider', 'initial_provider', 'routed', 'model', 'webhook_url', 'status_url', 'created_at']),
+            extra: Wire::extra($data, ['id', 'status', 'provider', 'initial_provider', 'routed', 'model', 'webhook_url', 'status_url', 'created_at', 'expires_at']),
+            expiresAt: Wire::nullableString($data, 'expires_at', $context),
         );
     }
 
@@ -68,6 +70,6 @@ final readonly class ImageGenerationAcceptedRecord implements ArrayHydratable
             'webhook_url' => $this->webhookUrl,
             'status_url' => $this->statusUrl,
             'created_at' => $this->createdAt,
-        ], $this->extra);
+        ], $this->expiresAt === null ? [] : ['expires_at' => $this->expiresAt], $this->extra);
     }
 }
