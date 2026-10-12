@@ -4,7 +4,13 @@ This update targets `digitalygo/envai-teams` commit
 `55275860c9a950eaad8e39e9d2b728149084779c` (ATP v2). `openapi.yaml`
 and `events.json` are byte-for-byte snapshots of that commit. The 52-operation
 inventory is unchanged. Shared deterministic fixtures live in
-`tests/fixtures/current-server`; provenance records their hashes.
+`tests/fixtures/current-server`. The provenance manifest separates exact server
+`sources` from locally `generated_fixtures`. The foundation document is also
+included as an exact source snapshot. Each source records its repository path,
+local snapshot path, SHA-256, Git blob ID and byte count; tests check every source
+and every generated fixture. These offline checks establish snapshot integrity,
+not freshness against later server commits. Generated examples and signatures
+are test data, not server traffic or server-issued signatures.
 
 ## Composer name and rollout
 
@@ -100,6 +106,18 @@ Draft 6, 7, 2019-09 and 2020-12 through `opis/json-schema`. It preserves `{}` ve
 `[]` until validation, then passes native arrays to handlers as before. External
 schema references are not fetched, and custom filters/mappers/default mutation
 are disabled. Invalid or unresolved schemas fail closed.
+
+PHP schema/map positions (including `dependentRequired`, `dependentSchemas`,
+and Draft 6/7 `dependencies`) accept associative arrays; empty schema/map arrays
+are objects. Dependency property-name lists and schema lists stay lists.
+Literal values under `const`, `enum`, `default` and `examples` are normalized
+recursively without treating their member names as schema keywords. In literal
+positions, `[]` means an empty JSON array. Use `new \stdClass`, explicit nested
+`JsonObject`/`JsonArray` values, or `json_decode($json, false)` to preserve empty
+objects or numeric-key objects unambiguously. `JsonObject::fromJson()` retains
+its historical associative decoding and is not a shape-preserving constructor
+for nested empty objects. A nonempty PHP list cannot stand in for a schema;
+malformed shapes still fail closed before handler effects.
 
 The gateway rejects an empty tool output string even though the OpenAPI string
 schema has no `minLength`. The runner converts an empty handler result to a

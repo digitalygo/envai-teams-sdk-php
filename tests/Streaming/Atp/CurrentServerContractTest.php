@@ -26,11 +26,30 @@ final class CurrentServerContractTest extends TestCase
         return json_decode(file_get_contents(dirname(__DIR__, 2).'/fixtures/current-server/'.$name), false, 512, JSON_THROW_ON_ERROR);
     }
 
-    public function test_current_server_contracts_are_byte_exact(): void
+    public function test_all_declared_server_sources_are_byte_exact(): void
     {
         $provenance = self::fixture('provenance.json');
-        foreach (['openapi.yaml', 'events.json'] as $name) {
-            $this->assertSame($provenance->files->{$name}, hash_file('sha256', dirname(__DIR__, 3).'/docs/'.$name));
+        $this->assertSame('digitalygo/envai-teams', $provenance->repository);
+        $this->assertSame('55275860c9a950eaad8e39e9d2b728149084779c', $provenance->commit);
+        $this->assertSame(3, count(get_object_vars($provenance->sources)));
+        foreach ($provenance->sources as $name => $source) {
+            $bytes = file_get_contents(dirname(__DIR__, 3).'/'.$source->snapshot_path);
+            $this->assertSame($source->bytes, strlen($bytes), $name.' byte count');
+            $this->assertSame($source->sha256, hash('sha256', $bytes), $name.' SHA-256');
+            $this->assertSame($source->git_blob_sha, sha1('blob '.strlen($bytes)."\0".$bytes), $name.' pinned Git blob');
+            $this->assertStringEndsWith('/'.$name, $source->repository_path);
+        }
+    }
+
+    public function test_generated_fixtures_are_separate_and_all_hashes_are_checked(): void
+    {
+        $provenance = self::fixture('provenance.json');
+        $fixtures = get_object_vars($provenance->generated_fixtures);
+        $this->assertCount(5, $fixtures);
+        foreach ($fixtures as $name => $fixture) {
+            $this->assertSame('tests/fixtures/current-server/'.$name, $fixture->snapshot_path);
+            $this->assertNotEmpty($fixture->origin);
+            $this->assertSame($fixture->sha256, hash_file('sha256', dirname(__DIR__, 3).'/'.$fixture->snapshot_path), $name);
         }
     }
 
