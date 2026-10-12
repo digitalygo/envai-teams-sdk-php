@@ -125,7 +125,11 @@ controlled `empty_output` error; low-level tool-output submission keeps server
 validation authoritative.
 
 Existing empty, whitespace-only or invalid JSON state files fail closed; they
-are not silently treated as new stores. Keep a separate persistent client-tool
+are not silently treated as new stores. Every persisted call row is checked
+before an operation reads or rewrites the snapshot, including unrelated rows.
+A null row, invalid identity/status/metadata or mismatched deduplication key
+raises `FileException` without rewriting the file or re-executing a handler.
+Missing optional fields in legacy format-1 records remain supported. Keep a separate persistent client-tool
 store for every server/account identity. Do not discard it while replay can
 occur. The signature covers call ID, tool name and canonical arguments; it does
 not authenticate envelope chat/turn/timestamp or prove freshness. Only process
