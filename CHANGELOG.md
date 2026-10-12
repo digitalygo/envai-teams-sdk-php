@@ -9,6 +9,7 @@
 - Expose image acceptance expiry, upstream model metadata, compaction telemetry and usage extensions without changing existing constructor positions.
 - Prevent message submission before live confirmation, continue past historical terminal replay, and drain coalesced SSE frames before reads.
 - Validate complete client-tool JSON Schemas before handlers; reject cross-chat execution, mismatched JWK algorithms, corrupt call-store files and nonfinite deadline margins.
+- Normalize verified tool arguments to their signed canonical numeric semantics before effects.
 - Add shared current-server conformance vectors and focused safety regressions. Preserve the existing MIT license.
 
 

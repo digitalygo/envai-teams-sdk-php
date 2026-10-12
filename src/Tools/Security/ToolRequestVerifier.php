@@ -6,6 +6,8 @@ namespace Digitalygo\Envai\Tools\Security;
 
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Models\Json\CanonicalJsonSerializer;
+use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Streaming\Atp\Payload;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 
 /**
@@ -70,7 +72,14 @@ final class ToolRequestVerifier
             throw self::failure('the signature does not verify against the signing key');
         }
 
-        return new VerifiedToolRequest($event->callId, $event->toolName, $event->args, $signature);
+        $canonicalArgs = CanonicalJsonSerializer::serialize($event->args);
+        $arguments = Payload::typed(json_decode($canonicalArgs, false, 512, JSON_THROW_ON_ERROR));
+
+        if (! $arguments instanceof JsonObject) {
+            throw self::failure('verified arguments must remain a JSON object');
+        }
+
+        return new VerifiedToolRequest($event->callId, $event->toolName, $arguments, $signature);
     }
 
     private function resolveKey(string $kid): JwkEntry

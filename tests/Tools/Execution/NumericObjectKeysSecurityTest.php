@@ -11,6 +11,7 @@ use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Tests\Tools\Support\FlexibleTool;
 use Digitalygo\Envai\Tests\Tools\Support\RunnerHarness;
 use Digitalygo\Envai\Tests\Tools\Support\TestKeys;
+use Digitalygo\Envai\Tests\Tools\Support\ToolRequestFactory;
 use Digitalygo\Envai\Tools\Execution\ToolRunOutcome;
 use PHPUnit\Framework\TestCase;
 
@@ -56,5 +57,27 @@ final class NumericObjectKeysSecurityTest extends TestCase
     {
         $object = JsonObject::fromJson('{"0":"zero"}');
         $this->assertSame('{"0":"zero"}', CanonicalJsonSerializer::serialize($object));
+    }
+
+    public function test_binary64_equivalent_integer_executes_the_verified_canonical_value(): void
+    {
+        $tool = new FlexibleTool;
+        $harness = new RunnerHarness(
+            registry: ['echo' => FlexibleTool::class],
+            instances: [FlexibleTool::class => $tool],
+        );
+        $signed = $harness->event('call_integer', 'echo', ['n' => 9007199254740992]);
+        $altered = ToolRequestFactory::create(
+            $signed->callId,
+            $signed->toolName,
+            new JsonObject(['n' => 9007199254740993]),
+            $signed->signature,
+        );
+
+        $result = $harness->runner->handle($altered, 'cht_test_1');
+
+        $this->assertSame(ToolRunOutcome::Executed, $result->outcome);
+        $this->assertSame(9007199254740992, $tool->receivedInvocations[0]->arguments['n']);
+        $this->assertSame(9007199254740993, $altered->args->get('n'));
     }
 }

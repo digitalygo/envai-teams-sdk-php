@@ -10,9 +10,10 @@ use Digitalygo\Envai\Streaming\Events\ToolSignature;
 /**
  * A client tool request that passed signature verification.
  *
- * Carries the exact payload the platform signed: `args` keeps the original
- * decoded JSON structure (key order and values intact) so the handler runs
- * against the same arguments the signature covered.
+ * Carries an owned argument tree decoded from the verified RFC 8785
+ * canonical JSON. Object/list distinctions are preserved, member order is
+ * canonical, and binary64-equivalent number spellings produce the same
+ * handler values. Original wire data stays on the unverified event.
  */
 final readonly class VerifiedToolRequest
 {

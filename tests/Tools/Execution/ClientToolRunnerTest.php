@@ -724,13 +724,13 @@ final class ClientToolRunnerTest extends TestCase
         $this->assertSame(1, $tool->invocations);
         $this->assertCount(1, $tool->receivedInvocations);
         $this->assertSame([
-            'settings' => [
-                'region' => 'eu',
-                'overrides' => [],
-            ],
             'items' => [
                 ['id' => 'one', 'labels' => ['primary']],
                 [],
+            ],
+            'settings' => [
+                'overrides' => [],
+                'region' => 'eu',
             ],
         ], $tool->receivedInvocations[0]->arguments);
         $this->assertIsArray($tool->receivedInvocations[0]->arguments['settings']);

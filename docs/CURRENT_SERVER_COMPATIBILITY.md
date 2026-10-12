@@ -90,7 +90,12 @@ when the ping and turn events arrive in one network chunk.
 
 Client tools verify the Ed25519 signature and JWK algorithm, require the supplied
 chat to match the event chat, claim the call in the store, and validate the full
-local JSON Schema before invoking a handler. The validator supports JSON Schema
+local JSON Schema before invoking a handler. Verified arguments are copied from
+their canonical JSON representation before schema validation or execution, so
+handlers receive the exact binary64 numeric semantics covered by the signature,
+including when PHP could represent a larger integer exactly. Encode identifiers
+or precision-sensitive integers/decimals as strings when exact precision is
+required. The validator supports JSON Schema
 Draft 6, 7, 2019-09 and 2020-12 through `opis/json-schema`. It preserves `{}` versus
 `[]` until validation, then passes native arrays to handlers as before. External
 schema references are not fetched, and custom filters/mappers/default mutation
