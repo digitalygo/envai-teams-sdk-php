@@ -13,8 +13,8 @@ remain `Digitalygo\Envai`. This change is **unreleased**. Production consumers
 must wait for a real tagged release containing the rename before changing their
 requirement and lockfile. Existing tags and their source are not rewritten.
 
-For opt-in testing of this draft PR, add the private VCS repository and use its
-actual development branch in the consuming application's `composer.json`:
+After the first new-name stable release exists, add the private VCS repository
+to the consuming application's `composer.json`:
 
 ```json
 {
@@ -23,21 +23,32 @@ actual development branch in the consuming application's `composer.json`:
             "type": "vcs",
             "url": "https://github.com/digitalygo/envai-teams-sdk-php"
         }
-    ],
-    "require": {
-        "digitalygo/envai-teams-sdk-php": "dev-codex/current-server-compatibility-20261012"
-    }
+    ]
 }
 ```
 
-Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install the review branch:
+Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install the latest released version:
 
 ```bash
 composer config --global --auth github-oauth.github.com <TOKEN>
-composer require digitalygo/envai-teams-sdk-php:dev-codex/current-server-compatibility-20261012
+composer require digitalygo/envai-teams-sdk-php
 ```
 
-The development branch is for evaluation only. For the release-first migration, wait for the first new-name tag, require that actual version, and commit the resulting `composer.json` and `composer.lock`. Subsequent environments run `composer install` with the same GitHub authentication.
+Commit the resulting `composer.json` and `composer.lock`. Subsequent environments
+run `composer install` with the same GitHub authentication. Do not run the new-name
+consumer installation before that release exists: Composer VCS discovery uses
+the default branch's package name, so simply requesting this PR's branch does not
+make the renamed package resolvable while main still declares the old name.
+
+To evaluate this PR before release, clone its actual branch into an isolated
+checkout and run its own tests (this does not alter a consumer lockfile):
+
+```bash
+git clone --branch codex/current-server-compatibility-20261012 https://github.com/digitalygo/envai-teams-sdk-php.git
+cd envai-teams-sdk-php
+composer install
+composer check
+```
 
 ## Versioning
 
