@@ -24,11 +24,6 @@ final class FakeTransport implements HttpTransport
      */
     public array $requests = [];
 
-    /**
-     * @var list<float> Microtime of each send() call, for delay assertions.
-     */
-    public array $sendTimes = [];
-
     public function queueResponse(HttpResponse $response): void
     {
         $this->queue[] = $response;
@@ -47,8 +42,6 @@ final class FakeTransport implements HttpTransport
     public function send(HttpRequest $request): HttpResponse
     {
         $this->requests[] = $request;
-        $this->sendTimes[] = microtime(true);
-
         $next = array_shift($this->queue);
 
         if ($next instanceof \Throwable) {

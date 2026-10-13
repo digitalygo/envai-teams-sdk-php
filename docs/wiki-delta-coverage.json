@@ -1,6 +1,6 @@
 {
-  "executable_lines": 577,
-  "covered_lines": 576,
+  "executable_lines": 579,
+  "covered_lines": 578,
   "files": [
     {
       "path": "database/migrations/2026_10_13_000000_create_envai_wiki_webhook_inbox.php",
@@ -42,6 +42,12 @@
       "path": "src/Client/Internal/TypedRequester.php",
       "executable_delta": 9,
       "covered": 9,
+      "uncovered": []
+    },
+    {
+      "path": "src/Http/Client/RequestExecutor.php",
+      "executable_delta": 2,
+      "covered": 2,
       "uncovered": []
     },
     {

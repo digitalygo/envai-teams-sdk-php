@@ -7,14 +7,14 @@ Companion draft PRs: [Envai Teams #45](https://github.com/digitalygo/envai-teams
 ## Results
 
 - PHP 8.4.24, PHPUnit 11.5.57, PCOV 1.0.12.
-- Final complete SDK suite with isolated Illuminate 12 dependencies and a real PostgreSQL 18.3 database: **2,136 tests, 8,813 assertions, no failures, 25 skipped optional MySQL tests**. No MySQL service was available.
-- Executable delta coverage: **576 / 577 statements, 99.83%**. Includes the new migration and completion terminal snapshot DTO. The only uncovered statement is the MySQL-specific `INSERT IGNORE` branch. Per-file details are in `wiki-delta-coverage.json`.
+- Final complete SDK suite with isolated Illuminate 12 dependencies and a real PostgreSQL 18.3 database: **2,139 tests, 8,821 assertions, no failures, 25 skipped optional MySQL tests**. No MySQL service was available.
+- Executable delta coverage: **578 / 579 statements, 99.83%**. Includes the new migration and completion terminal snapshot DTO. The only uncovered statement is the MySQL-specific `INSERT IGNORE` branch. Per-file details are in `wiki-delta-coverage.json`.
 - Focused optional Laravel integration suite: **145 tests, 479 assertions, all passed**, including migration up/down and Laravel PDO-backed durable wiki intake.
 - Real PostgreSQL concurrent intake: six independent processes produce one receipt and one application job; one delivery is accepted and five are duplicates.
 - Pint aggregate check: passed. PHPStan maximum level: passed. Workflow actionlint: passed. Composer strict validation: passed. Composer security audit: no known vulnerability advisories. Git whitespace check: passed.
 - JSON Schema Draft 2020-12 schema validation and all shared wiki fixtures: passed. OpenAPI YAML parses and all component JSON schemas validate. SDK operation inventory matches all **63** combined public operations.
 
-One instrumented complete run hit an existing unrelated wall-clock assertion (`test_retry_after_is_ignored_when_policy_does_not_respect_it`, 0.547 seconds versus its 0.5-second limit). The unchanged test passed on immediate focused rerun; the latest complete PostgreSQL-backed instrumented suite passed. No test was weakened or skipped to obtain the passing result.
+One instrumented complete run hit an existing unrelated wall-clock assertion (`test_retry_after_is_ignored_when_policy_does_not_respect_it`, 0.547 seconds versus its 0.5-second limit). The unchanged test passed on immediate focused rerun. The subsequently authorized deterministic timing fix below removes the scheduler dependency and verifies exact backoff behavior; the final PostgreSQL-backed instrumented suite passed. No test was weakened or skipped to obtain the passing result.
 
 ## Commands
 
@@ -93,3 +93,18 @@ This ran inside the workspace's disposable PostgreSQL wrapper with the isolated 
 Added optional typed `ConversionState::$errorCode`, `$recoverable` and `$nextRetryAt` after the existing constructor arguments. Missing diagnostics retain the legacy unknown state. The backend's final `recoverable` definition means an eligible automatic recovery is durably scheduled, not merely that operator repair may be possible. Error codes use the backend's sanitized machine-code grammar; fixtures cover scheduled `provider_limit_exceeded`, terminal `audio_track_missing` and exhausted `ffs_document_resource_limit`. Shared schemas, all OpenAPI mirrors and both integration guides match.
 
 Two byte-exact authenticated control-plane GET fixtures are preserved in `fixtures/control-plane-http`, with hashes and synthetic origin. Automated tests validate the actual source response against OpenAPI and its DTO; the actual historical completion retains numeric `cost_usd=0.25`, missing `usage_cost` and null `terminal_snapshot` without inventing usage. The final complete PostgreSQL/Illuminate run above includes these regression tests: **2,136 tests, 8,813 assertions, 25 optional MySQL skips; 576/577 executable delta statements covered (99.83%)**. Static/schema/fixture checks remained green.
+
+## Confirmed retry-test nondeterminism fix (2026-10-13)
+
+The existing `test_retry_after_is_ignored_when_policy_does_not_respect_it` measured real elapsed time and could fail under scheduler/coverage overhead even when the correct 100 ms backoff ran. `RequestExecutor` had no injectable clock or sleeper, so an optional trailing microsecond-sleeper closure now supplies a deterministic seam. Its default remains native `usleep`; existing constructor arguments and production delay calculation are unchanged. The fake transport no longer records wall-clock times.
+
+The two Retry-After tests assert exact sleep arguments and call order relative to transport attempts: honoring a one-second header then ordinary backoff gives 1,000,000 and 400,000 microseconds; ignoring a 60-second header gives 100,000 then 200,000 microseconds. Added coverage verifies connect-error backoff, zero-delay behavior and the default positive-delay path. No upper elapsed-time threshold was widened or retained.
+
+- Focused `RequestExecutorTest`: **43 tests, 114 assertions**, passed with PCOV.
+- Both Retry-After tests: **20 instrumented repeat runs**, all passed.
+- Isolated mutation checks: exact-delay assertions rejected both a skipped-backoff mutation and a mutation that always obeyed Retry-After. The repository source was not modified during these checks.
+- Full PostgreSQL 18.3 / Illuminate 12 / PHP 8.4.24 suite: **2,139 tests, 8,821 assertions, no failures; 25 optional MySQL skips**.
+- Executable production delta for the timing fix: **2/2 statements, 100%**. Entire SDK delta including Wiki V1: **578/579, 99.83%**; only MySQL `INSERT IGNORE` remains uncovered.
+- Pint, PHPStan maximum level, Composer strict validation/audit, actionlint and whitespace checks passed. PHP 8.2/8.3/8.5 remain for CI.
+
+The timing fix is separated from the Wiki V1 feature tree in these files: `src/Http/Client/RequestExecutor.php`, `tests/Http/Client/RequestExecutorTest.php`, `tests/Http/Client/FakeTransport.php`, this report and `docs/wiki-delta-coverage.json`. The backend contract is pinned to verified commit `5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2`; SDK publication is handled separately.

@@ -34,6 +34,9 @@ final readonly class RequestExecutor
 {
     private JsonCodec $codec;
 
+    /** @var \Closure(int): void */
+    private \Closure $sleepMicroseconds;
+
     /**
      * Best-effort markers suggesting the failure happened while reading or
      * writing the response, after the connection was established.
@@ -65,14 +68,17 @@ final readonly class RequestExecutor
         'tls',
     ];
 
+    /** @param (\Closure(int): void)|null $sleepMicroseconds */
     public function __construct(
         private HttpTransport $transport,
         private UriResolver $uris,
         private ?RetryPolicy $retryPolicy = null,
         private ?LoggerInterface $logger = null,
         private ?SensitiveString $apiKey = null,
+        ?\Closure $sleepMicroseconds = null,
     ) {
         $this->codec = new JsonCodec;
+        $this->sleepMicroseconds = $sleepMicroseconds ?? usleep(...);
     }
 
     /**
@@ -270,7 +276,7 @@ final readonly class RequestExecutor
         $delayMs = $policy->delayMs($nextAttempt, $retryAfterSeconds);
 
         if ($delayMs > 0) {
-            usleep($delayMs * 1000);
+            ($this->sleepMicroseconds)($delayMs * 1000);
         }
     }
 

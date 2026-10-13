@@ -35,7 +35,7 @@ final class RequestExecutorTest extends TestCase
         $this->logger = new RecordingLogger;
     }
 
-    private function executor(?RetryPolicy $policy = null, bool $withApiKey = true): RequestExecutor
+    private function executor(?RetryPolicy $policy = null, bool $withApiKey = true, ?\Closure $sleepMicroseconds = null): RequestExecutor
     {
         return new RequestExecutor(
             $this->transport,
@@ -43,6 +43,7 @@ final class RequestExecutorTest extends TestCase
             $policy ?? new RetryPolicy(baseDelayMs: 0, jitter: false),
             $this->logger,
             $withApiKey ? new SensitiveString(self::API_KEY) : null,
+            $sleepMicroseconds,
         );
     }
 
@@ -378,16 +379,19 @@ final class RequestExecutorTest extends TestCase
         $policy = new RetryPolicy(maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 5000, jitter: false);
 
         $this->transport->queueResponse(new HttpResponse(429, headers: ['Retry-After' => ['1']], body: '{"error":{"type":"too_many_requests","message":"Slow."}}'));
+        $this->transport->queueResponse(new HttpResponse(503));
         $this->transport->queueResponse(new HttpResponse(200, body: '{"data":{}}'));
 
-        $response = $this->executor($policy)->send(HttpRequest::get('https://api.envai.dev/up'));
+        $sleeps = [];
+        $sleepMicroseconds = function (int $microseconds) use (&$sleeps): void {
+            $sleeps[] = [count($this->transport->requests), $microseconds];
+        };
+        $response = $this->executor($policy, sleepMicroseconds: $sleepMicroseconds)->send(HttpRequest::get('https://api.envai.dev/up'));
 
         $this->assertSame(200, $response->status);
-        $this->assertCount(2, $this->transport->requests);
-
-        $elapsed = $this->transport->sendTimes[1] - $this->transport->sendTimes[0];
-        $this->assertGreaterThanOrEqual(0.9, $elapsed);
-        $this->assertLessThan(2.0, $elapsed);
+        $this->assertCount(3, $this->transport->requests);
+        $this->assertSame([[1, 1_000_000], [2, 400_000]], $sleeps);
+        $this->assertSame(0, $this->transport->queueCount());
     }
 
     public function test_retry_after_is_ignored_when_policy_does_not_respect_it(): void
@@ -395,14 +399,58 @@ final class RequestExecutorTest extends TestCase
         $policy = new RetryPolicy(maxAttempts: 3, baseDelayMs: 50, maxDelayMs: 10_000, jitter: false, respectRetryAfter: false);
 
         $this->transport->queueResponse(new HttpResponse(429, headers: ['Retry-After' => ['60']], body: '{"error":{"type":"too_many_requests","message":"Slow."}}'));
+        $this->transport->queueResponse(new HttpResponse(429, headers: ['Retry-After' => ['60']]));
         $this->transport->queueResponse(new HttpResponse(200, body: '{"data":{}}'));
 
-        $response = $this->executor($policy)->send(HttpRequest::get('https://api.envai.dev/up'));
+        $sleeps = [];
+        $sleepMicroseconds = function (int $microseconds) use (&$sleeps): void {
+            $sleeps[] = [count($this->transport->requests), $microseconds];
+        };
+        $response = $this->executor($policy, sleepMicroseconds: $sleepMicroseconds)->send(HttpRequest::get('https://api.envai.dev/up'));
 
         $this->assertSame(200, $response->status);
+        $this->assertCount(3, $this->transport->requests);
+        $this->assertSame([[1, 100_000], [2, 200_000]], $sleeps);
+        $this->assertSame(0, $this->transport->queueCount());
+    }
 
-        $elapsed = $this->transport->sendTimes[1] - $this->transport->sendTimes[0];
-        $this->assertLessThan(0.5, $elapsed);
+    public function test_connect_phase_retry_uses_the_same_deterministic_backoff(): void
+    {
+        $this->transport->queueException(new TransportException('Connection refused.'));
+        $this->transport->queueResponse(new HttpResponse(200));
+        $sleeps = [];
+        $sleepMicroseconds = function (int $microseconds) use (&$sleeps): void {
+            $sleeps[] = [count($this->transport->requests), $microseconds];
+        };
+
+        $response = $this->executor(new RetryPolicy(baseDelayMs: 25, jitter: false), sleepMicroseconds: $sleepMicroseconds)->send(HttpRequest::get('https://api.envai.dev/up'));
+
+        $this->assertSame(200, $response->status);
+        $this->assertSame([[1, 50_000]], $sleeps);
+        $this->assertCount(2, $this->transport->requests);
+    }
+
+    public function test_zero_backoff_does_not_call_the_sleeper(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(503));
+        $this->transport->queueResponse(new HttpResponse(200));
+        $response = $this->executor(sleepMicroseconds: static function (int $microseconds): void {
+            self::fail('A zero backoff must not sleep.');
+        })->send(HttpRequest::get('https://api.envai.dev/up'));
+
+        $this->assertSame(200, $response->status);
+        $this->assertCount(2, $this->transport->requests);
+    }
+
+    public function test_default_sleeper_supports_a_positive_retry_backoff(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(503));
+        $this->transport->queueResponse(new HttpResponse(200));
+
+        $response = $this->executor(new RetryPolicy(baseDelayMs: 1, jitter: false))->send(HttpRequest::get('https://api.envai.dev/up'));
+
+        $this->assertSame(200, $response->status);
+        $this->assertCount(2, $this->transport->requests);
     }
 
     public function test_send_streaming_returns_download_metadata(): void
