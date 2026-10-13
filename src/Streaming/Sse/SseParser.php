@@ -77,6 +77,19 @@ final class SseParser
         }
     }
 
+    /** Resolve an EOF trailing bare CR without fabricating a missing frame boundary. */
+    public function finishInput(): void
+    {
+        if (str_ends_with($this->buffer, "\r")) {
+            $this->buffer .= "\n";
+        }
+    }
+
+    public function hasIncompleteFrame(): bool
+    {
+        return $this->buffer !== '' || $this->eventType !== null || $this->dataLines !== [];
+    }
+
     /**
      * Extracts one line (without its terminator) or null when no complete
      * line is buffered. A trailing "\r" is held back until the next chunk

@@ -39,7 +39,7 @@ Artifact creation/editing, CAS, asynchronous reference requests, Decisions QUERY
 
 `revision` and `as_of` identify a snapshot. A successful operation may have pending costs; failure may have positive costs. Late reconciliation changes GET usage metadata only. It does not change terminal event bytes, status, `finished_at` or event identity and does not emit a second terminal.
 
-OpenAPI 2.1 explicitly makes legacy completion `cost_usd` and ATP `usage.cost_usd`, terminal `cost` and `chat_cost` nullable when their provider amount is unknown. Existing numeric values remain valid. Consumers must update float-only assumptions before deploying this contract. ATP retains envelope version 2; typed `billing` and `usage_cost` are additive, with canonical scope under `data.usage`. Billing remains outside V1.
+Contract 3 (OpenAPI 3.0.0) explicitly negotiates nullable completion `cost_usd` and ATP v3 `usage.cost_usd`, terminal `cost` and `chat_cost` when their provider amount is unknown. Existing numeric values remain valid. The SDK selects contract 3 by default and checks the server acknowledgment before hydration. Immutable ATP v2 remains numeric-only and is accepted unchanged during v3 historical replay. Explicit contract 2 mode is read-only; incompatible completion pages or replay tails fail atomically with HTTP 426 rather than inventing zero. See [contract migration](CONTRACT_V3.md). Typed `billing` and `usage_cost` use canonical scope under `data.usage`. Billing remains outside V1.
 
 ## Signed outgoing webhooks
 

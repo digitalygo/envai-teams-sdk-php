@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Client;
 
 use Digitalygo\Envai\Client\Internal\ChatsMessageSender;
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\EventStreamConnection;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Streaming\Atp\AtpEventDecoder;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
 use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
 use Digitalygo\Envai\Streaming\Atp\TurnResult;
@@ -33,6 +35,7 @@ final class ChatRuntime
         private readonly string $workspaceId,
         private readonly string $chatId,
         private readonly ChatsService $chats,
+        private readonly int $contractVersion = 3,
     ) {}
 
     /**
@@ -47,12 +50,15 @@ final class ChatRuntime
      * Opens the typed ATP event stream of the chat, replaying every
      * retained event strictly after the given cursor.
      */
-    public function events(int $after = 0): ChatEventStream
+    public function events(int $after = 0, ?CancellationToken $token = null): ChatEventStream
     {
         return new ChatEventStream(
-            $this->chats->openEventStream($this->chatId, $after),
+            $this->chats->openEventStream($this->chatId, $after, $token),
+            token: $token,
+            initialCursor: $after,
+            decoder: new AtpEventDecoder($this->contractVersion),
             chatId: $this->chatId,
-            connectionFactory: fn (int $cursor): EventStreamConnection => $this->chats->openEventStream($this->chatId, $cursor),
+            connectionFactory: $this->contractVersion === 2 ? null : fn (int $cursor): EventStreamConnection => $this->chats->openEventStream($this->chatId, $cursor, $token),
         );
     }
 

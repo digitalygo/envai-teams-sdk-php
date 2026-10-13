@@ -13,9 +13,9 @@ use Digitalygo\Envai\Models\Usage\UsageCost;
  *
  * The server is authoritative for cost: the SDK never recomputes it from
  * local tariffs. `costUsd`, `durationMs` and `spriteMs` are nullable because
- * the current Envai alpha can emit incomplete usage objects (for example a
- * `chat_usage` without `duration_ms`); missing values stay null and are never
- * fabricated. Unknown usage fields are preserved in `extra`.
+ * v3 can carry unknown costs and additive usage projections; values are never
+ * fabricated. Legacy v2 envelopes are separately checked against their complete
+ * frozen numeric schema before this DTO is created. Unknown usage fields are preserved in `extra`.
  */
 final readonly class Usage
 {

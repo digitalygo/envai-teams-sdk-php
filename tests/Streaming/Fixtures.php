@@ -73,7 +73,7 @@ final class Fixtures
     public static function envelope(int $seq, string $id, string $ts, string $type, array $data, ?array $agent, ?string $turnId = self::TURN_ID, array $extra = []): array
     {
         return array_merge($extra, [
-            'v' => 2,
+            'v' => 3,
             'id' => $id,
             'seq' => $seq,
             'ts' => $ts,

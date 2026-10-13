@@ -50,7 +50,7 @@ final class ClientToolRuntimeTest extends TestCase
         $outputRequest = $transport->requests[1];
 
         $this->assertSame('POST', $outputRequest->method);
-        $this->assertSame('/api/v1/chats/cht_01/tool-output', parse_url($outputRequest->uri, PHP_URL_PATH));
+        $this->assertSame('/api/v1/atp/v3/chats/cht_01/tool-output', parse_url($outputRequest->uri, PHP_URL_PATH));
 
         $body = json_decode((string) $outputRequest->body, true, 512, JSON_THROW_ON_ERROR);
 
@@ -78,7 +78,7 @@ final class ClientToolRuntimeTest extends TestCase
         $this->assertCount(1, $results);
         $this->assertSame('call_02', $results[0]->callId);
         $this->assertSame(ToolRunOutcome::Executed, $results[0]->outcome);
-        $this->assertSame('/api/v1/chats/cht_02/tool-output', parse_url($transport->requests[1]->uri, PHP_URL_PATH));
+        $this->assertSame('/api/v1/atp/v3/chats/cht_02/tool-output', parse_url($transport->requests[1]->uri, PHP_URL_PATH));
     }
 
     public function test_unknown_tool_delivers_a_controlled_error(): void

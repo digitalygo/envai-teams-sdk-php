@@ -163,6 +163,7 @@ final class ServiceContainer
             $this->connectTimeoutSeconds,
             $this->requestTimeoutSeconds,
             $this->streamTimeoutSeconds,
+            $this->config->contractVersion,
         );
     }
 
@@ -233,6 +234,7 @@ final class ServiceContainer
             $this->uris,
             $this->connectTimeoutSeconds,
             $this->requestTimeoutSeconds,
+            $this->config->contractVersion,
         );
     }
 
@@ -317,6 +319,7 @@ final class ServiceContainer
             $workspaceId,
             $chatId,
             $this->chats(),
+            $this->config->contractVersion,
         );
     }
 

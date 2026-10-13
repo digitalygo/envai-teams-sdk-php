@@ -18,6 +18,8 @@ return [
         'production' => [
             'base_url' => env('ENVAI_BASE_URL'),
             'api_key' => env('ENVAI_API_KEY'),
+            'contract_version' => 3,
+            'max_legacy_replay_bytes' => 67_108_864,
         ],
     ],
 

@@ -256,6 +256,22 @@
               "description": "Frozen chat lifetime USD cost, mirroring chat_usage.cost_usd; null when incomplete or unknown."
             }
           }
+        },
+        "v": {
+          "type": "integer",
+          "enum": [
+            2,
+            3
+          ],
+          "description": "Original immutable terminal wire version; absent only on pre-version journal records."
+        },
+        "accepted_protocol_version": {
+          "type": "integer",
+          "enum": [
+            2,
+            3
+          ],
+          "description": "Version accepted before provider work. A recovered unknown-cost legacy turn can emit a v3 failure without rewriting its original acceptance."
         }
       }
     },

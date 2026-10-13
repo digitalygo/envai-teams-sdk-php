@@ -17,7 +17,14 @@ final readonly class CompletionTerminalSnapshot implements ArrayHydratable
         public string $eventType,
         public JsonObject $data,
         public array $extra = [],
+        public ?int $v = null,
+        public ?int $acceptedProtocolVersion = null,
     ) {
+        foreach ([$v, $acceptedProtocolVersion] as $version) {
+            if ($version !== null && ! in_array($version, [2, 3], true)) {
+                throw new \InvalidArgumentException('Invalid snapshot protocol version.');
+            }
+        }
         if ($eventId === '' || ! in_array($eventType, ['turn.completed', 'turn.failed', 'turn.cancelled'], true)) {
             throw new \InvalidArgumentException('Invalid completion terminal identity or event type.');
         }
@@ -35,14 +42,16 @@ final readonly class CompletionTerminalSnapshot implements ArrayHydratable
             occurredAt: Wire::string($data, 'occurred_at', self::class),
             eventType: Wire::string($data, 'event_type', self::class),
             data: Wire::jsonObject($data, 'data', self::class),
-            extra: Wire::extra($data, ['event_id', 'occurred_at', 'event_type', 'data']),
+            extra: Wire::extra($data, ['event_id', 'occurred_at', 'event_type', 'data', 'v', 'accepted_protocol_version']),
+            v: Wire::nullableInt($data, 'v', self::class),
+            acceptedProtocolVersion: Wire::nullableInt($data, 'accepted_protocol_version', self::class),
         );
     }
 
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_merge($this->extra, [
+        return array_merge($this->extra, $this->v === null ? [] : ['v' => $this->v], $this->acceptedProtocolVersion === null ? [] : ['accepted_protocol_version' => $this->acceptedProtocolVersion], [
             'event_id' => $this->eventId,
             'occurred_at' => $this->occurredAt,
             'event_type' => $this->eventType,

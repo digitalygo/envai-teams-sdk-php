@@ -1,7 +1,9 @@
 # Envai PHP SDK
 
+Contract 3 is selected by default. See [migration and explicit legacy read-only mode](docs/CONTRACT_V3.md) before upgrading.
+
 The official PHP SDK for Envai: a framework-independent, typed HTTP client and
-ATP v2 runtime for chats, event streaming, declarative agents and teams,
+ATP v3 (with historical v2 replay) runtime for chats, event streaming, declarative agents and teams,
 configuration synchronization, and verified client tools. Laravel integration
 is optional.
 
@@ -580,7 +582,7 @@ Chat control plane operations per workspace: `chats()->list()`, `chats()->get($c
 
 ## Streaming
 
-Every chat exposes a typed ATP v2 event stream:
+Every chat exposes a typed ATP v3 (with historical v2 replay) event stream:
 
 ```php
 $stream = $envai->chat($workspaceId, $chatId)->events();

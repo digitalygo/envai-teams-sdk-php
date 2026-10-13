@@ -63,7 +63,7 @@ final class ChatRuntimeTest extends TestCase
         $request = $transport->requests[0];
 
         $this->assertSame('POST', $request->method);
-        $this->assertSame('/api/v1/chats/'.self::CHAT.'/messages', parse_url($request->uri, PHP_URL_PATH));
+        $this->assertSame('/api/v1/atp/v3/chats/'.self::CHAT.'/messages', parse_url($request->uri, PHP_URL_PATH));
         $this->assertSame(['message' => 'Ciao'], json_decode((string) $request->body, true, 512, JSON_THROW_ON_ERROR));
     }
 
@@ -94,7 +94,7 @@ final class ChatRuntimeTest extends TestCase
         $messageRequest = $transport->requests[0];
 
         $this->assertSame('POST', $messageRequest->method);
-        $this->assertSame('/api/v1/chats/'.self::CHAT.'/messages', parse_url($messageRequest->uri, PHP_URL_PATH));
+        $this->assertSame('/api/v1/atp/v3/chats/'.self::CHAT.'/messages', parse_url($messageRequest->uri, PHP_URL_PATH));
         $this->assertSame(['message' => 'Ciao'], json_decode((string) $messageRequest->body, true, 512, JSON_THROW_ON_ERROR));
     }
 

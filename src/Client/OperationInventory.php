@@ -23,15 +23,15 @@ final class OperationInventory
      * @var array<string, array{method: string, path: string}>
      */
     public const OPERATIONS = [
-        'sendChatMessage' => ['method' => 'POST', 'path' => '/chats/{chat_id}/messages'],
-        'streamChatEvents' => ['method' => 'GET', 'path' => '/chats/{chat_id}/events'],
-        'cancelChatTurn' => ['method' => 'POST', 'path' => '/chats/{chat_id}/cancel'],
-        'steerChatTurn' => ['method' => 'POST', 'path' => '/chats/{chat_id}/steer'],
-        'resolveChatTool' => ['method' => 'POST', 'path' => '/chats/{chat_id}/tool-output'],
-        'resolveChatApproval' => ['method' => 'POST', 'path' => '/chats/{chat_id}/approval'],
-        'forkChat' => ['method' => 'POST', 'path' => '/chats/{chat_id}/fork'],
-        'restoreChat' => ['method' => 'POST', 'path' => '/chats/{chat_id}/restore'],
-        'getCapabilities' => ['method' => 'GET', 'path' => '/capabilities'],
+        'sendChatMessage' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/messages'],
+        'streamChatEvents' => ['method' => 'GET', 'path' => '/atp/v3/chats/{chat_id}/events'],
+        'cancelChatTurn' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/cancel'],
+        'steerChatTurn' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/steer'],
+        'resolveChatTool' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/tool-output'],
+        'resolveChatApproval' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/approval'],
+        'forkChat' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/fork'],
+        'restoreChat' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/restore'],
+        'getCapabilities' => ['method' => 'GET', 'path' => '/atp/v3/capabilities'],
         'healthCheck' => ['method' => 'GET', 'path' => '/up'],
         'getJwks' => ['method' => 'GET', 'path' => '/.well-known/jwks.json'],
         'createWorkspace' => ['method' => 'POST', 'path' => '/workspaces'],
@@ -86,5 +86,7 @@ final class OperationInventory
         'listWikiCategories' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/wiki/categories'],
         'getWikiCategoryIndex' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/wiki/categories/{category_id}/index'],
         'getWikiWebhookJwks' => ['method' => 'GET', 'path' => '/.well-known/wiki-webhook-jwks.json'],
+        'streamChatEventsLegacy' => ['method' => 'GET', 'path' => '/chats/{chat_id}/events'],
+        'getCapabilitiesLegacy' => ['method' => 'GET', 'path' => '/capabilities'],
     ];
 }

@@ -1,6 +1,6 @@
 {
     "name": "digitalygo/envai-teams-sdk-php",
-    "description": "Official PHP SDK for Envai: a framework-independent typed HTTP client and an ATP v2 runtime for chat, streaming, definitions and client tools.",
+    "description": "Official PHP SDK for Envai: a framework-independent typed HTTP client and an ATP v3 runtime for chat, streaming, definitions and client tools.",
     "type": "library",
     "license": "MIT",
     "require": {

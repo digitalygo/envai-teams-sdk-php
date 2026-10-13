@@ -1,4 +1,38 @@
-# Wiki V1 SDK validation
+# Contract 3 and Wiki V1 validation
+
+Final migration validation on 2026-10-13 extends the published SDK feature head `3a3953a0cb9fe8559af8846cf8105ee442d4f55a` (tree `b09970d205aa62884f1f77f395f0161ff510103b`) and pins the real backend commit `c27963d0848540679bccf30d2aeab354097b1a38`. [Migration guide](CONTRACT_V3.md).
+
+## Final contract 3 results
+
+- Complete PHP 8.4.24 / PHPUnit 11.5.57 / isolated Illuminate 12 / real PostgreSQL 18.3 suite: **2,218 tests, 9,404 assertions, no failures; 25 optional MySQL skips**. Executed with PCOV 1.0.12.
+- Total executable delta from verified original main: **874/877 statements, 99.66%**. The two defensive missing/corrupt bundled-schema exceptions and the optional MySQL inbox branch are the only uncovered statements. Per-file detail: `wiki-delta-coverage.json`.
+- Pint, maximum-level PHPStan, strict Composer validation, Composer audit, workflow actionlint and `git diff --check`: passed. JSON schemas, fixture validation and all **65** OpenAPI operation inventory entries: passed.
+- Release tooling was installed from the unchanged lockfile using a workspace npm cache, patched with the repository CI script and tested on Node 24.19.0. The initial invocation had no installed Semantic Release package; after installation the complete release tooling suite and npm security audit passed, with 100% release-matcher coverage. No release automation source changed.
+- Independently fetched GitHub blob IDs for all five source schemas at the pinned backend commit match the SDK snapshots byte-for-byte. The immutable numeric v2 schema is also shipped under `src/resources/atp`, outside export-ignored documentation.
+- Native cURL tests exercised the real HTTP acknowledgment boundary, old-server preflight rejection, legacy HTTP 426, nullable REST hydration and unchanged mixed v2/v3 SSE bytes.
+- Actual authenticated Laravel HTTP-kernel source/pending-completion/historical-completion responses validate against schemas and hydrate through negotiated client services. Their exact bytes, acknowledgment headers and SHA-256 origin manifest are retained in `tests/fixtures/contract-v3-http`. These use disposable PostgreSQL and synthetic ledger data; they are not captured live provider responses.
+- Independent migration review cleared default-3 namespace/preflight/ack protection, uniform legacy read-only enforcement, exact frozen-v2 validation, recursive finite/nonnegative legacy REST cost checks and atomic finite legacy replay.
+- Legacy snapshot tests cover late malformed/null/mixed-v3 tails, foreign chats, gaps, backwards/duplicate sequences, nonzero cursors, pings, byte limit errors, cancellation, incomplete SSE, bare-CR EOF, exact-byte retention and no live reconnect. No prefix is delivered before full validation.
+- V3 remains incremental and retains selection through reconnect. Version-specific cost checks cover all three turn terminals, agent.done and agent.tool.complete. Required usage integers and finite/nonnegative costs reject malformed data. Tool signature preimages remain unchanged.
+- Optional terminal snapshot versions and accepted-version provenance round-trip; missing historical metadata remains supported. Provider-cost reconciliation never rewrites the committed snapshot.
+
+Final instrumented command (inside the disposable PostgreSQL wrapper):
+
+```sh
+export ENVAI_TEST_PGSQL_DSN="pgsql:host=$PGHOST;port=$PGPORT;dbname=$PGDATABASE"
+export ENVAI_TEST_PGSQL_USER="$PGUSER" ENVAI_TEST_PGSQL_PASSWORD=""
+php -d pcov.enabled=1 -d pcov.directory="$PWD" vendor/bin/phpunit \
+  --bootstrap ../sdk-laravel-tests/bootstrap.php \
+  --coverage-clover ../sdk-coverage-final.xml
+```
+
+Only PHP 8.4 was run locally. PHP 8.2/8.3/8.5 and MySQL remain fresh-CI gates for this migration; the previous published feature head passed its PHP 8.2–8.5 matrix. No paid provider call, new credential, deployment or remote publication was performed by these local checks. Coordinator publication is separate and preserves the real feature ancestry. Companion integration: [Envai Teams #45](https://github.com/digitalygo/envai-teams/pull/45) and [FFS #9](https://github.com/digitalygo/fake-filesystem-for-agents/pull/9).
+
+## Prior validation history
+
+The sections below record earlier Wiki V1 and provenance checkpoints. Their old test counts, backend pins and release gates are historical; the contract 3 results above supersede them.
+
+## Wiki V1 validation before negotiated contract 3
 
 Validated 2026-10-13 against the verified SDK `main` baseline `426517b6af0ce37491b258de026f87310239cf42` and the published Envai Teams Wiki V1 contract at `8e808dce5536275a16b2ed8920e4cfc77e70748d` (based on `b590e6b8758b53346d4e0356c384585373b1b8ea`).
 

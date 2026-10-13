@@ -41,12 +41,13 @@ use Digitalygo\Envai\Streaming\Events\TurnFailedEvent;
 use Digitalygo\Envai\Streaming\Events\TurnStartedEvent;
 use Digitalygo\Envai\Streaming\Events\TurnSteeredEvent;
 use Digitalygo\Envai\Streaming\Events\UnknownEvent;
+use Opis\JsonSchema\Validator;
 
 /**
  * Decodes one ATP event from its JSON wire payload.
  *
  * Rules, in order: the payload must be a JSON object (else
- * ProtocolViolationException); `v` must be the integer 2 (else
+ * ProtocolViolationException); `v` must be 2 or 3 under contract 3, or 2 under legacy mode (else
  * ProtocolVersionException, checked before any payload interpretation); an
  * envelope that is not structurally valid raises ProtocolViolationException;
  * an unknown `type` becomes UnknownEvent with the payload untouched; a known
@@ -66,6 +67,17 @@ use Digitalygo\Envai\Streaming\Events\UnknownEvent;
  */
 final class AtpEventDecoder
 {
+    private ?Validator $legacyValidator = null;
+
+    private ?\stdClass $legacySchema = null;
+
+    public function __construct(private readonly int $contractVersion = 3)
+    {
+        if (! in_array($contractVersion, [2, 3], true)) {
+            throw new \InvalidArgumentException('Supported contracts are 2 and 3.');
+        }
+    }
+
     public function decode(string $json): AtpEvent
     {
         $tree = $this->decodeObject($json);
@@ -78,6 +90,10 @@ final class AtpEventDecoder
 
         /** @var array<string, mixed> $data */
         $data = $decoded['data'];
+
+        if ($envelope->v === 2 && ! $this->validLegacyEnvelope($tree)) {
+            return new ProtocolViolationEvent($envelope, ['Event does not conform to the immutable ATP v2 schema.'], $data);
+        }
 
         // The decoded object tree keeps the wire distinction between `{}`
         // and `[]` that the associative form loses; args-bearing events
@@ -128,11 +144,84 @@ final class AtpEventDecoder
             default => new UnknownEvent($envelope, new JsonObject($data)),
         };
 
+        if (! $event instanceof ProtocolViolationEvent) {
+            $costViolations = $this->costViolations($envelope, $data);
+            if ($costViolations !== []) {
+                return new ProtocolViolationEvent($envelope, $costViolations, $data);
+            }
+        }
+
         if (! $event instanceof UnknownEvent && $envelope->turnId === null) {
             return new ProtocolViolationEvent($envelope, ['Known replayable events require a non-null turn_id.'], $data);
         }
 
         return $event;
+    }
+
+    /** @param array<string, mixed> $data
+     * @return list<string>
+     */
+    private function costViolations(EventEnvelope $envelope, array $data): array
+    {
+        $terminal = in_array($envelope->type, ['turn.completed', 'turn.cancelled', 'turn.failed'], true);
+        if (! $terminal && ! in_array($envelope->type, ['agent.done', 'agent.tool.complete'], true)) {
+            return [];
+        }
+        $violations = [];
+        foreach ($terminal ? ['usage', 'chat_usage'] : ['usage'] as $key) {
+            $usage = $data[$key] ?? null;
+            if (! is_array($usage) || ! array_key_exists('cost_usd', $usage)) {
+                $violations[] = $key.'.cost_usd is required.';
+
+                continue;
+            }
+            foreach (['input_tokens', 'output_tokens', 'duration_ms', 'sprite_ms', 'sprite_ram_gb_ms', 'tool_calls'] as $field) {
+                if (! array_key_exists($field, $usage) && in_array($field, ['sprite_ms', 'sprite_ram_gb_ms', 'tool_calls'], true)) {
+                    continue;
+                }
+                if (! isset($usage[$field]) || ! is_int($usage[$field]) || $usage[$field] < 0) {
+                    $violations[] = $key.'.'.$field.' must be a nonnegative integer.';
+                }
+            }
+            $cost = $usage['cost_usd'];
+            if (! $this->validCost($cost, $envelope->v)) {
+                $violations[] = $key.'.cost_usd is incompatible with the envelope version.';
+            }
+        }
+        if ($terminal) {
+            foreach (['cost', 'chat_cost'] as $key) {
+                if (! array_key_exists($key, $data) || ! $this->validCost($data[$key], $envelope->v)) {
+                    $violations[] = $key.' is incompatible with the envelope version.';
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    private function validLegacyEnvelope(\stdClass $tree): bool
+    {
+        if ($this->legacySchema === null) {
+            $contents = file_get_contents(dirname(__DIR__, 2).'/resources/atp/events-v2.json');
+            if ($contents === false) {
+                throw new ProtocolViolationException('Bundled ATP v2 schema is unavailable.');
+            }
+            $schema = json_decode($contents, flags: JSON_THROW_ON_ERROR);
+            if (! $schema instanceof \stdClass) {
+                throw new ProtocolViolationException('Bundled ATP v2 schema is invalid.');
+            }
+            $schema->{'$ref'} = '#/$defs/Event';
+            $this->legacySchema = $schema;
+            $this->legacyValidator = new Validator;
+        }
+
+        return $this->legacyValidator?->validate($tree, $this->legacySchema)->isValid() === true;
+    }
+
+    private function validCost(mixed $cost, int $version): bool
+    {
+        return ($version === 3 && $cost === null)
+            || ((is_int($cost) || is_float($cost)) && is_finite((float) $cost) && $cost >= 0);
     }
 
     /**
@@ -193,9 +282,9 @@ final class AtpEventDecoder
     {
         $v = $envelope['v'] ?? null;
 
-        if (! is_int($v) || $v !== 2) {
+        if (! is_int($v) || ! in_array($v, $this->contractVersion === 3 ? [2, 3] : [2], true)) {
             throw new ProtocolVersionException(sprintf(
-                'Unsupported ATP protocol version %s; this SDK implements v2.',
+                'Unsupported ATP protocol version %s for the selected contract.',
                 is_int($v) ? (string) $v : get_debug_type($v),
             ));
         }
@@ -208,6 +297,7 @@ final class AtpEventDecoder
     {
         $problems = [];
 
+        $version = $this->requiredInt($envelope, 'v', $problems);
         $id = $this->requiredString($envelope, 'id', $problems);
         $seq = $this->requiredInt($envelope, 'seq', $problems);
         $ts = $this->requiredString($envelope, 'ts', $problems);
@@ -222,7 +312,7 @@ final class AtpEventDecoder
         }
 
         return new EventEnvelope(
-            v: 2,
+            v: $version,
             id: $id,
             seq: $seq,
             ts: $ts,

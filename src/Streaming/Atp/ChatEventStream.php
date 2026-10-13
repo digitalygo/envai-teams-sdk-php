@@ -117,6 +117,7 @@ final class ChatEventStream implements \IteratorAggregate
      */
     private function iterate(): \Generator
     {
+        $inputFinished = false;
         try {
             while (true) {
                 $this->token?->throwIfCancelled();
@@ -185,6 +186,12 @@ final class ChatEventStream implements \IteratorAggregate
                 $bytes = $this->connection->read($this->readChunkSize);
 
                 if ($bytes === null) {
+                    if (! $inputFinished) {
+                        $this->parser->finishInput();
+                        $inputFinished = true;
+
+                        continue;
+                    }
                     $this->token?->throwIfCancelled();
 
                     if ($this->recovering) {
@@ -208,6 +215,7 @@ final class ChatEventStream implements \IteratorAggregate
                     return;
                 }
 
+                $inputFinished = false;
                 $this->parser->feed($bytes);
 
             }

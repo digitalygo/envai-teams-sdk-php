@@ -2,55 +2,55 @@
   {
     "id": "sendChatMessage",
     "method": "POST",
-    "path": "/chats/{chat_id}/messages",
+    "path": "/atp/v3/chats/{chat_id}/messages",
     "authenticated": true
   },
   {
     "id": "streamChatEvents",
     "method": "GET",
-    "path": "/chats/{chat_id}/events",
+    "path": "/atp/v3/chats/{chat_id}/events",
     "authenticated": true
   },
   {
     "id": "cancelChatTurn",
     "method": "POST",
-    "path": "/chats/{chat_id}/cancel",
+    "path": "/atp/v3/chats/{chat_id}/cancel",
     "authenticated": true
   },
   {
     "id": "steerChatTurn",
     "method": "POST",
-    "path": "/chats/{chat_id}/steer",
+    "path": "/atp/v3/chats/{chat_id}/steer",
     "authenticated": true
   },
   {
     "id": "resolveChatTool",
     "method": "POST",
-    "path": "/chats/{chat_id}/tool-output",
+    "path": "/atp/v3/chats/{chat_id}/tool-output",
     "authenticated": true
   },
   {
     "id": "resolveChatApproval",
     "method": "POST",
-    "path": "/chats/{chat_id}/approval",
+    "path": "/atp/v3/chats/{chat_id}/approval",
     "authenticated": true
   },
   {
     "id": "forkChat",
     "method": "POST",
-    "path": "/chats/{chat_id}/fork",
+    "path": "/atp/v3/chats/{chat_id}/fork",
     "authenticated": true
   },
   {
     "id": "restoreChat",
     "method": "POST",
-    "path": "/chats/{chat_id}/restore",
+    "path": "/atp/v3/chats/{chat_id}/restore",
     "authenticated": true
   },
   {
     "id": "getCapabilities",
     "method": "GET",
-    "path": "/capabilities",
+    "path": "/atp/v3/capabilities",
     "authenticated": true
   },
   {
@@ -376,5 +376,17 @@
     "method": "GET",
     "path": "/.well-known/wiki-webhook-jwks.json",
     "authenticated": false
+  },
+  {
+    "id": "streamChatEventsLegacy",
+    "method": "GET",
+    "path": "/chats/{chat_id}/events",
+    "authenticated": true
+  },
+  {
+    "id": "getCapabilitiesLegacy",
+    "method": "GET",
+    "path": "/capabilities",
+    "authenticated": true
   }
 ]

@@ -120,7 +120,7 @@ final class CurlTransport implements EventStreamTransport, HttpTransport
                 'The SSE endpoint %s returned HTTP %d.',
                 CurlOptionsBuilder::sanitizeUri($request->uri),
                 $status,
-            ));
+            ), ['http_status' => $status]);
         }
 
         if (! $connection->hasEventStreamContentType()) {

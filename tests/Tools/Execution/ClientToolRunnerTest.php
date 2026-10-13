@@ -743,7 +743,7 @@ final class ClientToolRunnerTest extends TestCase
     private function requestWire(string $callId, string $toolName, string $kid, string $signature, array $args): string
     {
         return json_encode([
-            'v' => 2,
+            'v' => 3,
             'id' => 'evt_typed_01',
             'seq' => 1,
             'ts' => '2026-08-29T14:00:00Z',

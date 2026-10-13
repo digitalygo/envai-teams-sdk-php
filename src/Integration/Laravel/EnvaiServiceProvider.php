@@ -385,6 +385,14 @@ final class EnvaiServiceProvider extends ServiceProvider
 
         $baseUrl = $connectionConfig['base_url'] ?? '';
         $apiKey = $connectionConfig['api_key'] ?? '';
+        $contractVersion = $connectionConfig['contract_version'] ?? 3;
+        $maxLegacyReplayBytes = $connectionConfig['max_legacy_replay_bytes'] ?? 67_108_864;
+        if (! is_int($maxLegacyReplayBytes)) {
+            throw new \InvalidArgumentException('max_legacy_replay_bytes must be a positive integer.');
+        }
+        if (! is_int($contractVersion)) {
+            throw new \InvalidArgumentException('contract_version must be the integer 2 or 3.');
+        }
 
         try {
             return new EnvaiClient(
@@ -392,6 +400,8 @@ final class EnvaiServiceProvider extends ServiceProvider
                     baseUrl: is_string($baseUrl) ? $baseUrl : '',
                     apiKey: new SensitiveString(is_string($apiKey) ? $apiKey : ''),
                     connectionName: $connection,
+                    contractVersion: $contractVersion,
+                    maxLegacyReplayBytes: $maxLegacyReplayBytes,
                     definitionsPath: $this->stringConfig($config, 'envai.definitions.path', null),
                     stateDriver: $this->stringConfig($config, 'envai.state.driver', 'file'),
                     stateFilePath: $this->stringConfig($config, 'envai.state.file', null),

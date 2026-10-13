@@ -1,6 +1,6 @@
 {
-  "executable_lines": 579,
-  "covered_lines": 578,
+  "executable_lines": 877,
+  "covered_lines": 874,
   "files": [
     {
       "path": "database/migrations/2026_10_13_000000_create_envai_wiki_webhook_inbox.php",
@@ -10,14 +10,26 @@
     },
     {
       "path": "src/Client/CapabilitiesService.php",
-      "executable_delta": 2,
-      "covered": 2,
+      "executable_delta": 6,
+      "covered": 6,
+      "uncovered": []
+    },
+    {
+      "path": "src/Client/ChatRuntime.php",
+      "executable_delta": 5,
+      "covered": 5,
+      "uncovered": []
+    },
+    {
+      "path": "src/Client/ChatsService.php",
+      "executable_delta": 12,
+      "covered": 12,
       "uncovered": []
     },
     {
       "path": "src/Client/EnvaiClient.php",
-      "executable_delta": 1,
-      "covered": 1,
+      "executable_delta": 4,
+      "covered": 4,
       "uncovered": []
     },
     {
@@ -34,14 +46,32 @@
     },
     {
       "path": "src/Client/Internal/ServiceContainer.php",
-      "executable_delta": 1,
-      "covered": 1,
+      "executable_delta": 4,
+      "covered": 4,
       "uncovered": []
     },
     {
       "path": "src/Client/Internal/TypedRequester.php",
       "executable_delta": 9,
       "covered": 9,
+      "uncovered": []
+    },
+    {
+      "path": "src/Configuration/EnvaiConfig.php",
+      "executable_delta": 4,
+      "covered": 4,
+      "uncovered": []
+    },
+    {
+      "path": "src/Http/Client/ContractTransport.php",
+      "executable_delta": 140,
+      "covered": 140,
+      "uncovered": []
+    },
+    {
+      "path": "src/Http/Client/LegacyReplayConnection.php",
+      "executable_delta": 44,
+      "covered": 44,
       "uncovered": []
     },
     {
@@ -57,6 +87,18 @@
       "uncovered": []
     },
     {
+      "path": "src/Http/Curl/CurlTransport.php",
+      "executable_delta": 1,
+      "covered": 1,
+      "uncovered": []
+    },
+    {
+      "path": "src/Integration/Laravel/EnvaiServiceProvider.php",
+      "executable_delta": 8,
+      "covered": 8,
+      "uncovered": []
+    },
+    {
       "path": "src/Models/Completion/Completion.php",
       "executable_delta": 15,
       "covered": 15,
@@ -64,8 +106,14 @@
     },
     {
       "path": "src/Models/Completion/CompletionTerminalSnapshot.php",
-      "executable_delta": 18,
-      "covered": 18,
+      "executable_delta": 23,
+      "covered": 23,
+      "uncovered": []
+    },
+    {
+      "path": "src/Models/System/Capabilities.php",
+      "executable_delta": 13,
+      "covered": 13,
       "uncovered": []
     },
     {
@@ -172,14 +220,29 @@
     },
     {
       "path": "src/Streaming/Atp/AtpEventDecoder.php",
-      "executable_delta": 18,
-      "covered": 18,
+      "executable_delta": 65,
+      "covered": 63,
+      "uncovered": [
+        207,
+        211
+      ]
+    },
+    {
+      "path": "src/Streaming/Atp/ChatEventStream.php",
+      "executable_delta": 6,
+      "covered": 6,
       "uncovered": []
     },
     {
       "path": "src/Streaming/Atp/Payload.php",
       "executable_delta": 28,
       "covered": 28,
+      "uncovered": []
+    },
+    {
+      "path": "src/Streaming/Sse/SseParser.php",
+      "executable_delta": 3,
+      "covered": 3,
       "uncovered": []
     },
     {
@@ -203,5 +266,5 @@
       "uncovered": []
     }
   ],
-  "percent": 99.83
+  "percent": 99.66
 }

@@ -30,7 +30,7 @@ final class FakeEventStreamConnection implements EventStreamConnection
      */
     public function headers(): array
     {
-        return ['content-type' => ['text/event-stream']];
+        return ['content-type' => ['text/event-stream'], 'x-envai-contract-version' => ['3']];
     }
 
     public function cancel(): void

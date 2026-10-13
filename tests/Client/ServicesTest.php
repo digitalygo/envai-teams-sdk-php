@@ -115,7 +115,7 @@ final class ServicesTest extends TestCase
         $cases = [
             'sendChatMessage' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/messages',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/messages',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): ChatMessageAccepted => $client->chats()->sendMessage(self::CHAT, new ChatMessageRequest('Summarize the last week of traffic')),
@@ -127,14 +127,14 @@ final class ServicesTest extends TestCase
             ],
             'streamChatEvents' => [
                 'method' => 'GET',
-                'path' => '/api/v1/chats/'.self::CHAT.'/events',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/events',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): EventStreamConnection => $client->chats()->openEventStream(self::CHAT, 5),
                 'extra' => static function (FakeTransport $transport, mixed $result): void {
                     $stream = $transport->streamRequests[0];
                     self::assertNotNull($stream);
-                    self::assertSame('/api/v1/chats/'.self::CHAT.'/events', parse_url($stream->uri, PHP_URL_PATH));
+                    self::assertSame('/api/v1/atp/v3/chats/'.self::CHAT.'/events', parse_url($stream->uri, PHP_URL_PATH));
                     self::assertSame('after=5', parse_url($stream->uri, PHP_URL_QUERY));
                     self::assertSame(['text/event-stream'], $stream->headers['accept'] ?? null);
                     self::assertSame(['Bearer sk-test-secret'], $stream->headers['authorization'] ?? null);
@@ -144,7 +144,7 @@ final class ServicesTest extends TestCase
             ],
             'cancelChatTurn' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/cancel',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/cancel',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): TurnAccepted => $client->chats()->cancel(self::CHAT),
@@ -156,7 +156,7 @@ final class ServicesTest extends TestCase
             ],
             'steerChatTurn' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/steer',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/steer',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): TurnAccepted => $client->chats()->steer(self::CHAT, new SteerRequest('Prefer the cheaper provider', 'ag_01j5abcdefghjkmnpqrstvwxyz')),
@@ -167,7 +167,7 @@ final class ServicesTest extends TestCase
             ],
             'resolveChatTool' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/tool-output',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/tool-output',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): null => $client->chats()->resolveToolOutput(self::CHAT, new ToolOutputRequest('tc_01j5abcdefghjkmnpqrstvwxyz', '{"ok":true}', true)),
@@ -178,7 +178,7 @@ final class ServicesTest extends TestCase
             ],
             'resolveChatApproval' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/approval',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/approval',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): null => $client->chats()->submitApproval(self::CHAT, new ApprovalDecisionRequest('appr_01j5abcdefghjkmnpqrstvwxyz', true, 'Keep the budget under 10 dollars')),
@@ -190,7 +190,7 @@ final class ServicesTest extends TestCase
             ],
             'forkChat' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/fork',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/fork',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): ChatForked => $client->chats()->fork(self::CHAT, new ForkChatRequest('cht_02j5abcdefghjkmnpqrstvwxyz')),
@@ -202,7 +202,7 @@ final class ServicesTest extends TestCase
             ],
             'restoreChat' => [
                 'method' => 'POST',
-                'path' => '/api/v1/chats/'.self::CHAT.'/restore',
+                'path' => '/api/v1/atp/v3/chats/'.self::CHAT.'/restore',
                 'auth' => true,
                 'retry' => RetrySafety::NeverRetry,
                 'invoke' => static fn (EnvaiClient $client): RestoreChatAccepted => $client->chats()->restore(self::CHAT, new RestoreChatRequest([
@@ -222,13 +222,13 @@ final class ServicesTest extends TestCase
             ],
             'getCapabilities' => [
                 'method' => 'GET',
-                'path' => '/api/v1/capabilities',
+                'path' => '/api/v1/atp/v3/capabilities',
                 'auth' => true,
                 'retry' => RetrySafety::Safe,
                 'invoke' => static fn (EnvaiClient $client): Capabilities => $client->capabilities()->getCapabilities(),
                 'extra' => static function (FakeTransport $transport, mixed $result): void {
                     self::assertInstanceOf(Capabilities::class, $result);
-                    self::assertSame(2, $result->protocolVersion);
+                    self::assertSame(3, $result->protocolVersion);
                 },
             ],
             'healthCheck' => [
@@ -1128,7 +1128,7 @@ final class ServicesTest extends TestCase
     private static function capabilitiesPayload(): array
     {
         return [
-            'protocol_version' => 2,
+            'protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3],
             'families' => ['turn', 'agent'],
             'event_types' => ['ping', 'turn.started'],
             'tool_kinds' => ['server', 'client'],

@@ -8,6 +8,7 @@ use Digitalygo\Envai\Client\Internal\ServiceContainer;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Contracts\EventStreamTransport;
 use Digitalygo\Envai\Contracts\HttpTransport;
+use Digitalygo\Envai\Http\Client\ContractTransport;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\Curl\CurlTransport;
@@ -54,8 +55,9 @@ final readonly class EnvaiClient
         }
 
         $this->uris = new UriResolver($config->baseUrl, $config->jwksUrl);
+        $negotiatedTransport = new ContractTransport($this->transport, $this->uris, $config->contractVersion, $config->maxLegacyReplayBytes);
         $this->executor = new RequestExecutor(
-            $this->transport,
+            $negotiatedTransport,
             $this->uris,
             $config->retryPolicy,
             $logger,
@@ -65,7 +67,7 @@ final readonly class EnvaiClient
         $this->services = new ServiceContainer(
             executor: $this->executor,
             uris: $this->uris,
-            streams: $this->transport,
+            streams: $negotiatedTransport,
             apiKey: $config->apiKey,
             connectTimeoutSeconds: $config->connectTimeoutSeconds,
             requestTimeoutSeconds: $config->requestTimeoutSeconds,

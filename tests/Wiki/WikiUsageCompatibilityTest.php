@@ -16,6 +16,7 @@ final class WikiUsageCompatibilityTest extends TestCase
     {
         foreach (['turn.completed', 'turn.failed', 'turn.cancelled'] as $type) {
             $wire = Fixtures::sample($type);
+            $wire['v'] = 3;
             $wire['data']['cost'] = null;
             $wire['data']['chat_cost'] = null;
             $wire['data']['usage']['cost_usd'] = null;

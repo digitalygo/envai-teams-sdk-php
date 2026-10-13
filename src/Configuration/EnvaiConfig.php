@@ -32,7 +32,16 @@ final readonly class EnvaiConfig
         public ?string $definitionsPath = null,
         public ?string $stateDriver = null,
         public ?string $stateFilePath = null,
+        public int $contractVersion = 3,
+        public int $maxLegacyReplayBytes = 67_108_864,
     ) {
+        if ($maxLegacyReplayBytes < 1) {
+            throw new \InvalidArgumentException('maxLegacyReplayBytes must be positive.');
+        }
+        if (! in_array($this->contractVersion, [2, 3], true)) {
+            throw new \InvalidArgumentException('contractVersion must be 2 or 3.');
+        }
+
         if (self::isHttpUrl($this->baseUrl) === false) {
             throw new \InvalidArgumentException('baseUrl must be a non-empty http(s) URL.');
         }

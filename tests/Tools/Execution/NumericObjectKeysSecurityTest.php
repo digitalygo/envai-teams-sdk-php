@@ -27,7 +27,7 @@ final class NumericObjectKeysSecurityTest extends TestCase
         $canonical = '{"0":"zero","nested":{"1":42}}';
         $signature = TestKeys::signPayload("call_numeric\necho\n".$canonical, $harness->keys['secret']);
         $wire = json_encode([
-            'v' => 2,
+            'v' => 3,
             'id' => 'evt_01ARZ3NDEKTSV4RRFFQ69G5FA0',
             'seq' => 1,
             'ts' => '2026-10-12T22:00:00Z',

@@ -21,6 +21,7 @@ final readonly class Capabilities implements ArrayHydratable
      * @param  list<string>  $eventTypes
      * @param  list<string>  $toolKinds
      * @param  list<string>  $features
+     * @param  list<int>  $supportedContractVersions
      * @param  array<string, mixed>  $extra  Unknown payload keys preserved for forward compatibility.
      */
     public function __construct(
@@ -30,6 +31,9 @@ final readonly class Capabilities implements ArrayHydratable
         public array $toolKinds,
         public array $features,
         public array $extra = [],
+        public ?int $contractVersion = null,
+        public array $supportedContractVersions = [],
+        public ?string $legacyV2Mode = null,
     ) {}
 
     /**
@@ -38,6 +42,17 @@ final readonly class Capabilities implements ArrayHydratable
     public static function fromArray(array $data): static
     {
         $context = 'Capabilities';
+        $supported = $data['supported_contract_versions'] ?? [];
+        if (! is_array($supported) || ! array_is_list($supported)) {
+            throw new \InvalidArgumentException('supported_contract_versions must be a list.');
+        }
+        $versions = [];
+        foreach ($supported as $version) {
+            if (! is_int($version)) {
+                throw new \InvalidArgumentException('supported_contract_versions must contain integers.');
+            }
+            $versions[] = $version;
+        }
 
         return new self(
             protocolVersion: Wire::int($data, 'protocol_version', $context),
@@ -45,7 +60,10 @@ final readonly class Capabilities implements ArrayHydratable
             eventTypes: Wire::stringList($data, 'event_types', $context),
             toolKinds: Wire::stringList($data, 'tool_kinds', $context),
             features: Wire::stringList($data, 'features', $context),
-            extra: Wire::extra($data, ['protocol_version', 'families', 'event_types', 'tool_kinds', 'features']),
+            extra: Wire::extra($data, ['protocol_version', 'families', 'event_types', 'tool_kinds', 'features', 'contract_version', 'supported_contract_versions', 'legacy_v2_mode']),
+            contractVersion: Wire::nullableInt($data, 'contract_version', $context),
+            supportedContractVersions: $versions,
+            legacyV2Mode: Wire::nullableString($data, 'legacy_v2_mode', $context),
         );
     }
 
@@ -60,6 +78,6 @@ final readonly class Capabilities implements ArrayHydratable
             'event_types' => $this->eventTypes,
             'tool_kinds' => $this->toolKinds,
             'features' => $this->features,
-        ], $this->extra);
+        ], $this->extra, $this->contractVersion === null ? [] : ['contract_version' => $this->contractVersion], $this->supportedContractVersions === [] ? [] : ['supported_contract_versions' => $this->supportedContractVersions], $this->legacyV2Mode === null ? [] : ['legacy_v2_mode' => $this->legacyV2Mode]);
     }
 }

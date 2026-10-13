@@ -6,8 +6,10 @@ namespace Digitalygo\Envai\Client;
 
 use Digitalygo\Envai\Client\Internal\TypedRequester;
 use Digitalygo\Envai\Configuration\SensitiveString;
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\EventStreamConnection;
 use Digitalygo\Envai\Contracts\EventStreamTransport;
+use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
@@ -52,6 +54,7 @@ final readonly class ChatsService
         int $connectTimeoutSeconds = 10,
         int $requestTimeoutSeconds = 60,
         private ?int $streamTimeoutSeconds = null,
+        private int $contractVersion = 3,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
     }
@@ -64,7 +67,7 @@ final readonly class ChatsService
     {
         $result = $this->requests->request(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/messages', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/messages', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
             ChatMessageAccepted::class,
@@ -83,9 +86,18 @@ final readonly class ChatsService
      * /chats/{chat_id}/events?after=...). The connection is owned by the
      * caller, who must close() it when done.
      */
-    public function openEventStream(string $chatId, int $after = 0): EventStreamConnection
+    public function openLegacyEventStream(string $chatId, int $after = 0, ?CancellationToken $token = null): EventStreamConnection
     {
-        $path = $this->requests->resolve('/chats/{chat_id}/events', ['chat_id' => $chatId]);
+        if ($this->contractVersion !== 2) {
+            throw new ContractCompatibilityException('Legacy replay requires explicit contract 2 read-only mode.');
+        }
+
+        return $this->openEventStream($chatId, $after, $token);
+    }
+
+    public function openEventStream(string $chatId, int $after = 0, ?CancellationToken $token = null): EventStreamConnection
+    {
+        $path = $this->requests->resolve('/atp/v3/chats/{chat_id}/events', ['chat_id' => $chatId]);
 
         $streamRequest = new StreamRequest(
             uri: $this->requests->url($path, ['after' => $after]),
@@ -96,6 +108,7 @@ final readonly class ChatsService
             connectTimeoutSeconds: 10,
             responseHeaderTimeoutSeconds: 30,
             streamTimeoutSeconds: $this->streamTimeoutSeconds,
+            cancellationToken: $token,
         );
 
         return $this->streams->open($streamRequest);
@@ -108,7 +121,7 @@ final readonly class ChatsService
     {
         $result = $this->requests->request(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/cancel', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/cancel', ['chat_id' => $chatId]),
             [],
             null,
             TurnAccepted::class,
@@ -129,7 +142,7 @@ final readonly class ChatsService
     {
         $result = $this->requests->request(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/steer', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/steer', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
             TurnAccepted::class,
@@ -150,7 +163,7 @@ final readonly class ChatsService
     {
         $this->requests->noContent(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/tool-output', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/tool-output', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
         );
@@ -165,7 +178,7 @@ final readonly class ChatsService
     {
         $this->requests->noContent(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/approval', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/approval', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
         );
@@ -179,7 +192,7 @@ final readonly class ChatsService
     {
         $result = $this->requests->request(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/fork', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/fork', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
             ChatForked::class,
@@ -200,7 +213,7 @@ final readonly class ChatsService
     {
         $result = $this->requests->request(
             'POST',
-            $this->requests->resolve('/chats/{chat_id}/restore', ['chat_id' => $chatId]),
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/restore', ['chat_id' => $chatId]),
             [],
             $request->toArray(),
             RestoreChatAccepted::class,

@@ -328,19 +328,16 @@ final class AtpEventDecoderTest extends TestCase
         $this->assertStringContainsString('"finish_reason"', $event->violations[2]);
     }
 
-    public function test_incomplete_usage_is_tolerated_with_nullable_fields(): void
+    public function test_incomplete_usage_cannot_omit_required_cost_in_either_version(): void
     {
-        $envelope = Fixtures::sample('agent.done');
-        unset($envelope['data']['usage']['cost_usd'], $envelope['data']['usage']['duration_ms'], $envelope['data']['usage']['sprite_ms']);
-
-        $event = $this->decoder->decode($this->json($envelope));
-
-        $this->assertInstanceOf(AgentDoneEvent::class, $event);
-        $this->assertSame(120, $event->usage->inputTokens);
-        $this->assertSame(450, $event->usage->outputTokens);
-        $this->assertNull($event->usage->costUsd);
-        $this->assertNull($event->usage->durationMs);
-        $this->assertNull($event->usage->spriteMs);
+        foreach ([2, 3] as $version) {
+            $envelope = Fixtures::sample('agent.done');
+            $envelope['v'] = $version;
+            unset($envelope['data']['usage']['cost_usd']);
+            $event = $this->decoder->decode($this->json($envelope));
+            $this->assertInstanceOf(ProtocolViolationEvent::class, $event);
+            $this->assertStringContainsString($version === 2 ? 'immutable ATP v2 schema' : 'cost_usd', $event->violations[0]);
+        }
     }
 
     public function test_empty_usage_turns_a_terminal_into_a_violation_event(): void

@@ -42,6 +42,32 @@ final class EnvaiServiceProviderTest extends IntegrationTestCase
         $this->app = $this->buildApp();
     }
 
+    public function test_negotiated_contract_and_replay_limit_configuration(): void
+    {
+        $this->app->make('config')->set('envai.connections.production.contract_version', 2);
+        $this->app->make('config')->set('envai.connections.production.max_legacy_replay_bytes', 4096);
+        $this->provider()->register();
+        $client = $this->app->make('envai.client.production');
+        $this->assertSame(2, $client->config()->contractVersion);
+        $this->assertSame(4096, $client->config()->maxLegacyReplayBytes);
+    }
+
+    public function test_contract_configuration_rejects_numeric_strings(): void
+    {
+        $this->app->make('config')->set('envai.connections.production.contract_version', '3');
+        $this->provider()->register();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->app->make('envai.client.production');
+    }
+
+    public function test_replay_limit_configuration_rejects_numeric_strings(): void
+    {
+        $this->app->make('config')->set('envai.connections.production.max_legacy_replay_bytes', '4096');
+        $this->provider()->register();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->app->make('envai.client.production');
+    }
+
     public function test_register_merges_the_config_file(): void
     {
         $this->provider()->register();

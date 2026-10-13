@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Envai AaaS Agent Team Protocol events",
-  "description": "JSON Schema for the Agent Team Protocol (ATP) event stream. Source of truth for the event envelope and every event family, mirroring docs/agent-team-protocol.md sections 4, 7, 8, 9 and 10. The envelope is additive and forward compatible: an unknown or future `type` still validates, so clients ignore what they do not know, and breaking changes bump `v`. Known `type` payloads validate strictly against the current spec snapshot; a new optional field on a known type arrives with this schema, while an entirely unknown `type` validates as-is so older clients keep reading the stream.",
+  "title": "Envai AaaS Agent Team Protocol v3 events",
+  "description": "JSON Schema for the Agent Team Protocol (ATP) event stream. Source of truth for the event envelope and every event family, mirroring docs/agent-team-protocol.md sections 4, 7, 8, 9 and 10. The envelope is additive and forward compatible: an unknown or future `type` still validates, so clients ignore what they do not know, and breaking changes bump `v`. Known `type` payloads validate strictly against the current spec snapshot; a new optional field on a known type arrives with this schema, while an entirely unknown `type` validates as-is so older clients keep reading the stream. Contract3 permits unknown provider totals as null. Valid immutable historical v2 events are separately described in events-v2.json; clients select validation by the original envelope version.",
   "$defs": {
     "Envelope": {
       "type": "object",
@@ -20,7 +20,7 @@
       "properties": {
         "v": {
           "type": "integer",
-          "const": 2,
+          "const": 3,
           "description": "Protocol version. Clients must check it against the version they implement; a mismatch means a breaking protocol change."
         },
         "id": {

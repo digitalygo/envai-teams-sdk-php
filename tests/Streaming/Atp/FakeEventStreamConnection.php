@@ -32,7 +32,7 @@ final class FakeEventStreamConnection implements EventStreamConnection
     /**
      * @param  list<string>  $chunks
      */
-    public function __construct(array $chunks, int $statusCode = 200, private readonly ?CancellationToken $waitToken = null)
+    public function __construct(array $chunks, int $statusCode = 200, private readonly ?CancellationToken $waitToken = null, private readonly array $responseHeaders = ['content-type' => ['text/event-stream'], 'x-envai-contract-version' => ['3']])
     {
         $this->chunks = $chunks;
         $this->statusCode = $statusCode;
@@ -85,7 +85,7 @@ final class FakeEventStreamConnection implements EventStreamConnection
 
     public function headers(): array
     {
-        return ['content-type' => ['text/event-stream']];
+        return $this->responseHeaders;
     }
 
     public function cancel(): void

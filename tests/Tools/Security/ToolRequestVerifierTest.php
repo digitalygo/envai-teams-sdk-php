@@ -401,7 +401,7 @@ final class ToolRequestVerifierTest extends TestCase
         }
 
         return json_encode([
-            'v' => 2,
+            'v' => 3,
             'id' => 'evt_01M0QH1AJB2NVWZZJ2P8XET3FA',
             'seq' => 1,
             'ts' => '2026-08-28T14:00:00Z',

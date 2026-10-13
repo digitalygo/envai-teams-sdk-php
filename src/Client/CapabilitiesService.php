@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Client;
 
 use Digitalygo\Envai\Client\Internal\TypedRequester;
+use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
@@ -30,6 +31,7 @@ final readonly class CapabilitiesService
         UriResolver $uris,
         int $connectTimeoutSeconds = 10,
         int $requestTimeoutSeconds = 60,
+        private int $contractVersion = 3,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
     }
@@ -46,11 +48,20 @@ final readonly class CapabilitiesService
      * Returns the protocol metadata and positively advertised names
      * (GET /capabilities).
      */
+    public function getCapabilitiesLegacy(): Capabilities
+    {
+        if ($this->contractVersion !== 2) {
+            throw new ContractCompatibilityException('Legacy capabilities require explicit contract 2 read-only mode.');
+        }
+
+        return $this->getCapabilities();
+    }
+
     public function getCapabilities(): Capabilities
     {
         $result = $this->requests->request(
             'GET',
-            '/capabilities',
+            '/atp/v3/capabilities',
             [],
             null,
             Capabilities::class,
