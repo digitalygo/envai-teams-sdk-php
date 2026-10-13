@@ -1,35 +1,51 @@
-# Release versions are derived from Conventional Commits by release-please.
-# This library stays pre-1.0; bump-minor-pre-major follows project document
-# section 32, so breaking changes bump the minor version until 1.0.0.
-# Merging the release PR creates the vX.Y.Z tag and GitHub Release; Composer
-# resolves this package from that tag.
-#
-# Action pinning: third-party actions are pinned by major-version tag
-# (@v5). Full-SHA pinning guarantees immutability but turns every
-# bump into a manual chore; tag pinning is the accepted tradeoff for
-# this repository.
-
-name: Release
-
+name: Semantic Release
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
+  workflow_call:
+    secrets:
+      RELEASE_TOKEN:
+        required: false
+      KCHAT_WEBHOOK_URL:
+        required: false
 permissions:
-  contents: write
-  pull-requests: write
-
+  contents: read
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
   release:
+    if: github.event_name == 'push' && contains(fromJSON('["dev", "alpha", "beta", "main"]'), github.ref_name)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
-      - name: Release
-        uses: googleapis/release-please-action@v5
-        id: release
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::error::Missing required repository/organization secret RELEASE_TOKEN"
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts --prefix .github/release-tools
+      - run: node .github/release-tools/patch-semantic-release.mjs
+      - name: Publish GitHub release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: node .github/release-tools/run.mjs
+      - name: Notify kChat
+        if: always() && (steps.release.outputs.released == 'true' || failure())
+        env:
+          KCHAT_WEBHOOK_URL: ${{ secrets.KCHAT_WEBHOOK_URL }}
+          RELEASE_OUTCOME: ${{ job.status }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: node .github/release-tools/notify.mjs

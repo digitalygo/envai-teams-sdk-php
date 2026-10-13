@@ -1,19 +1,8 @@
-# CI for digitalygo/envai-teams-sdk-php (quality gate, section 30 of the project
-# document).
-#
-# Action pinning: third-party actions are pinned by major-version tag
-# (@v2, @v4). Full-SHA pinning guarantees immutability but turns every
-# bump into a manual chore; tag pinning is the accepted tradeoff for
-# this repository.
-#
-# Composer caching: composer.lock is gitignored, so the cache key is
-# derived from composer.json only.
-
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev, alpha, beta, main]
   pull_request:
 
 permissions:
@@ -21,7 +10,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -30,13 +19,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          # Matches composer.json require plus the suggested PDO drivers.
-          # sqlite3 covers pdo_sqlite on Ubuntu runners (same package).
           extensions: curl, mbstring, sodium, sqlite3, pdo_mysql, pdo_pgsql
           coverage: none
 
@@ -61,8 +50,6 @@ jobs:
         run: vendor/bin/phpstan analyse
 
       - name: Security audit (Composer)
-        # Project document section 30 requires composer audit to be green;
-        # advisories fail the gate, so the step stays strict.
         run: composer audit
         continue-on-error: false
 
@@ -102,9 +89,6 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     env:
-      # Format matches PdoMysqlSyncStateStoreContractTest /
-      # PdoPgsqlSyncStateStoreContractTest: DSN in the *_DSN var, optional
-      # credentials in the dedicated USER / PASSWORD vars.
       ENVAI_TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=test
       ENVAI_TEST_MYSQL_USER: test
       ENVAI_TEST_MYSQL_PASSWORD: test
@@ -114,6 +98,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -134,7 +120,30 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run PHPUnit (full suite)
-        # The MySQL and PostgreSQL contract suites run here because the
-        # ENVAI_TEST_MYSQL_DSN / ENVAI_TEST_PGSQL_DSN vars are set; the
-        # same tests skip locally when those vars are unset.
         run: vendor/bin/phpunit
+
+  release-checks:
+    name: Release tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts --prefix .github/release-tools
+      - run: node .github/release-tools/patch-semantic-release.mjs
+      - run: npm test --prefix .github/release-tools
+      - run: npm audit --audit-level=high --prefix .github/release-tools
+
+  release:
+    needs: [quality, test, release-checks]
+    if: github.event_name == 'push' && contains(fromJSON('["dev", "alpha", "beta", "main"]'), github.ref_name)
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      KCHAT_WEBHOOK_URL: ${{ secrets.KCHAT_WEBHOOK_URL }}
