@@ -1,6 +1,6 @@
 # Wiki V1 SDK validation
 
-Validated 2026-10-13 against the verified SDK `main` baseline `426517b6af0ce37491b258de026f87310239cf42` and the published Envai Teams Wiki V1 contract at `5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2` (based on `b590e6b8758b53346d4e0356c384585373b1b8ea`).
+Validated 2026-10-13 against the verified SDK `main` baseline `426517b6af0ce37491b258de026f87310239cf42` and the published Envai Teams Wiki V1 contract at `8e808dce5536275a16b2ed8920e4cfc77e70748d` (based on `b590e6b8758b53346d4e0356c384585373b1b8ea`).
 
 Companion draft PRs: [Envai Teams #45](https://github.com/digitalygo/envai-teams/pull/45) and [Fake Filesystem #9](https://github.com/digitalygo/fake-filesystem-for-agents/pull/9). These are integration/review dependencies, not deployment claims.
 
@@ -56,9 +56,9 @@ The executable-delta report intersects the Clover executable statement lines wit
 
 Provider bodies and signing keys in the fixtures are synthetic. The signature vector uses a public RFC 8032 test seed, not credentials. No paid provider call, customer charge, production migration, deployment, remote branch or PR was performed by this validation.
 
-PHP 8.2, 8.3 and 8.5 execution remains for the repository CI matrix; only PHP 8.4 was executed locally. MySQL-specific optional suites and the new inbox MySQL branch remain unverified against a real MySQL service. PostgreSQL and SQLite were executed.
+Only PHP 8.4 was executed locally. The previously published SDK head passed the remote PHP 8.2–8.5 matrix; the provenance-only update still needs fresh remote CI. MySQL-specific optional suites were not executed locally, and the new inbox MySQL branch remains unverified against a real MySQL service. PostgreSQL and SQLite were executed.
 
-The SDK contract provenance and its regression test are pinned to verified backend commit `5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2` on `feat/wiki-platform-v1`. All four shared schema Git blob IDs independently match the SDK snapshots byte-for-byte. Fixture-origin manifests retain their original working-tree capture history; they are synthetic local integration outputs, not production traffic. SDK publication remains separate; no SDK remote branch or PR is claimed by this report.
+The SDK contract provenance and its regression test are pinned to verified backend commit `8e808dce5536275a16b2ed8920e4cfc77e70748d` on `feat/wiki-platform-v1`. All four shared schema Git blob IDs independently match the SDK snapshots byte-for-byte. Fixture-origin manifests retain their original working-tree capture history; they are synthetic local integration outputs, not production traffic. The SDK changes are published for review in [SDK PR #7](https://github.com/digitalygo/envai-teams-sdk-php/pull/7); the provenance-only update below awaits its own fresh CI run.
 
 ## Durable completion snapshot integration (2026-10-13)
 
@@ -86,7 +86,7 @@ php -d pcov.enabled=1 -d pcov.directory="$PWD" vendor/bin/phpunit \
   --coverage-clover ../sdk-coverage-final.xml
 ```
 
-This ran inside the workspace's disposable PostgreSQL wrapper with the isolated Illuminate 12 bootstrap. Result: **2,136 tests, 8,813 assertions, no failures; 25 optional MySQL skips**. Total executable delta coverage: **576/577, 99.83%**. PHPStan maximum level, Pint, Composer strict validation/security audit, actionlint, all schema/fixture/mirror checks and whitespace checks passed. PHP 8.2/8.3/8.5 and real MySQL remain unexecuted locally. Backend contract provenance is now pinned to verified commit `5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2`.
+This ran inside the workspace's disposable PostgreSQL wrapper with the isolated Illuminate 12 bootstrap. Result: **2,136 tests, 8,813 assertions, no failures; 25 optional MySQL skips**. Total executable delta coverage: **576/577, 99.83%**. PHPStan maximum level, Pint, Composer strict validation/security audit, actionlint, all schema/fixture/mirror checks and whitespace checks passed. PHP 8.2/8.3/8.5 and real MySQL remain unexecuted locally. Backend contract provenance is now pinned to verified commit `8e808dce5536275a16b2ed8920e4cfc77e70748d`.
 
 ## Final source diagnostics integration (2026-10-13)
 
@@ -105,6 +105,14 @@ The two Retry-After tests assert exact sleep arguments and call order relative t
 - Isolated mutation checks: exact-delay assertions rejected both a skipped-backoff mutation and a mutation that always obeyed Retry-After. The repository source was not modified during these checks.
 - Full PostgreSQL 18.3 / Illuminate 12 / PHP 8.4.24 suite: **2,139 tests, 8,821 assertions, no failures; 25 optional MySQL skips**.
 - Executable production delta for the timing fix: **2/2 statements, 100%**. Entire SDK delta including Wiki V1: **578/579, 99.83%**; only MySQL `INSERT IGNORE` remains uncovered.
-- Pint, PHPStan maximum level, Composer strict validation/audit, actionlint and whitespace checks passed. PHP 8.2/8.3/8.5 remain for CI.
+- Pint, PHPStan maximum level, Composer strict validation/audit, actionlint and whitespace checks passed. PHP 8.2/8.3/8.5 were not executed locally; the prior remote matrix result is recorded below.
 
-The timing fix is separated from the Wiki V1 feature tree in these files: `src/Http/Client/RequestExecutor.php`, `tests/Http/Client/RequestExecutorTest.php`, `tests/Http/Client/FakeTransport.php`, this report and `docs/wiki-delta-coverage.json`. The backend contract is pinned to verified commit `5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2`; SDK publication is handled separately.
+The timing fix is separated from the Wiki V1 feature tree in these files: `src/Http/Client/RequestExecutor.php`, `tests/Http/Client/RequestExecutorTest.php`, `tests/Http/Client/FakeTransport.php`, this report and `docs/wiki-delta-coverage.json`. The backend contract is pinned to verified commit `8e808dce5536275a16b2ed8920e4cfc77e70748d`; SDK publication is handled separately.
+
+## Backend fixture-isolation provenance refresh (2026-10-13)
+
+The backend follow-up commit `8e808dce5536275a16b2ed8920e4cfc77e70748d` changes test fixtures/verification documentation only. The SDK pin now targets that verified commit. All four shared schema Git blob IDs were fetched independently at the new commit and still match the SDK byte-for-byte. Only this report, `tests/Streaming/Atp/CurrentServerContractTest.php` and `tests/fixtures/current-server/provenance.json` changed relative to published SDK head `2348eaf0aa17c2b0f15e71071352a80eb7894e4b`.
+
+The complete local PostgreSQL/Illuminate/PCOV run after repinning passed **2,139 tests and 8,821 assertions**, with the same **25 optional MySQL skips**. Executable delta coverage remains **578/579 (99.83%)**; this three-file provenance update adds no production executable lines. Focused contract/wiki checks, Pint, PHPStan, Composer strict validation/security audit, actionlint, schema/mirror checks and whitespace checks passed.
+
+For the prior published SDK head, GitHub Actions run `38461125158` completed successfully: PHP 8.2, 8.3, 8.4 and 8.5 tests, quality checks and release-tooling checks all passed; the release job was skipped as expected for a pull request. This is evidence for that exact earlier SDK commit, not a claim that the new provenance commit has passed remote CI. Fresh CI remains the coordinator's publication gate.
