@@ -8,7 +8,10 @@ declare(strict_types=1);
  *
  * Run with:
  *
- *     ENVAI_API_KEY=... php examples/client-tool.php
+ *     php examples/client-tool.php
+ *
+ * Set ENVAI_BASE_URL, ENVAI_API_KEY, ENVAI_WORKSPACE_ID and ENVAI_CHAT_ID.
+ * This listener can execute enabled tools and submit their outputs.
  *
  * The class definitions mirror what examples/definitions/tools.php
  * references. In a real application the handler classes live in your
@@ -19,6 +22,7 @@ namespace Examples\Tools;
 
 use Digitalygo\Envai\Client\ChatsToolOutputSender;
 use Digitalygo\Envai\Client\ClientToolRuntime;
+use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Tools\Contracts\ClientTool;
 use Digitalygo\Envai\Tools\Contracts\ToolInvocation;
 use Digitalygo\Envai\Tools\Contracts\ToolResult;
@@ -26,6 +30,8 @@ use Digitalygo\Envai\Tools\Execution\ClientToolRegistry;
 use Digitalygo\Envai\Tools\Security\JwksResolver;
 use Digitalygo\Envai\Tools\Security\ToolRequestVerifier;
 use Digitalygo\Envai\Tools\State\FileClientToolCallStore;
+
+require_once dirname(__DIR__).'/vendor/autoload.php';
 
 final class QueryForecastingDatabase implements ClientTool
 {
@@ -48,7 +54,9 @@ final class QueryForecastingDatabase implements ClientTool
 
     public function handle(ToolInvocation $invocation): string|ToolResult
     {
-        // Replace with a real, read-only database call. The workspace is
+        // This is a stub. Do not execute arbitrary model-provided SQL. Use
+        // allowlisted, parameterized operations with least-privilege access.
+        // The workspace is
         // not part of the tool identity; it may be carried in the
         // arguments when the platform provides it.
         $rows = $this->runReadOnlyQuery($invocation->arguments['query']);
@@ -133,15 +141,30 @@ function use_runner_wiring(): void
     // is verified (EdDSA over call_id + tool_name + canonical_json(args)),
     // executed at most once per call_id and answered through the
     // tool-output endpoint.
-    $events = $envai->chat('wsp_xxxxxxxx', 'cht_xxxxxxxx')->events();
-    $results = $runtime->handleEvents($events, 'cht_xxxxxxxx');
+    $workspaceId = getenv('ENVAI_WORKSPACE_ID');
+    $chatId = getenv('ENVAI_CHAT_ID');
 
-    foreach ($results as $result) {
-        printf(
-            "call=%s outcome=%s submitted=%s\n",
-            $result->callId,
-            $result->outcome->value,
-            $result->outputSubmitted ? 'yes' : 'no',
-        );
+    if ($workspaceId === false || $workspaceId === '' || $chatId === false || $chatId === '') {
+        throw new \RuntimeException('Set ENVAI_WORKSPACE_ID and ENVAI_CHAT_ID.');
+    }
+
+    $events = $envai->chat($workspaceId, $chatId)->events();
+
+    try {
+        foreach ($events as $event) {
+            if (! $event instanceof AgentToolRequestEvent) {
+                continue;
+            }
+
+            $result = $runtime->runner()->handle($event, $chatId);
+            printf(
+                "call=%s outcome=%s submitted=%s\n",
+                $result->callId,
+                $result->outcome->value,
+                $result->outputSubmitted ? 'yes' : 'no',
+            );
+        }
+    } finally {
+        $events->close();
     }
 }

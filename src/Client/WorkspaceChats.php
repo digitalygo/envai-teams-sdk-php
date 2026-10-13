@@ -12,8 +12,7 @@ use Digitalygo\Envai\Models\Common\ResourceCollection;
  * Chat control plane facade scoped to one workspace.
  *
  * The workspace continues to be the scope of chat operations while
- * readiness (definitions) is scoped to connection/account (project
- * document section 22). create() accepts either a ChatCreateRequest or a
+ * readiness (definitions) is scoped to connection/account. create() accepts either a ChatCreateRequest or a
  * plain team id, so the documented readiness example works verbatim:
  *
  *     $chat = $envai->workspace($id)->chats()->create(team: $definitions->team('forecasting'));

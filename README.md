@@ -1,20 +1,23 @@
 # Envai PHP SDK
 
-The official PHP SDK for Envai. It provides a framework-independent, typed HTTP client for the Envai API plus an ATP v2 runtime for chat, event streaming, declarative definitions (agents, client tools, teams), synchronization with drift and conflict detection, and a verified client tool execution runtime.
+The official PHP SDK for Envai: a framework-independent, typed HTTP client and
+ATP v2 runtime for chats, event streaming, declarative agents and teams,
+configuration synchronization, and verified client tools. Laravel integration
+is optional.
 
-The package is pre-1.0 and documents the behavior of the Envai `alpha` snapshot. The limits of that implementation are called out in the [alpha limitations](#alpha-limitations) section.
-
-Current contract target: `envai-teams` commit `55275860c9a950eaad8e39e9d2b728149084779c`. See [current-server compatibility and migration notes](docs/CURRENT_SERVER_COMPATIBILITY.md), especially the new opaque-ID artifact download API and client-tool validation safeguards.
+Version 0.2.0 is available as a Git tag. This pre-1.0 SDK supports the contract
+snapshot bundled in the repository; optional features also depend on the server
+capabilities. See the [documentation index](docs/README.md),
+[examples](docs/EXAMPLES.md), and
+[compatibility and safety guide](docs/CURRENT_SERVER_COMPATIBILITY.md).
 
 ## Installation
 
-The new Composer identity is `digitalygo/envai-teams-sdk-php`; PHP namespaces
-remain `Digitalygo\Envai`. This change is **unreleased**. Production consumers
-must wait for a real tagged release containing the rename before changing their
-requirement and lockfile. Existing tags and their source are not rewritten.
+Requirements: PHP 8.2 or later in the PHP 8 series, Composer, and the `curl`,
+`json`, `mbstring`, `pdo` and `sodium` extensions. Additional PDO drivers are
+needed only for their corresponding state stores.
 
-After the first new-name stable release exists, add the private VCS repository
-to the consuming application's `composer.json`:
+Add the public VCS repository to your application's `composer.json`:
 
 ```json
 {
@@ -27,32 +30,77 @@ to the consuming application's `composer.json`:
 }
 ```
 
-Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install the latest released version:
+Then install the released package:
 
 ```bash
-composer config --global --auth github-oauth.github.com <TOKEN>
-composer require digitalygo/envai-teams-sdk-php
+composer require digitalygo/envai-teams-sdk-php:^0.2
 ```
 
-Commit the resulting `composer.json` and `composer.lock`. Subsequent environments
-run `composer install` with the same GitHub authentication. Do not run the new-name
-consumer installation before that release exists: Composer VCS discovery uses
-the default branch's package name, so simply requesting this PR's branch does not
-make the renamed package resolvable while main still declares the old name.
+This documented route uses GitHub directly and does not depend on a Packagist
+listing. Repository access is public; a personal access token is not required
+for access. Composer may separately request authentication if GitHub's anonymous
+API rate limit is exhausted. Never commit Composer authentication files.
 
-To evaluate this PR before release, clone its actual branch into an isolated
-checkout and run its own tests (this does not alter a consumer lockfile):
+Commit `composer.json` and `composer.lock`; deploy with `composer install` to
+reuse the reviewed dependency versions. The Composer name is
+`digitalygo/envai-teams-sdk-php`; PHP namespaces remain `Digitalygo\Envai`.
+See the [migration notes](docs/CURRENT_SERVER_COMPATIBILITY.md#upgrading-from-01).
 
-```bash
-git clone --branch codex/current-server-compatibility-20261012 https://github.com/digitalygo/envai-teams-sdk-php.git
-cd envai-teams-sdk-php
-composer install
-composer check
+## Quick start
+
+Configure `ENVAI_BASE_URL` with your Envai API origin and `ENVAI_API_KEY` through
+your environment or secret manager. The following reads server capabilities;
+it does not create a workspace or send a chat message.
+
+```php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
+use Digitalygo\Envai\Client\EnvaiClient;
+use Digitalygo\Envai\Configuration\EnvaiConfig;
+use Digitalygo\Envai\Configuration\SensitiveString;
+
+$baseUrl = getenv('ENVAI_BASE_URL');
+$apiKey = getenv('ENVAI_API_KEY');
+
+if ($baseUrl === false || $baseUrl === '' || $apiKey === false || $apiKey === '') {
+    throw new RuntimeException('Set ENVAI_BASE_URL and ENVAI_API_KEY.');
+}
+
+$envai = new EnvaiClient(new EnvaiConfig(
+    baseUrl: $baseUrl,
+    apiKey: new SensitiveString($apiKey),
+));
+
+$capabilities = $envai->capabilities()->getCapabilities();
+printf("ATP v%d\n", $capabilities->protocolVersion);
+printf("Features: %s\n", implode(', ', $capabilities->features));
 ```
+
+For an existing workspace and chat, use `$envai->chat($workspaceId, $chatId)`.
+Calling `sendAndStream()` sends a new message and consumes the accepted turn:
+
+```php
+use Digitalygo\Envai\Streaming\Events\AgentTextDeltaEvent;
+
+$chat = $envai->chat($workspaceId, $chatId);
+
+foreach ($chat->sendAndStream('Summarize the latest findings.') as $event) {
+    if ($event instanceof AgentTextDeltaEvent) {
+        echo $event->delta;
+    }
+}
+```
+
+Supply real IDs owned by the configured account. The helper waits for live
+subscription confirmation before sending. If the team uses client tools, also
+handle its tool-request events with a configured client-tool runner; a text-only
+loop does not execute tools. See [client tools](#client-tools).
 
 ## Versioning
 
-Versions use SemVer derived from Conventional Commits and managed by release-please: `feat:` produces a minor release, `fix:` a patch release, and breaking changes produce a minor release while the package is pre-1.0. Consumers install released tags.
+Install tagged releases and review their release notes before upgrading. The SDK is pre-1.0; compatibility changes may occur between minor versions. A `^0.2` Composer constraint selects compatible 0.2 releases rather than a development branch.
 
 Requirements: PHP `^8.2`; the `curl`, `json`, `mbstring`, `pdo` and `sodium` extensions; a PSR-3 logger if you want log injection; Symfony Console and Symfony YAML for the core CLI.
 
@@ -60,9 +108,10 @@ The core does not depend on Laravel. Illuminate packages (`illuminate/config`, `
 
 ### Prerelease channels
 
-- The `alpha` and `beta` branches are prerelease channels. Each branch carries its own `release-please-config.json` with `"prerelease": true` and `"prerelease-type"` set to the channel name. They produce tags such as `v0.2.0-alpha.1` and `v0.2.0-beta.3`; GitHub marks those releases as pre-releases.
-- To promote a prerelease, merge its channel branch into `main`. The `Release` workflow then proposes the matching stable version.
-- Composer hides prerelease versions when `minimum-stability` is `stable`, the default. Opt in with a stability flag:
+Use a prerelease only when the corresponding tag exists and its release notes
+match the deployment you are testing. Composer hides prerelease versions when
+`minimum-stability` is `stable`, the default. To permit a beta within an
+otherwise compatible version range, use a package-specific stability flag:
 
 ```json
 {
@@ -72,7 +121,9 @@ The core does not depend on Laravel. Illuminate packages (`illuminate/config`, `
 }
 ```
 
-`@beta` allows beta, alpha and dev versions. `@alpha` allows alpha and dev versions.
+`@beta` permits beta and more stable releases (RC and stable), not alpha or dev.
+`@alpha` permits alpha and more stable releases, not dev. These examples explain
+stability constraints; check the available tags before selecting a prerelease.
 
 ## Framework-independent configuration
 
@@ -94,7 +145,7 @@ $envai = new EnvaiClient($config);
 
 Configuration notes:
 
-- `baseUrl` is the API origin without the canonical `/api/v1` prefix; the client appends it.
+- `baseUrl` is normally the API origin. The resolver appends `/api/v1` exactly once and also accepts a URL already ending in that prefix. JWKS is resolved from the origin, not from the API path; use `jwksUrl` explicitly when it is hosted elsewhere.
 - `apiKey` is wrapped in a `SensitiveString`; secrets are never printed and never written to the state store.
 - `jwksUrl` defaults to the well-known JWKS endpoint derived from the base URL origin; see `effectiveJwksUrl()`.
 - `connectionName` identifies the connection in the sync state store; the same application can hold several `EnvaiClient` instances, one per connection.
@@ -107,10 +158,13 @@ Retries are conservative: only retry-safe operations are retried automatically. 
 
 ## Laravel configuration
 
-Register the provider in `bootstrap/providers.php` (or `config/app.php` for older Laravel versions):
+The package declares Laravel auto-discovery. If your application disables discovery, register the provider once in `bootstrap/providers.php` (or `config/app.php` where applicable):
 
 ```php
-Digitalygo\Envai\Integration\Laravel\EnvaiServiceProvider::class,
+return [
+    // Keep the other providers used by your application.
+    Digitalygo\Envai\Integration\Laravel\EnvaiServiceProvider::class,
+];
 ```
 
 Publish the configuration and the migration:
@@ -610,13 +664,13 @@ Every request is verified before the handler runs:
 - the preimage is exactly `call_id + "\n" + tool_name + "\n" + canonical_json(args)`, where only the arguments are canonicalized per RFC 8785;
 - verification failures throw `ProtocolViolationException` and the handler is never invoked, nothing is submitted.
 
-A valid signature proves origin and integrity, not freshness or exactly-once.
+A valid signature authenticates the call ID, tool name and canonical arguments. It does not sign the envelope chat, turn or timestamp and does not prove freshness or exactly-once effects. Only consume the intended chat through a trusted authenticated stream. Keep durable deduplication state and use application-level idempotency for external side effects. See the [complete safety constraints](docs/CURRENT_SERVER_COMPATIBILITY.md#runtime-safeguards).
 
 ### Call store and at-most-once
 
 The `ClientToolCallStore` tracks every call through `begin()`, `markSubmitted()`, `markResolved()` and `markAmbiguous()`, deduplicated by `(chatId, callId)`. The handler runs at most once: a store `begin()` that reports the call as already running, already resolved or already ambiguous skips execution entirely.
 
-The default is `InMemoryClientToolCallStore`, safe for tests and single-process development but not durable across restarts. Use `FileClientToolCallStore` (or a database or custom store) in production so a crashed worker never re-executes a call that was already resolved or still in flight:
+The default is `InMemoryClientToolCallStore`, intended for tests and single-process development. For production, construct the runtime with a durable call store, as shown in [the client-tool example](examples/client-tool.php). Creating a store alone does not attach it to `$envai->clientTools()`. `FileClientToolCallStore` coordinates processes sharing the same local file; a multi-host deployment needs a store with shared atomic claims. Keep a separate store for each server/account identity:
 
 ```php
 use Digitalygo\Envai\Tools\State\FileClientToolCallStore;
@@ -677,7 +731,7 @@ Alpha caveats:
 
 ## Alpha limitations
 
-The SDK is transparent about the alpha implementation limits:
+These limitations apply to the bundled server contract snapshot; check capabilities and deployment-specific behavior before relying on optional features:
 
 - Replay window: the in-memory replay window and live buffer are limited, there is a race between replay and subscribe, and the sequence resets after eviction or restart. There is no epoch and no `cursor_expired` signal. Gaps that cannot be recovered raise `ReplayGapException`; the SDK never promises durable or lossless replay, so applications must define their own recovery policy.
 - Approval: `submitApproval()` maps the alpha stub behavior; the endpoint answers `409` until approval resolution is supported, which surfaces as a `ConflictException`.
@@ -704,3 +758,26 @@ $definitions = $fake->definitions();     // DefinitionsService over the in-memor
 - The default reader and writer are backed by the client's own services; pass fakes implementing `RemoteReader` and `RemoteWriter` to script the remote side without HTTP.
 
 Core tests can use the in-memory stores directly: `InMemorySyncStateStore` for sync state and `InMemoryClientToolCallStore` for tool call deduplication, without Laravel at all.
+
+
+## Development
+
+From a source checkout:
+
+```bash
+composer install
+composer validate --strict
+composer check
+composer audit
+```
+
+`composer check` runs formatting checks, static analysis and PHPUnit. Database
+contract tests use the explicitly configured `ENVAI_TEST_MYSQL_*` and
+`ENVAI_TEST_PGSQL_*` environments and otherwise skip. The automated suite uses
+local fakes and fixtures; it does not need a production Envai API key. Some
+transport tests start a loopback HTTP server.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Bundled JSON Schema metaschemas retain their
+[upstream notices and licenses](resources/json-schema/LICENSE).

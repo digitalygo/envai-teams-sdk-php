@@ -149,7 +149,7 @@ final readonly class EnvaiClient
 
     /**
      * The definitions facade for one connection and definitions path
-     * (project document sections 22.1 and 23.3): compile, plan, apply
+     *: compile, plan, apply
      * and the readiness gate. The connection defaults to the configured
      * connection name; the path defaults to the configured definitions
      * path (or `envai`).
@@ -162,7 +162,7 @@ final readonly class EnvaiClient
     }
 
     /**
-     * The workspace facade for one workspace id (chat scope, section 22).
+     * The workspace facade for one workspace id (chat scope).
      */
     public function workspace(string $workspaceId): WorkspaceScope
     {
@@ -171,7 +171,7 @@ final readonly class EnvaiClient
 
     /**
      * The chat facade for one chat: typed ATP event stream and turn
-     * helpers (section 11).
+     * helpers.
      */
     public function chat(string $workspaceId, string $chatId): ChatRuntime
     {

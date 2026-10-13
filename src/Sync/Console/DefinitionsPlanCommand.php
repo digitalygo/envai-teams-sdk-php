@@ -11,8 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * `envai definitions:plan`: builds the three-way plan of the current
- * definitions against the remote resources (project document sections
- * 19 and 24). The lock is acquired and released around the local +
+ * definitions against the remote resources. The lock is acquired and released around the local +
  * remote phase; nothing is mutated.
  *
  * Text output follows section 24.1 exactly: the Connection and Manifest

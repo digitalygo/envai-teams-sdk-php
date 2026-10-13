@@ -25,8 +25,7 @@ use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
 use Psr\Log\LoggerInterface;
 
 /**
- * High-level definitions facade (project document sections 22.1 and
- * 23.3): compile, plan, apply and gate on the readiness of one
+ * High-level definitions facade: compile, plan, apply and gate on the readiness of one
  * connection/account + manifest hash.
  *
  * Lock behavior is binding:
@@ -254,8 +253,7 @@ final class DefinitionsService
     }
 
     /**
-     * Resolves the model catalog for the remote phase (project document
-     * section 20.2 step 1). Without a wired provider the model check is
+     * Resolves the model catalog for the remote phase. Without a wired provider the model check is
      * skipped (low-level usage). With a provider the catalog is
      * mandatory: a null result means the catalog could not be read and
      * the plan/apply fails closed, because agent model references could

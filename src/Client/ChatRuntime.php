@@ -15,7 +15,7 @@ use Digitalygo\Envai\Streaming\Events\AtpEvent;
 
 /**
  * High level facade over one chat: the typed ATP event stream plus the
- * turn helpers of project document section 11.
+ * turn helpers for sending and awaiting messages.
  *
  * events() opens the multiplexed SSE stream through ChatsService (the
  * bearer Authorization header is attached by the service) and wires a

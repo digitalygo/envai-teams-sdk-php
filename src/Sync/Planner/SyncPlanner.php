@@ -18,7 +18,7 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
 /**
  * Builds a SyncPlan from the compiled definitions, the state store and
  * the remote resources, applying the binding three-way classification
- * table (project document section 19.2) and the explicit-only policy
+ * table and the explicit-only policy
  * overrides (section 19.3).
  *
  * The planner is read-only: it never acquires the lock and never mutates

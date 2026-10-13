@@ -12,7 +12,7 @@ use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 
 /**
  * Verifies the EdDSA signature of a client tool request before the handler
- * runs (BINDING, section 26 of the project document).
+ * runs (verified before handler execution).
  *
  * Rules:
  *

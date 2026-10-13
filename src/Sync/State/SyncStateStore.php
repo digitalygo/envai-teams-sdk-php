@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Sync\State;
 
 /**
- * Contract of the per-connection sync state store, normative from the
- * project document (section 17.1).
+ * Contract of the per-connection sync state store.
  *
  * The store records, per resource: connection, type, local key, remote
  * id, remote name, desired hash, normalized last-applied payload, remote

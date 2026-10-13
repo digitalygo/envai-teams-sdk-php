@@ -14,8 +14,7 @@ use Digitalygo\Envai\Tests\Sync\Fakes\FakeRemoteWriter;
 use Digitalygo\Envai\Tests\Sync\SyncTestCase;
 
 /**
- * Unit tests of the lazy synchronization gate (project document section
- * 23.2). Illuminate-free: the LazySynchronizer only uses core classes
+ * Unit tests of the lazy synchronization gate. Illuminate-free: the LazySynchronizer only uses core classes
  * (DefinitionsService, InMemorySyncStateStore, the remote fakes), so
  * these tests run in every environment, with or without the Laravel
  * packages.

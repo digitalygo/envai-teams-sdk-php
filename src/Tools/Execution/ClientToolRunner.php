@@ -24,8 +24,7 @@ use Digitalygo\Envai\Tools\State\ToolCallStatus;
 use Psr\Log\LoggerInterface;
 
 /**
- * Executes verified client tool requests end to end (BINDING order from
- * section 14.5 of the project document):
+ * Executes verified client tool requests in this security-sensitive order:
  *
  * 1. verify the signature via ToolRequestVerifier; an unverified request
  *    throws ProtocolViolationException and the handler is NEVER invoked nor

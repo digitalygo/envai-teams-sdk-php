@@ -14,7 +14,7 @@ use Digitalygo\Envai\Sync\State\SyncLock;
 use Digitalygo\Envai\Sync\State\SyncStateStore;
 
 /**
- * PDO-backed SyncStateStore (project document section 17.3).
+ * PDO-backed SyncStateStore.
  *
  * Logical schema, with the table prefix defaulting to `envai_sync_`:
  *

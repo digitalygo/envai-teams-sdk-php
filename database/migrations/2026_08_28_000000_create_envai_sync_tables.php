@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 /*
  * Creates the sync state tables of the Envai Laravel integration
- * (project document section 17.3). Publish with:
+ *. Publish with:
  *
  *     php artisan vendor:publish --tag=envai-migrations
  *

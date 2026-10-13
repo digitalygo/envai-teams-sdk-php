@@ -6,7 +6,7 @@ namespace Digitalygo\Envai\Tests\Sync\State\Contract;
 
 /**
  * Runs the full SyncStateStore contract suite against PdoSyncStateStore
- * on PostgreSQL (project document section 29.5). The suite only runs
+ * on PostgreSQL. The suite only runs
  * when ENVAI_TEST_PGSQL_DSN is set (CI); locally every test is skipped.
  * ENVAI_TEST_PGSQL_USER and ENVAI_TEST_PGSQL_PASSWORD are optional
  * credentials. Tables are created under a per-test prefix and dropped in

@@ -12,7 +12,7 @@ use Digitalygo\Envai\Sync\State\ResourceType;
 use Digitalygo\Envai\Tests\Sync\SyncTestCase;
 
 /**
- * File-store-specific tests (project document section 29.5): atomic
+ * File-store-specific tests: atomic
  * rename with orphan recovery, truncated and corrupt files fail closed,
  * empty files are fresh stores, concurrent locking, 0600 permissions,
  * lossless format upgrades, absence of credentials and base URL

@@ -11,7 +11,7 @@ use Digitalygo\Envai\Sync\State\ResourceType;
 use Digitalygo\Envai\Tests\Sync\SyncTestCase;
 
 /**
- * PDO-store-specific tests on SQLite (project document section 29.5):
+ * PDO-store-specific tests on SQLite:
  * the upsert conflict path, the stale lock takeover, lazy schema
  * creation, the schema guard, manifest metadata and the platform guard
  * for the MySQL/PostgreSQL contract suites.

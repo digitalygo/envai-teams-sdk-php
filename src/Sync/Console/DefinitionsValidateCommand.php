@@ -11,8 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * `envai definitions:validate`: compiles and validates the local
- * definitions (project document section 20.1, local phase only: no lock,
- * no remote reads, no writes).
+ * definitions locally: no lock, remote reads or writes.
  *
  * Text report:
  *

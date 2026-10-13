@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Envai configuration for the Laravel integration (project document
- * section 25). Publish with:
+ * Envai configuration for the Laravel integration. Publish with:
  *
  *     php artisan vendor:publish --tag=envai-config
  *

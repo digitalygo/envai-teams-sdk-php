@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Sync\Planner;
 
 /**
- * Three-way classification of one resource from the project document
- * (section 19.2), comparing desired, last applied and remote:
+ * Three-way classification comparing desired, last applied and remote state:
  *
  * - unchanged: all three agree;
  * - update: desired changed, remote still equals the last apply;

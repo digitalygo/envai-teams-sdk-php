@@ -14,7 +14,7 @@ use Digitalygo\Envai\Sync\State\SyncLock;
 use Digitalygo\Envai\Sync\State\SyncStateStore;
 
 /**
- * File-backed SyncStateStore (project document section 17.2).
+ * File-backed SyncStateStore.
  *
  * The state lives in a versioned JSON file, by default `.envai`:
  *

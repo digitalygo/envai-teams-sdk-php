@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Optional Laravel integration provider (project document section 25).
+ * Optional Laravel integration provider.
  *
  * register() merges config/envai.php under the `envai` key and binds:
  *

@@ -7,8 +7,7 @@ namespace Digitalygo\Envai\Tests\Integration\Laravel;
 use function env;
 
 /**
- * Shape test of the publishable config/envai.php stub (project document
- * section 25): the exact `default`, `connections`, `definitions` and
+ * Shape test of the publishable config/envai.php stub: the exact `default`, `connections`, `definitions` and
  * `state` keys with their environment-driven defaults. The file calls
  * env() (an Illuminate helper) and base_path(), so this test runs in the
  * throwaway Laravel worktree and skips elsewhere.

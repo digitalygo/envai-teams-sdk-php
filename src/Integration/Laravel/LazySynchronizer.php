@@ -8,7 +8,7 @@ use Digitalygo\Envai\Sync\DefinitionsService;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
 
 /**
- * The lazy synchronization gate (project document section 23.2).
+ * The lazy synchronization gate.
  *
  * `lazy` mode is meant for local development: the first high-level
  * operation ensures the local definitions are synchronized with the

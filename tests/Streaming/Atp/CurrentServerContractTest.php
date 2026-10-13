@@ -31,7 +31,7 @@ final class CurrentServerContractTest extends TestCase
         $provenance = self::fixture('provenance.json');
         $this->assertSame('digitalygo/envai-teams', $provenance->repository);
         $this->assertSame('55275860c9a950eaad8e39e9d2b728149084779c', $provenance->commit);
-        $this->assertSame(3, count(get_object_vars($provenance->sources)));
+        $this->assertSame(['openapi.yaml', 'events.json'], array_keys(get_object_vars($provenance->sources)));
         foreach ($provenance->sources as $name => $source) {
             $bytes = file_get_contents(dirname(__DIR__, 3).'/'.$source->snapshot_path);
             $this->assertSame($source->bytes, strlen($bytes), $name.' byte count');

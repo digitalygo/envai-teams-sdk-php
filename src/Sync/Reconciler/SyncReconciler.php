@@ -23,8 +23,7 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  * Executes a SyncPlan against the remote API through a RemoteWriter,
  * updating the state store and producing a SyncReport.
  *
- * Behavior is binding from the project document (sections 19.4, 20.3,
- * 20.4 and 21):
+ * Execution guarantees:
  *
  * - upserts run tools, then agents, then teams; prune deletions run
  *   after upserts, teams, then agents, then tools;

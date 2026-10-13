@@ -18,7 +18,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 
 /**
- * Laravel-backed SyncStateStore (project document section 17.3).
+ * Laravel-backed SyncStateStore.
  *
  * Wraps an Illuminate connection (ConnectionInterface, for example the
  * connection returned by `DB::connection($name)`) and speaks the same

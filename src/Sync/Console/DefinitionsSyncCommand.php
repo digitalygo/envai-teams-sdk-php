@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * `envai definitions:sync`: plans and applies under a single lock
  * acquisition, updating the state store and marking the manifest ready
  * only when the scope is complete and nothing was blocked, failed or
- * ambiguous (project document sections 20.3, 20.4 and 24).
+ * ambiguous.
  *
  * Text summary: outcome counts per result, the `Manifest ready: yes|no`
  * line and a next-action hint. `--json` emits SyncReport::toArray()

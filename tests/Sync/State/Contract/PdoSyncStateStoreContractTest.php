@@ -6,7 +6,7 @@ namespace Digitalygo\Envai\Tests\Sync\State\Contract;
 
 /**
  * Runs the full SyncStateStore contract suite against PdoSyncStateStore
- * on SQLite (project document section 29.5). Uses a temporary database
+ * on SQLite. Uses a temporary database
  * file per test method, so the suite always runs locally and the
  * durability test can re-instantiate stores over the same file.
  */

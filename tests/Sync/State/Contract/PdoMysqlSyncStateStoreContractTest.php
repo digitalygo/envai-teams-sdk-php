@@ -6,7 +6,7 @@ namespace Digitalygo\Envai\Tests\Sync\State\Contract;
 
 /**
  * Runs the full SyncStateStore contract suite against PdoSyncStateStore
- * on MySQL or MariaDB (project document section 29.5). The suite only
+ * on MySQL or MariaDB. The suite only
  * runs when ENVAI_TEST_MYSQL_DSN is set (CI); locally every test is
  * skipped. ENVAI_TEST_MYSQL_USER and ENVAI_TEST_MYSQL_PASSWORD are
  * optional credentials. Tables are created under a per-test prefix and

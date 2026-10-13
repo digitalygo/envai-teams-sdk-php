@@ -2,7 +2,6 @@
 /tests/ export-ignore
 /examples/ export-ignore
 /docs/ export-ignore
-/atp-php-sdk-project.md export-ignore
 phpunit.xml.dist export-ignore
 phpstan.neon export-ignore
 pint.json export-ignore

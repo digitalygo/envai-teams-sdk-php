@@ -21,7 +21,7 @@ use Digitalygo\Envai\Http\HttpRequest;
  * an internal TTL (default 300 seconds); a clock callable can be injected to
  * make expiry deterministic in tests.
  *
- * Resolution rules (BINDING, section 26 of the project document):
+ * Resolution rules (verified before handler execution):
  *
  * - a cache hit serves the key without a network round trip;
  * - a cache miss (no cache, or expired) fetches exactly once and serves the

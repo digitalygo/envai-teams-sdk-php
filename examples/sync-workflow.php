@@ -8,7 +8,10 @@ declare(strict_types=1);
  *
  * Run with:
  *
- *     ENVAI_API_KEY=... php examples/sync-workflow.php
+ *     php examples/sync-workflow.php
+ *     php examples/sync-workflow.php --apply
+ *
+ * Set ENVAI_BASE_URL and ENVAI_API_KEY. Without --apply this only plans.
  *
  * The definitions directory mirrors the envai/ layout (agents/*.md,
  * teams/*.php, tools.php).
@@ -18,6 +21,7 @@ use Digitalygo\Envai\Exceptions\DefinitionsNotSynchronizedException;
 use Digitalygo\Envai\Sync\Planner\SyncOptions;
 
 $envai = require __DIR__.'/config.php';
+require_once __DIR__.'/client-tool.php';
 $definitions = $envai->definitions(__DIR__.'/definitions');
 
 // 1. Validate the local definitions. Pure local phase: no lock, no
@@ -44,9 +48,14 @@ foreach ($plan->blocking() as $operation) {
     printf("Blocked: %s (%s)\n", $operation->localKey, $operation->reasonCode ?? 'blocked');
 }
 
+if (! in_array('--apply', $argv, true)) {
+    echo "Plan only. Review the changes, then pass --apply to synchronize.\n";
+    exit(0);
+}
+
 // 3. Apply under a single lock acquisition. Every destructive override
 //    must be explicit; none is activated implicitly.
-$options = new SyncOptions(adopt: true, failOnDrift: true);
+$options = new SyncOptions(failOnDrift: true);
 $report = $definitions->apply($options);
 
 printf(

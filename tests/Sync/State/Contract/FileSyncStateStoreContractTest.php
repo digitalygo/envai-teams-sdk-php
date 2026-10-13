@@ -9,7 +9,7 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
 
 /**
  * Runs the full SyncStateStore contract suite against the file store on
- * a temporary directory fixture (project document section 29.5). Each
+ * a temporary directory fixture. Each
  * test method gets its own fresh temp directory; makeStore() re-creates
  * store instances over the same path to prove durability.
  */

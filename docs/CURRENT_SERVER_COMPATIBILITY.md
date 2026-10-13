@@ -1,37 +1,49 @@
-# Current Envai server compatibility
+# Compatibility and safety
 
-This update targets `digitalygo/envai-teams` commit
-`55275860c9a950eaad8e39e9d2b728149084779c` (ATP v2). `openapi.yaml`
-and `events.json` are byte-for-byte snapshots of that commit. The 52-operation
-inventory is unchanged. Shared deterministic fixtures live in
-`tests/fixtures/current-server`. The provenance manifest separates exact server
-`sources` from locally `generated_fixtures`. The foundation document is also
-included as an exact source snapshot. Each source records its repository path,
-local snapshot path, SHA-256, Git blob ID and byte count; tests check every source
-and every generated fixture. These offline checks establish snapshot integrity,
-not freshness against later server commits. Generated examples and signatures
-are test data, not server traffic or server-issued signatures.
+This guide describes the public PHP SDK behavior for the bundled ATP v2
+contract snapshot. It is a compatibility reference, not a guarantee that every
+optional feature is enabled on every Envai deployment.
 
-## Composer name and rollout
+## Contract snapshots
 
-The repository is now `digitalygo/envai-teams-sdk-php` and this branch changes the
-Composer identity from `digitalygo/atp-php-sdk` to
-`digitalygo/envai-teams-sdk-php`. PHP namespaces and Laravel class names remain
-unchanged. No tag, package publication, merge or deployment is part of this PR.
+[`openapi.yaml`](openapi.yaml) and [`events.json`](events.json) are exact
+snapshots covering 52 HTTP operations and ATP v2 event shapes. Their upstream
+revision, source paths, SHA-256 hashes, Git blob IDs and byte counts are recorded
+in [`provenance.json`](../tests/fixtures/current-server/provenance.json).
+Only these two machine-readable contracts are declared as source snapshots.
 
-1. Review and merge the SDK change, then have a maintainer create the real
-   new-name release through the normal release process.
-2. Only once that release exists, resolve the new package in each consumer,
-   update its lockfile, and run installation/application checks.
-3. Review each consumer PR independently before deployment. Laravel
-   `dont-discover` entries and explicit package/vendor-path checks also need the
-   new Composer name; namespaces do not.
+The manifest separately records locally generated fixtures. Their events and
+signatures are deterministic test data, not captured customer traffic or
+server-issued credentials. Offline tests verify every retained source and
+fixture; they establish integrity, not freshness against a newer deployment.
 
-Old tags remain unchanged, but direct-VCS Composer package discovery uses the
-repository's default-branch name. Retaining old tags alone is not a guarantee
-that an old-name `composer update` will keep resolving after the rename reaches
-main. Existing locked installs and fresh dependency resolution are different.
-Do not remove old release artifacts or repurpose the old repository name.
+## Upgrading from 0.1
+
+Version 0.2.0 uses Composer package `digitalygo/envai-teams-sdk-php` instead of
+`digitalygo/atp-php-sdk`. PHP namespaces and Laravel provider class names are
+unchanged. Add the public VCS repository as described in the
+[installation guide](../README.md#installation), replace the old Composer
+requirement, update the lockfile, and run application checks before deploying.
+
+Also update any Laravel `dont-discover` entry and hard-coded vendor path that
+uses the old Composer name. Existing lockfile installs and fresh dependency
+resolution are different: test both when migrating. Keep the old lockfile
+available for application rollback; do not hand-edit its source references.
+
+The artifact-download method requires the explicit call-site migration below.
+No existing release tag needs to be changed to migrate an application.
+
+## Capability discovery
+
+Use `$envai->capabilities()->getCapabilities()` for the server's advertised
+protocol version, event types and optional features. The event list is positive
+discovery, not an allowlist for the parser: valid unknown or additive event data
+must remain consumable. A method or event class in the SDK does not prove that
+its feature is enabled on the server.
+
+For the bundled snapshot, approval can return `409`, steering acceptance does
+not guarantee that the guidance changes model execution, and restore acceptance
+is not a durable-persistence acknowledgement. Handle these outcomes explicitly.
 
 ## Artifact download migration
 
@@ -163,14 +175,23 @@ Missing optional fields in legacy format-1 records remain supported. Keep a sepa
 store for every server/account identity. Do not discard it while replay can
 occur. The signature covers call ID, tool name and canonical arguments; it does
 not authenticate envelope chat/turn/timestamp or prove freshness. Only process
-events from the trusted authenticated stream for the intended chat. Server
-protocol support would be needed for stronger cryptographic context binding.
+events from the trusted authenticated stream for the intended chat. Do not use a signature alone to authorize a different chat, account or action.
 
 PHP handlers are synchronous. The timeout check is cooperative after the
 handler returns; it cannot interrupt a blocked handler or roll back side effects.
 Configure application I/O deadlines and idempotency for effectful tools. The
 stream handshake timeout is also observed between transport reads. Replay is a
 resident-memory window, not durable replay; a clean EOF ends stream iteration.
-No production API calls are needed by the automated suite.
+The automated suite uses fakes and local fixtures; production API calls are not needed.
 
-The package continues to use the existing MIT license and Digitaly Go copyright.
+## Recovery checklist
+
+- On an ambiguous mutation, inspect the remote state before deciding whether to retry.
+- On `ReplayGapException` or a reset replay window, reconcile application state; do not assume missed events can be recovered. A clean EOF ends iteration and does not imply a completed turn.
+- Preserve call-store records across restarts and across retries. A call marked ambiguous needs reconciliation, not automatic re-execution.
+- Keep effectful handlers idempotent with a domain-level operation key. A crash between the external effect and its durable acknowledgement remains ambiguous.
+- Keep file stores outside a public web root and restrict filesystem access. Use shared atomic storage when multiple hosts can process the same calls.
+- Avoid logging API keys, signed download URLs, tool arguments or sensitive outputs. The SDK cannot sanitize arbitrary logs written by application code.
+
+The package uses the MIT license. Bundled JSON Schema metaschemas retain their
+upstream attribution and licenses in `resources/json-schema`.
