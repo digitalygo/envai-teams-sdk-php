@@ -768,10 +768,12 @@ final class ServicesTest extends TestCase
                 'path' => '/api/v1/artifacts/download',
                 'auth' => false,
                 'retry' => RetrySafety::NeverRetry,
-                'invoke' => static fn (EnvaiClient $client): DownloadResult => $client->images()->downloadArtifact('generated/01ARZ3NDEK/01ARZ3NDEK_0.jpeg', '6f8d2c4a9b1e5f7a', 1786320000),
+                'invoke' => static fn (EnvaiClient $client): DownloadResult => $client->images()->downloadGenerationArtifact('igr_01ARZ3NDEKTSV4RRFFQ69G5FAV', 'art_01ARZ3NDEKTSV4RRFFQ69G5FAV', '6f8d2c4a9b1e5f7a', 1786320000),
                 'extra' => static function (FakeTransport $transport, mixed $result): void {
                     parse_str((string) parse_url($transport->requests[0]->uri, PHP_URL_QUERY), $query);
-                    self::assertSame('generated/01ARZ3NDEK/01ARZ3NDEK_0.jpeg', $query['path'] ?? null);
+                    self::assertSame('igr_01ARZ3NDEKTSV4RRFFQ69G5FAV', $query['generation'] ?? null);
+                    self::assertSame('art_01ARZ3NDEKTSV4RRFFQ69G5FAV', $query['artifact'] ?? null);
+                    self::assertArrayNotHasKey('path', $query);
                     self::assertSame('6f8d2c4a9b1e5f7a', $query['signature'] ?? null);
                     self::assertSame('1786320000', $query['expires'] ?? null);
                     self::assertInstanceOf(DownloadResult::class, $result);

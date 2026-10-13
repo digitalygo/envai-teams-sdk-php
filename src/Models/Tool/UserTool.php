@@ -16,7 +16,7 @@ use Digitalygo\Envai\Models\Internal\Wire;
 final readonly class UserTool implements ArrayHydratable
 {
     /**
-     * @param  array<string, mixed>  $parameters  JSON Schema describing the tool arguments.
+     * @param  array<array-key, mixed>  $parameters  JSON Schema describing the tool arguments.
      * @param  array<string, mixed>  $extra  Unknown payload keys preserved for forward compatibility.
      */
     public function __construct(
@@ -37,13 +37,17 @@ final readonly class UserTool implements ArrayHydratable
     public static function fromArray(array $data): static
     {
         $context = 'UserTool';
+        $parameters = $data['parameters'] ?? null;
+        if (! is_array($parameters)) {
+            throw new \InvalidArgumentException('UserTool payload field "parameters" must be an object.');
+        }
 
         return new self(
             id: Wire::string($data, 'id', $context),
             name: Wire::string($data, 'name', $context),
             kind: Wire::string($data, 'kind', $context),
             description: Wire::nullableString($data, 'description', $context),
-            parameters: Wire::objectArray($data, 'parameters', $context),
+            parameters: $parameters,
             timeoutSeconds: Wire::int($data, 'timeout_seconds', $context),
             createdAt: Wire::string($data, 'created_at', $context),
             updatedAt: Wire::string($data, 'updated_at', $context),

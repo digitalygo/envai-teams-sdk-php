@@ -30,6 +30,9 @@ enum ToolRunOutcome: string
     /** The handler exceeded the conservative submission deadline; the call was marked ambiguous. */
     case TimeoutExceeded = 'timeout_exceeded';
 
+    /** The handler returned an empty output rejected by the gateway. */
+    case EmptyOutput = 'empty_output';
+
     /** The output exceeded the platform limit and was replaced by a controlled error. */
     case OutputTooLarge = 'output_too_large';
 

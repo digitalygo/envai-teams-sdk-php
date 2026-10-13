@@ -26,5 +26,7 @@ final readonly class Usage
         public ?int $durationMs = null,
         public ?int $spriteMs = null,
         public array $extra = [],
+        public ?int $spriteRamGbMs = null,
+        public ?int $toolCalls = null,
     ) {}
 }

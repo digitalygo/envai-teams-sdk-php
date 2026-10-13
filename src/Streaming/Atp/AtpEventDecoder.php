@@ -97,7 +97,7 @@ final class AtpEventDecoder
             );
         }
 
-        return match ($envelope->type) {
+        $event = match ($envelope->type) {
             'turn.started' => $this->decodeTurnStarted($envelope, $data),
             'turn.completed' => $this->decodeTurnCompleted($envelope, $data),
             'turn.cancelled' => $this->decodeTurnCancelled($envelope, $data),
@@ -127,6 +127,12 @@ final class AtpEventDecoder
             'approval.expire' => $this->decodeApprovalExpire($envelope, $data),
             default => new UnknownEvent($envelope, new JsonObject($data)),
         };
+
+        if (! $event instanceof UnknownEvent && $envelope->turnId === null) {
+            return new ProtocolViolationEvent($envelope, ['Known replayable events require a non-null turn_id.'], $data);
+        }
+
+        return $event;
     }
 
     /**
@@ -656,7 +662,24 @@ final class AtpEventDecoder
      */
     private function decodeAgentContextCompacting(EventEnvelope $envelope, array $data): AtpEvent
     {
-        return new AgentContextCompactingEvent($envelope, Payload::extra($data, []));
+        $violations = [];
+        $type = 'agent.context.compacting';
+        $turnId = Payload::nullableString($data, 'turn_id', $violations, $type);
+        $reason = Payload::nullableString($data, 'reason', $violations, $type);
+        $contextTokens = Payload::nullableInt($data, 'context_tokens', $violations, $type);
+        $thresholdTokens = Payload::nullableInt($data, 'threshold_tokens', $violations, $type);
+        $windowTokens = Payload::nullableInt($data, 'window_tokens', $violations, $type);
+        $threshold = Payload::nullableFloat($data, 'threshold', $violations, $type);
+
+        if ($violations !== []) {
+            return new ProtocolViolationEvent($envelope, $violations, $data);
+        }
+
+        return new AgentContextCompactingEvent(
+            $envelope,
+            Payload::extra($data, ['turn_id', 'reason', 'context_tokens', 'threshold_tokens', 'window_tokens', 'threshold']),
+            $turnId, $reason, $contextTokens, $thresholdTokens, $windowTokens, $threshold,
+        );
     }
 
     /**
@@ -666,6 +689,8 @@ final class AtpEventDecoder
     {
         $violations = [];
         $newContext = Payload::string($data, 'new_context', $violations, 'agent.context.compacted');
+        $turnId = Payload::nullableString($data, 'turn_id', $violations, 'agent.context.compacted');
+        $contextTokens = Payload::nullableInt($data, 'context_tokens', $violations, 'agent.context.compacted');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
@@ -673,7 +698,7 @@ final class AtpEventDecoder
 
         assert($newContext !== null);
 
-        return new AgentContextCompactedEvent($envelope, $newContext, Payload::extra($data, ['new_context']));
+        return new AgentContextCompactedEvent($envelope, $newContext, Payload::extra($data, ['new_context', 'turn_id', 'context_tokens']), $turnId, $contextTokens);
     }
 
     /**

@@ -341,10 +341,6 @@ final class PdoSyncStateStore implements SyncStateStore
             return null;
         }
 
-        if (! is_array($row)) {
-            throw new \RuntimeException('The state query returned an unexpected row shape.');
-        }
-
         return $row;
     }
 
@@ -663,9 +659,7 @@ final class PdoSyncStateStore implements SyncStateStore
             $data = [];
 
             foreach (get_object_vars($value) as $key => $item) {
-                if (is_string($key)) {
-                    $data[$key] = self::jsonValueToPayload($item);
-                }
+                $data[$key] = self::jsonValueToPayload($item);
             }
 
             return new JsonObject($data);

@@ -7,6 +7,7 @@ namespace Digitalygo\Envai\Sync\Planner;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Sync\State\ResourceType;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
 
 /**
  * Normalizes desired, last-applied and remote payloads into one canonical
@@ -17,7 +18,8 @@ use Digitalygo\Envai\Sync\State\ResourceType;
  *
  * - server-only bookkeeping keys (id, user_id, created_at, updated_at)
  *   are stripped;
- * - JsonObject/JsonArray wrappers are unwrapped recursively;
+ * - JsonObject/JsonArray wrappers are unwrapped recursively, except tool schema
+ *   subtrees, where ambiguous JSON object shapes remain explicit;
  * - agent tool name sets (tools_enabled, external_tools_enabled) are
  *   sorted and deduplicated by name, because they are semantically
  *   unordered, mirroring the manifest hasher;
@@ -39,7 +41,15 @@ final class PayloadNormalizer
      */
     public static function normalize(ResourceType $type, mixed $payload, array $agentIdToLocalKey = []): array
     {
+        $original = $payload instanceof JsonObject ? $payload->toArray() : $payload;
+        $parameters = $type === ResourceType::Tool && is_array($original) && array_key_exists('parameters', $original)
+            ? ToolSchemaNormalizer::payloadValue($original['parameters'])
+            : null;
         $payload = self::unwrap($payload);
+        if (is_array($payload) && $parameters !== null) {
+            // Schema literals are data, not ordinary mergeable payload maps.
+            $payload['parameters'] = $parameters instanceof JsonObject ? $parameters->toArray() : $parameters;
+        }
 
         if (! is_array($payload)) {
             return [];

@@ -1,0 +1,3586 @@
+[
+  {
+    "name": "draft6-unused-property-0",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-1",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "string",
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-2",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-3",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minimum": "1"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-4",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-5",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "enum": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-6",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "multipleOf": 0
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-7",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-8",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "properties": {
+            "nested": 17
+          }
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-9",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "allOf": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-10",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-11",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "format": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-12",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "uniqueItems": "yes"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-13",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "maxProperties": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-14",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": "["
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-15",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            "x",
+            "x"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-16",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-property-17",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "object",
+            "object"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-defs",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "definitions": {
+        "Unused": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-pattern",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "patternProperties": {
+        "^z": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-shortcircuited-anyOf",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "anyOf": [
+        true,
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-root-inapplicable-keyword",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "minLength": -1
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-local-missing",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "#/definitions/Missing"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft6-unused-external-ref",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "https://example.invalid/schema"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft6-local-recursive-unused",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "definitions": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/definitions/Node"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/Node"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-local-recursive-used",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "definitions": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/definitions/Node"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/Node"
+        }
+      }
+    },
+    "args": {
+      "node": {
+        "value": 3,
+        "next": {
+          "value": 4
+        }
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-unknown-extension",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "x-custom": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-literal-keywords",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "properties": {
+        "value": {
+          "const": {
+            "type": 17,
+            "$ref": "https://example.invalid/literal",
+            "properties": []
+          }
+        }
+      }
+    },
+    "args": {
+      "value": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-annotation-keywords",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "default": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal"
+      },
+      "examples": [
+        {
+          "allOf": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-prefixItems-unknown",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "prefixItems": [
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-dynamicRef-unknown",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "$dynamicRef": "https://example.invalid/not-a-keyword"
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-if-unknown",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "if": 17,
+      "then": [],
+      "else": "literal"
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-0",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-1",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "string",
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-2",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-3",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minimum": "1"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-4",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-5",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "enum": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-6",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "multipleOf": 0
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-7",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-8",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "properties": {
+            "nested": 17
+          }
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-9",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "allOf": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-10",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-11",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "format": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-12",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "uniqueItems": "yes"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-13",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "maxProperties": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-14",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": "["
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-15",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            "x",
+            "x"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-16",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-property-17",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "object",
+            "object"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-defs",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "definitions": {
+        "Unused": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-pattern",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "patternProperties": {
+        "^z": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-shortcircuited-anyOf",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "anyOf": [
+        true,
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-root-inapplicable-keyword",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "minLength": -1
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-local-missing",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "#/definitions/Missing"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft7-unused-external-ref",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "https://example.invalid/schema"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft7-local-recursive-unused",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "definitions": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/definitions/Node"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/Node"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-local-recursive-used",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "definitions": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/definitions/Node"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/Node"
+        }
+      }
+    },
+    "args": {
+      "node": {
+        "value": 3,
+        "next": {
+          "value": 4
+        }
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-unknown-extension",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "x-custom": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-literal-keywords",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "value": {
+          "const": {
+            "type": 17,
+            "$ref": "https://example.invalid/literal",
+            "properties": []
+          }
+        }
+      }
+    },
+    "args": {
+      "value": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-annotation-keywords",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "default": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal"
+      },
+      "examples": [
+        {
+          "allOf": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-then",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "if": false,
+      "then": {
+        "type": 17
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft7-prefixItems-unknown",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "prefixItems": [
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-dynamicRef-unknown",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "$dynamicRef": "https://example.invalid/not-a-keyword"
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-0",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-1",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "string",
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-2",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-3",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minimum": "1"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-4",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-5",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "enum": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-6",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "multipleOf": 0
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-7",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-8",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "properties": {
+            "nested": 17
+          }
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-9",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "allOf": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-10",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-11",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "format": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-12",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "uniqueItems": "yes"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-13",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "maxProperties": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-14",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": "["
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-15",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            "x",
+            "x"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-16",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-property-17",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "object",
+            "object"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-defs",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "Unused": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-pattern",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "patternProperties": {
+        "^z": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-shortcircuited-anyOf",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "anyOf": [
+        true,
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-root-inapplicable-keyword",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "minLength": -1
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-local-missing",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "#/$defs/Missing"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft19-unused-external-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "https://example.invalid/schema"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft19-local-recursive-unused",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/Node"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/Node"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-local-recursive-used",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/Node"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/Node"
+        }
+      }
+    },
+    "args": {
+      "node": {
+        "value": 3,
+        "next": {
+          "value": 4
+        }
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-unknown-extension",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "x-custom": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-literal-keywords",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "value": {
+          "const": {
+            "type": 17,
+            "$ref": "https://example.invalid/literal",
+            "properties": []
+          }
+        }
+      }
+    },
+    "args": {
+      "value": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-annotation-keywords",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "default": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal"
+      },
+      "examples": [
+        {
+          "allOf": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-then",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "if": false,
+      "then": {
+        "type": 17
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-dependent-schema",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "dependentSchemas": {
+        "absent": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft19-local-anchor",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "entry": {
+          "$anchor": "entry",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#entry"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-0",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-1",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "string",
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-2",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-3",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "minimum": "1"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-4",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            17
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-5",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "enum": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-6",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "multipleOf": 0
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-7",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-8",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "properties": {
+            "nested": 17
+          }
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-9",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "allOf": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-10",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-11",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "format": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-12",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "uniqueItems": "yes"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-13",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "maxProperties": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-14",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "pattern": "["
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-15",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "required": [
+            "x",
+            "x"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-16",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": []
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-property-17",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": [
+            "object",
+            "object"
+          ]
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-defs",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "Unused": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-pattern",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "patternProperties": {
+        "^z": {
+          "minLength": -1
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-shortcircuited-anyOf",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "anyOf": [
+        true,
+        {
+          "type": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-root-inapplicable-keyword",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "minLength": -1
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-local-missing",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "#/$defs/Missing"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft20-unused-external-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "optional": {
+          "$ref": "https://example.invalid/schema"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft20-local-recursive-unused",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/Node"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/Node"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-local-recursive-used",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/Node"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/Node"
+        }
+      }
+    },
+    "args": {
+      "node": {
+        "value": 3,
+        "next": {
+          "value": 4
+        }
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-unknown-extension",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "x-custom": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-literal-keywords",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "value": {
+          "const": {
+            "type": 17,
+            "$ref": "https://example.invalid/literal",
+            "properties": []
+          }
+        }
+      }
+    },
+    "args": {
+      "value": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal",
+        "properties": []
+      }
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-annotation-keywords",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "default": {
+        "type": 17,
+        "$ref": "https://example.invalid/literal"
+      },
+      "examples": [
+        {
+          "allOf": 17
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-then",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "if": false,
+      "then": {
+        "type": 17
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-dependent-schema",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "dependentSchemas": {
+        "absent": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": true,
+    "policy": false
+  },
+  {
+    "name": "draft20-local-anchor",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "entry": {
+          "$anchor": "entry",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#entry"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-escaped-local-pointer",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "definitions": {
+        "a/b~c": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/definitions/a~1b~0c"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-extension-target-valid",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "x-target": {
+        "type": "integer"
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-unused-extension-target-bad-type",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "x-target": {
+        "type": 17
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft6-unused-extension-target-scalar",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "x-target": 17,
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft6-unused-extension-target-list",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "x-target": [],
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft6-boolean-ref-target",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "definitions": {
+        "Allow": true
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/definitions/Allow"
+        }
+      }
+    },
+    "args": {
+      "x": []
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-embedded-id-resource",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "definitions": {
+        "Node": {
+          "$id": "urn:review:node",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "urn:review:node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft6-same-document-absolute-ref",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-06/schema#",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "definitions": {
+        "Node": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "https://review.invalid/root#/definitions/Node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-escaped-local-pointer",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "definitions": {
+        "a/b~c": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/definitions/a~1b~0c"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-extension-target-valid",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "x-target": {
+        "type": "integer"
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-unused-extension-target-bad-type",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "x-target": {
+        "type": 17
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft7-unused-extension-target-scalar",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "x-target": 17,
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft7-unused-extension-target-list",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "x-target": [],
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft7-boolean-ref-target",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "definitions": {
+        "Allow": true
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/definitions/Allow"
+        }
+      }
+    },
+    "args": {
+      "x": []
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-embedded-id-resource",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "definitions": {
+        "Node": {
+          "$id": "urn:review:node",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "urn:review:node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft7-same-document-absolute-ref",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "definitions": {
+        "Node": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "https://review.invalid/root#/definitions/Node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-escaped-local-pointer",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "a/b~c": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/a~1b~0c"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-extension-target-valid",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "x-target": {
+        "type": "integer"
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-unused-extension-target-bad-type",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "x-target": {
+        "type": 17
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft19-unused-extension-target-scalar",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "x-target": 17,
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft19-unused-extension-target-list",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "x-target": [],
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft19-boolean-ref-target",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$defs": {
+        "Allow": true
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/Allow"
+        }
+      }
+    },
+    "args": {
+      "x": []
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-embedded-id-resource",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "$defs": {
+        "Node": {
+          "$id": "urn:review:node",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "urn:review:node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft19-same-document-absolute-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "$defs": {
+        "Node": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "https://review.invalid/root#/$defs/Node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-escaped-local-pointer",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "a/b~c": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/a~1b~0c"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-extension-target-valid",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "x-target": {
+        "type": "integer"
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-unused-extension-target-bad-type",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "x-target": {
+        "type": 17
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft20-unused-extension-target-scalar",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "x-target": 17,
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft20-unused-extension-target-list",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "x-target": [],
+      "properties": {
+        "x": {
+          "$ref": "#/x-target"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "invalid_schema": false,
+    "policy": true
+  },
+  {
+    "name": "draft20-boolean-ref-target",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {
+        "Allow": true
+      },
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/Allow"
+        }
+      }
+    },
+    "args": {
+      "x": []
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-embedded-id-resource",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "$defs": {
+        "Node": {
+          "$id": "urn:review:node",
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "urn:review:node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "draft20-same-document-absolute-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$id": "https://review.invalid/root",
+      "$defs": {
+        "Node": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "x": {
+          "$ref": "https://review.invalid/root#/$defs/Node"
+        }
+      }
+    },
+    "args": {
+      "x": 2
+    },
+    "expected": true,
+    "invalid_schema": false,
+    "policy": false
+  },
+  {
+    "name": "dynamic-self-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$dynamicAnchor": "node",
+      "$dynamicRef": "#node"
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "recursive-self-ref",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "$recursiveAnchor": true,
+      "$recursiveRef": "#"
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "not-self-ref",
+    "schema": {
+      "not": {
+        "$ref": "#"
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "allof-self-ref",
+    "schema": {
+      "allOf": [
+        {
+          "$ref": "#"
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "conditional-self-ref",
+    "schema": {
+      "type": "object",
+      "if": {
+        "required": [
+          "loop"
+        ]
+      },
+      "then": {
+        "$ref": "#"
+      }
+    },
+    "args": {
+      "loop": 1
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "conditional-unused-self-ref",
+    "schema": {
+      "type": "object",
+      "if": {
+        "required": [
+          "loop"
+        ]
+      },
+      "then": {
+        "$ref": "#"
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "productive-allof-recursion",
+    "schema": {
+      "type": "object",
+      "allOf": [
+        {
+          "properties": {
+            "next": {
+              "$ref": "#"
+            }
+          }
+        }
+      ]
+    },
+    "args": {
+      "next": {
+        "next": {}
+      }
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "safe-anyof-shortcircuit",
+    "schema": {
+      "anyOf": [
+        {},
+        {
+          "$ref": "#"
+        }
+      ]
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "root-self-ref",
+    "schema": {
+      "$ref": "#"
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "root-mutual-ref",
+    "schema": {
+      "$ref": "#/$defs/A",
+      "$defs": {
+        "A": {
+          "$ref": "#/$defs/B"
+        },
+        "B": {
+          "$ref": "#/$defs/A"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "unused-self-ref",
+    "schema": {
+      "type": "object",
+      "$defs": {
+        "A": {
+          "$ref": "#/$defs/A"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "unused-mutual-ref",
+    "schema": {
+      "type": "object",
+      "$defs": {
+        "A": {
+          "$ref": "#/$defs/B"
+        },
+        "B": {
+          "$ref": "#/$defs/A"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "extension-id-schema-lookalikes",
+    "schema": {
+      "type": "object",
+      "x-extra": {
+        "$id": 17,
+        "$schema": false,
+        "properties": 17
+      },
+      "default": {
+        "$id": 17,
+        "$schema": false
+      },
+      "examples": [
+        {
+          "$id": 17,
+          "$schema": false
+        }
+      ]
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "dynamic-root-recursion",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$dynamicAnchor": "node",
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer"
+        },
+        "next": {
+          "$dynamicRef": "#node"
+        }
+      }
+    },
+    "args": {
+      "value": 1,
+      "next": {
+        "value": 2
+      }
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "recursive-root-recursion",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "$recursiveAnchor": true,
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer"
+        },
+        "next": {
+          "$recursiveRef": "#"
+        }
+      }
+    },
+    "args": {
+      "value": 1,
+      "next": {
+        "value": 2
+      }
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "unused-unresolved-dynamic",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "next": {
+          "$dynamicRef": "#missing"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "unused-unresolved-recursive",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2019-09/schema",
+      "type": "object",
+      "properties": {
+        "next": {
+          "$recursiveRef": "https://example.invalid/remote"
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "duplicate-target-external",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "#/x-target"
+        },
+        "b": {
+          "$ref": "#/x-target"
+        }
+      },
+      "x-target": {
+        "$ref": "https://example.invalid/remote"
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "duplicate-target-local",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "#/x-target"
+        },
+        "b": {
+          "$ref": "#/x-target"
+        }
+      },
+      "x-target": {
+        "$ref": "#/missing"
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "target-literal-pointer",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "#/default/target"
+        }
+      },
+      "default": {
+        "target": {
+          "type": "integer"
+        }
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "bad-target-literal-pointer",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "#/default/target"
+        }
+      },
+      "default": {
+        "target": {
+          "type": 17
+        }
+      }
+    },
+    "args": {},
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "escaped-dollar-pointer",
+    "schema": {
+      "type": "object",
+      "$defs": {
+        "Node": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "a": {
+          "$ref": "#/%24defs/Node"
+        }
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "unknown-ref-looking-extension",
+    "schema": {
+      "type": "object",
+      "x-extra": {
+        "$dynamicRef": "https://example.invalid/remote",
+        "$schema": 17,
+        "required": [
+          17
+        ]
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "false-reference-target-unused",
+    "schema": {
+      "type": "object",
+      "$defs": {
+        "No": false
+      },
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/No"
+        }
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "false-reference-target-used",
+    "schema": {
+      "type": "object",
+      "$defs": {
+        "No": false
+      },
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/No"
+        }
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "literal-root-id-collision",
+    "schema": {
+      "$id": "urn:root",
+      "type": "object",
+      "x-extra": {
+        "$id": "urn:root"
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "default-root-id-collision",
+    "schema": {
+      "$id": "urn:root",
+      "type": "object",
+      "default": {
+        "$id": "urn:root"
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "literal-id-hijack",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "https://example.invalid/remote"
+        }
+      },
+      "x-extra": {
+        "$id": "https://example.invalid/remote",
+        "type": "integer"
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "default-id-hijack",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "https://example.invalid/remote"
+        }
+      },
+      "default": {
+        "$id": "https://example.invalid/remote",
+        "type": "integer"
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "literal-anchor-hijack",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "#fake"
+        }
+      },
+      "x-extra": {
+        "$anchor": "fake",
+        "type": "integer"
+      }
+    },
+    "args": {
+      "a": 1
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "literal-schema-invalid-uri",
+    "schema": {
+      "type": "object",
+      "x-extra": {
+        "$schema": "https://unknown.invalid/schema"
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "literal-id-malformed",
+    "schema": {
+      "type": "object",
+      "x-extra": {
+        "$id": "%%%garbage"
+      }
+    },
+    "args": {},
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "mixed-embedded-dialect-unsupported",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$defs": {
+        "Legacy": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$id": "urn:legacy",
+          "type": "array",
+          "items": [
+            {
+              "type": "integer"
+            }
+          ],
+          "additionalItems": false
+        }
+      },
+      "properties": {
+        "a": {
+          "$ref": "urn:legacy"
+        }
+      }
+    },
+    "args": {
+      "a": [
+        1
+      ]
+    },
+    "expected": false,
+    "policy": true
+  },
+  {
+    "name": "promoted-target-uri-first",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "urn:promoted"
+        },
+        "b": {
+          "$ref": "#/x-target"
+        }
+      },
+      "x-target": {
+        "$id": "urn:promoted",
+        "type": "integer"
+      }
+    },
+    "args": {
+      "a": 1,
+      "b": 2
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "promoted-target-pointer-first",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "b": {
+          "$ref": "#/x-target"
+        },
+        "a": {
+          "$ref": "urn:promoted"
+        }
+      },
+      "x-target": {
+        "$id": "urn:promoted",
+        "type": "integer"
+      }
+    },
+    "args": {
+      "a": 1,
+      "b": 2
+    },
+    "expected": true,
+    "policy": true
+  },
+  {
+    "name": "promoted-target-descendant-anchor",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "b": {
+          "$ref": "#/x-target"
+        },
+        "a": {
+          "$ref": "urn:promoted#integer"
+        }
+      },
+      "x-target": {
+        "$id": "urn:promoted",
+        "type": "integer",
+        "$defs": {
+          "Int": {
+            "$anchor": "integer",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "args": {
+      "a": 1,
+      "b": 2
+    },
+    "expected": true,
+    "policy": true
+  }
+]

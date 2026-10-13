@@ -296,7 +296,7 @@ final readonly class WebhookPayload implements \JsonSerializable
         return $value;
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<array-key, mixed> */
     private static function unwrapObject(JsonObject $value): array
     {
         $result = [];

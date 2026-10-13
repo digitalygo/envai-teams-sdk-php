@@ -12,7 +12,7 @@ namespace Digitalygo\Envai\Tools\Contracts;
 final readonly class ToolInvocation
 {
     /**
-     * @param  array<string, mixed>  $arguments  Validated arguments of the invocation.
+     * @param  array<array-key, mixed>  $arguments  Validated arguments; PHP represents integer-looking JSON member names as integer keys.
      */
     public function __construct(
         public string $chatId,

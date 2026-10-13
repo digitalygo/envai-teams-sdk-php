@@ -201,6 +201,21 @@ final class ToolRequestVerifierTest extends TestCase
         $verifier->verify($event);
     }
 
+    public function test_key_with_conflicting_algorithm_is_rejected(): void
+    {
+        $keys = TestKeys::generate();
+        $kid = TestKeys::kid();
+        $entry = TestKeys::jwkEntry($kid, $keys['public']);
+        $entry['alg'] = 'RS256';
+        $verifier = $this->verifier(['keys' => [$entry]]);
+        $event = ToolRequestFactory::signed(self::CALL_ID, self::TOOL_NAME, [], $keys['secret'], $kid);
+
+        $this->expectException(ProtocolViolationException::class);
+        $this->expectExceptionMessage('not an Ed25519 signature key');
+
+        $verifier->verify($event);
+    }
+
     public function test_unknown_kid_after_refresh_is_rejected(): void
     {
         $keys = TestKeys::generate();
@@ -391,7 +406,7 @@ final class ToolRequestVerifierTest extends TestCase
             'seq' => 1,
             'ts' => '2026-08-28T14:00:00Z',
             'chat_id' => 'cht_01M0QH1AJB2NVWZZJ2P8XET3F7',
-            'turn_id' => null,
+            'turn_id' => 'cmpl_01M0QH1AJB2NVWZZJ2P8XET3F7',
             'agent' => null,
             'type' => 'agent.tool.request',
             'data' => $data,

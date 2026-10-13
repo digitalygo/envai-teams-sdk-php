@@ -12,6 +12,8 @@ use Digitalygo\Envai\Models\Json\CanonicalJson;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Models\Json\RawJson;
+use Digitalygo\Envai\Models\Tool\UserTool;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
 
 /**
  * Encodes request bodies and decodes response bodies into typed DTOs.
@@ -30,7 +32,7 @@ final class JsonCodec
      * Encodes a request body into its JSON representation.
      *
      * null stays null, strings are passed through as-is (already encoded
-     * JSON), JsonObject/JsonArray are unwrapped through toArray() and any
+     * JSON), JsonObject/JsonArray retain their explicit JSON shapes and any
      * other JSON-encodable value is encoded with unescaped slashes and
      * unicode. RawJson payloads are passed through verbatim. Multipart bodies
      * are rejected: they must be sent through send() directly.
@@ -48,7 +50,7 @@ final class JsonCodec
         }
 
         if ($body instanceof JsonObject || $body instanceof JsonArray) {
-            return $this->encode($body->toArray());
+            return $this->encode($body);
         }
 
         if ($body instanceof CanonicalJson) {
@@ -92,7 +94,7 @@ final class JsonCodec
     {
         self::assertHydratable($class);
 
-        $envelope = self::decodeObject($body);
+        $envelope = self::decodeObject($body, $class === UserTool::class);
 
         $payload = $envelope['data'] ?? null;
 
@@ -116,7 +118,7 @@ final class JsonCodec
      */
     public function decodeCollectionInto(string $body, string $class): ResourceCollection
     {
-        $envelope = self::decodeObject($body);
+        $envelope = self::decodeObject($body, $class === UserTool::class);
 
         $payload = $envelope['data'] ?? null;
 
@@ -139,7 +141,7 @@ final class JsonCodec
     {
         self::assertHydratable($class);
 
-        return $class::fromArray(self::decodeObject($body));
+        return $class::fromArray(self::decodeObject($body, $class === UserTool::class));
     }
 
     private function encode(mixed $value): string
@@ -155,10 +157,13 @@ final class JsonCodec
      * @throws ProtocolViolationException when the body is malformed JSON or
      *                                    not a JSON object.
      */
-    private static function decodeObject(string $body): array
+    private static function decodeObject(string $body, bool $preserveToolSchema = false): array
     {
         try {
-            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($body, ! $preserveToolSchema, 512, JSON_THROW_ON_ERROR);
+            if ($preserveToolSchema && $decoded instanceof \stdClass) {
+                $decoded = self::toolResponseValue($decoded);
+            }
         } catch (\JsonException $e) {
             throw new ProtocolViolationException('Malformed JSON in the response body.', previous: $e);
         }
@@ -168,6 +173,23 @@ final class JsonCodec
         }
 
         return self::stringKeyed($decoded);
+    }
+
+    /** Preserve only tool schema subtrees; other DTO fields keep their array API. */
+    private static function toolResponseValue(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $result = [];
+            foreach (get_object_vars($value) as $key => $item) {
+                $result[$key] = $key === 'parameters' && $item instanceof \stdClass
+                    ? ToolSchemaNormalizer::objectPayload($item)
+                    : self::toolResponseValue($item);
+            }
+
+            return $result;
+        }
+
+        return is_array($value) ? array_map(self::toolResponseValue(...), $value) : $value;
     }
 
     /**

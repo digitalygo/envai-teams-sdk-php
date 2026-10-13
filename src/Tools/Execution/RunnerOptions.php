@@ -27,8 +27,8 @@ final readonly class RunnerOptions
             throw new \InvalidArgumentException('maxConcurrent must be at least 1.');
         }
 
-        if ($submissionMarginSeconds < 0.0) {
-            throw new \InvalidArgumentException('submissionMarginSeconds must not be negative.');
+        if (! is_finite($submissionMarginSeconds) || $submissionMarginSeconds < 0.0) {
+            throw new \InvalidArgumentException('submissionMarginSeconds must be finite and not negative.');
         }
     }
 }

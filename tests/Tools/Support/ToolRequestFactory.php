@@ -50,12 +50,14 @@ final class ToolRequestFactory
         string $secretKey,
         string $kid,
         ?string $turnId = 'cmpl_test_1',
+        string $chatId = 'cht_test_1',
     ): AgentToolRequestEvent {
         return self::create(
             $callId,
             $toolName,
             new JsonObject($args),
             new ToolSignature('EdDSA', $kid, TestKeys::sign($callId, $toolName, $args, $secretKey)),
+            chatId: $chatId,
             turnId: $turnId,
         );
     }

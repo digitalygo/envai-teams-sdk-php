@@ -10,7 +10,7 @@ namespace Digitalygo\Envai\Models\Json;
 final readonly class JsonObject implements \JsonSerializable
 {
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<array-key, mixed>  $data
      */
     public function __construct(public array $data) {}
 
@@ -28,31 +28,11 @@ final readonly class JsonObject implements \JsonSerializable
             throw new \InvalidArgumentException('Expected a JSON object literal.');
         }
 
-        return new self(self::stringKeyed($decoded));
+        return new self($decoded);
     }
 
     /**
-     * Keeps only string keys, matching the shape json_decode produces for a
-     * JSON object.
-     *
-     * @param  array<mixed, mixed>  $data
-     * @return array<string, mixed>
-     */
-    private static function stringKeyed(array $data): array
-    {
-        $result = [];
-
-        foreach ($data as $key => $value) {
-            if (is_string($key)) {
-                $result[$key] = $value;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function toArray(): array
     {
@@ -74,8 +54,8 @@ final readonly class JsonObject implements \JsonSerializable
         return $this->data === [];
     }
 
-    public function jsonSerialize(): mixed
+    public function jsonSerialize(): \stdClass
     {
-        return $this->data;
+        return (object) $this->data;
     }
 }

@@ -4,32 +4,51 @@ The official PHP SDK for Envai. It provides a framework-independent, typed HTTP 
 
 The package is pre-1.0 and documents the behavior of the Envai `alpha` snapshot. The limits of that implementation are called out in the [alpha limitations](#alpha-limitations) section.
 
+Current contract target: `envai-teams` commit `55275860c9a950eaad8e39e9d2b728149084779c`. See [current-server compatibility and migration notes](docs/CURRENT_SERVER_COMPATIBILITY.md), especially the new opaque-ID artifact download API and client-tool validation safeguards.
+
 ## Installation
 
-For a private GitHub repository, add the VCS repository to the consuming application's `composer.json`:
+The new Composer identity is `digitalygo/envai-teams-sdk-php`; PHP namespaces
+remain `Digitalygo\Envai`. This change is **unreleased**. Production consumers
+must wait for a real tagged release containing the rename before changing their
+requirement and lockfile. Existing tags and their source are not rewritten.
+
+After the first new-name stable release exists, add the private VCS repository
+to the consuming application's `composer.json`:
 
 ```json
 {
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/digitalygo/envai-api-php-sdk"
+            "url": "https://github.com/digitalygo/envai-teams-sdk-php"
         }
-    ],
-    "require": {
-        "digitalygo/atp-php-sdk": "^0.1"
-    }
+    ]
 }
 ```
 
-Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install a compatible pre-1.0 release:
+Configure Composer with a fine-grained PAT that has `Contents: read-only` access to this repository, then install the latest released version:
 
 ```bash
 composer config --global --auth github-oauth.github.com <TOKEN>
-composer require digitalygo/atp-php-sdk:^0.1
+composer require digitalygo/envai-teams-sdk-php
 ```
 
-Commit the updated `composer.json` and `composer.lock`; subsequent environments can run `composer install` with the same GitHub authentication.
+Commit the resulting `composer.json` and `composer.lock`. Subsequent environments
+run `composer install` with the same GitHub authentication. Do not run the new-name
+consumer installation before that release exists: Composer VCS discovery uses
+the default branch's package name, so simply requesting this PR's branch does not
+make the renamed package resolvable while main still declares the old name.
+
+To evaluate this PR before release, clone its actual branch into an isolated
+checkout and run its own tests (this does not alter a consumer lockfile):
+
+```bash
+git clone --branch codex/current-server-compatibility-20261012 https://github.com/digitalygo/envai-teams-sdk-php.git
+cd envai-teams-sdk-php
+composer install
+composer check
+```
 
 ## Versioning
 
@@ -48,7 +67,7 @@ The core does not depend on Laravel. Illuminate packages (`illuminate/config`, `
 ```json
 {
     "require": {
-        "digitalygo/atp-php-sdk": "^0.2@beta"
+        "digitalygo/envai-teams-sdk-php": "^0.2@beta"
     }
 }
 ```

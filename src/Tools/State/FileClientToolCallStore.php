@@ -19,7 +19,8 @@ use Digitalygo\Envai\Exceptions\FileException;
  * Suitable for single-host runtimes, CI and development; multi-node
  * deployments should use a shared store (database, Redis, ...). A call whose
  * record is missing when a mark_* method is called indicates a programming
- * error and throws.
+ * error and throws. Existing state is validated before every operation;
+ * malformed rows cause a FileException without rewriting the state file.
  */
 final class FileClientToolCallStore implements ClientToolCallStore
 {
@@ -45,9 +46,10 @@ final class FileClientToolCallStore implements ClientToolCallStore
     {
         $result = $this->transact(static function (array $calls) use ($identity): array {
             $key = self::key($identity);
-            $row = $calls[$key] ?? null;
 
-            if ($row !== null) {
+            if (array_key_exists($key, $calls)) {
+                $row = $calls[$key];
+
                 return [$calls, new BeginResult(self::alreadyStatus(self::statusOf($row)), self::recordFromRow($row))];
             }
 
@@ -101,12 +103,12 @@ final class FileClientToolCallStore implements ClientToolCallStore
     {
         $this->transact(static function (array $calls) use ($identity, $status): array {
             $key = self::key($identity);
-            $row = $calls[$key] ?? null;
 
-            if ($row === null) {
+            if (! array_key_exists($key, $calls)) {
                 throw new \LogicException('Cannot mark a tool call that was never begun.');
             }
 
+            $row = $calls[$key];
             $row['status'] = $status->value;
             $row['updated_at'] = self::nowString();
             $calls[$key] = $row;
@@ -161,7 +163,7 @@ final class FileClientToolCallStore implements ClientToolCallStore
         }
 
         if (trim($json) === '') {
-            return [];
+            throw FileException::local(sprintf('State file "%s" is empty; refusing to reset client tool execution state.', $this->path));
         }
 
         try {
@@ -183,8 +185,35 @@ final class FileClientToolCallStore implements ClientToolCallStore
             throw FileException::local(sprintf('State file "%s" has an unsupported format.', $this->path));
         }
 
-        /** @var array<string, array<string, mixed>> $calls */
-        return $calls;
+        $validated = [];
+
+        // Validate the complete snapshot before any operation can use or
+        // rewrite it, including rows unrelated to the requested call.
+        foreach ($calls as $key => $row) {
+            if (! is_string($key) || ! is_array($row)) {
+                throw FileException::local('State file contains an invalid tool call record.');
+            }
+
+            $validatedRow = [];
+
+            foreach ($row as $field => $value) {
+                if (! is_string($field)) {
+                    throw FileException::local('State file contains an invalid tool call record.');
+                }
+
+                $validatedRow[$field] = $value;
+            }
+
+            $record = self::recordFromRow($validatedRow);
+
+            if ($key !== self::key($record->identity)) {
+                throw FileException::local('State file contains a tool call key that does not match its identity.');
+            }
+
+            $validated[$key] = $validatedRow;
+        }
+
+        return $validated;
     }
 
     /**
@@ -256,11 +285,12 @@ final class FileClientToolCallStore implements ClientToolCallStore
      */
     private static function recordFromRow(array $row): ToolCallRecord
     {
+        $turnId = self::nullableStringField($row, 'turn_id');
         $identity = new ToolCallIdentity(
             chatId: self::stringField($row, 'chat_id'),
             callId: self::stringField($row, 'call_id'),
             toolName: self::stringField($row, 'tool_name'),
-            turnId: isset($row['turn_id']) && is_string($row['turn_id']) && $row['turn_id'] !== '' ? $row['turn_id'] : null,
+            turnId: $turnId !== '' ? $turnId : null,
         );
 
         $status = ClientToolCallStatus::tryFrom(self::stringField($row, 'status'));
@@ -269,8 +299,8 @@ final class FileClientToolCallStore implements ClientToolCallStore
             throw FileException::local('State file contains an unknown tool call status.');
         }
 
-        $updatedAt = self::parseTimestamp($row['updated_at'] ?? null);
-        $outputHash = isset($row['output_hash']) && is_string($row['output_hash']) ? $row['output_hash'] : null;
+        $updatedAt = self::parseTimestamp(self::nullableStringField($row, 'updated_at'));
+        $outputHash = self::nullableStringField($row, 'output_hash');
 
         return new ToolCallRecord($identity, $status, $updatedAt, $outputHash);
     }
@@ -303,17 +333,46 @@ final class FileClientToolCallStore implements ClientToolCallStore
         return $value;
     }
 
-    private static function parseTimestamp(mixed $value): ?\DateTimeImmutable
+    /**
+     * Optional metadata may be missing in legacy format-1 records, but a
+     * malformed value must not be silently discarded during a transition.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private static function nullableStringField(array $row, string $field): ?string
     {
-        if (! is_string($value) || $value === '') {
+        $value = $row[$field] ?? null;
+
+        if ($value !== null && ! is_string($value)) {
+            throw FileException::local(sprintf('State file contains an invalid "%s" field.', $field));
+        }
+
+        return $value;
+    }
+
+    private static function parseTimestamp(?string $value): ?\DateTimeImmutable
+    {
+        if ($value === null) {
             return null;
         }
 
+        if ($value === '') {
+            throw FileException::local('State file contains an invalid updated_at timestamp.');
+        }
+
         try {
-            return new \DateTimeImmutable($value);
+            $timestamp = new \DateTimeImmutable($value);
         } catch (\Exception $exception) {
             throw FileException::local('State file contains an invalid updated_at timestamp.', previous: $exception);
         }
+
+        $errors = \DateTimeImmutable::getLastErrors();
+
+        if ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+            throw FileException::local('State file contains an invalid updated_at timestamp.');
+        }
+
+        return $timestamp;
     }
 
     private static function alreadyStatus(ClientToolCallStatus $status): ToolCallStatus
