@@ -39,7 +39,7 @@ final class OfflineSchemaLoader extends SchemaLoader
             throw new \InvalidArgumentException('A schema must be a JSON object.');
         }
         $this->declareLocations($data, $draft ?? $this->parser()->defaultDraftVersion());
-        if (! $this->dataCache->contains($data) && $this->inertLocations->contains($data)) {
+        if (! $this->dataCache->offsetExists($data) && $this->inertLocations->offsetExists($data)) {
             [$base, $root, $path, $locatedDraft, $pointer] = $this->inertLocations[$data];
             // A JSON Pointer explicitly promotes this literal to a schema.
             // Retain its document location instead of treating a fragment as a root ID.
@@ -58,10 +58,10 @@ final class OfflineSchemaLoader extends SchemaLoader
 
     private function declareLocations(\stdClass $node, string $parentDraft): void
     {
-        if ($this->locations->contains($node)) {
+        if ($this->locations->offsetExists($node)) {
             return;
         }
-        $this->locations->attach($node);
+        $this->locations->offsetSet($node);
         $draft = ToolSchemaNormalizer::draft($node->{'$schema'} ?? null, $parentDraft);
         $this->documentDraft ??= $draft;
         if ($draft !== $this->documentDraft) {
@@ -77,7 +77,7 @@ final class OfflineSchemaLoader extends SchemaLoader
         if ($schema instanceof GuardedSchema || $schema instanceof ExceptionSchema) {
             return $schema;
         }
-        if (! $this->guards->contains($schema)) {
+        if (! $this->guards->offsetExists($schema)) {
             $this->guards[$schema] = new GuardedSchema($schema);
         }
 
@@ -87,7 +87,7 @@ final class OfflineSchemaLoader extends SchemaLoader
     /** @param array<int|string> $path */
     protected function handleObject(object $data, ?Uri $id, ?Uri $base, ?Uri $root, array $path, string $draft, string $pointer): void
     {
-        if ($this->locations->contains($data)) {
+        if ($this->locations->offsetExists($data)) {
             parent::handleObject($data, $id, $base, $root, $path, $draft, $pointer);
 
             return;

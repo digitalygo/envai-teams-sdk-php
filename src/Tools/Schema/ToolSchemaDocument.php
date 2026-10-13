@@ -92,10 +92,10 @@ final class ToolSchemaDocument
         do {
             while (isset($queue[$index])) {
                 [$node, $parentDraft] = $queue[$index++];
-                if ($seen->contains($node)) {
+                if ($seen->offsetExists($node)) {
                     continue;
                 }
-                $seen->attach($node);
+                $seen->offsetSet($node);
                 $draft = ToolSchemaNormalizer::draft($node->{'$schema'} ?? null, $parentDraft);
                 if (! $metas->validate($node, self::METASCHEMAS[$draft])->isValid()) {
                     throw new \InvalidArgumentException('The tool schema does not satisfy its draft metaschema.');
@@ -153,7 +153,7 @@ final class ToolSchemaDocument
                     }
                     $target = $resolved->info()->data();
                 }
-                if ($target instanceof \stdClass && ! $seen->contains($target)) {
+                if ($target instanceof \stdClass && ! $seen->offsetExists($target)) {
                     $queue[] = [$target, $referenceDraft];
                 }
             }
