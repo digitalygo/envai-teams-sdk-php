@@ -16,6 +16,25 @@
 - Add shared current-server conformance vectors and focused safety regressions. Preserve the existing MIT license.
 
 
+## [0.2.0](https://github.com/digitalygo/envai-teams-sdk-php/compare/v0.1.0...v0.2.0) (2026-10-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* align PHP SDK with current Envai contracts and rename package
+
+### Features
+
+* align PHP SDK with current Envai contracts and rename package ([4a5e809](https://github.com/digitalygo/envai-teams-sdk-php/commit/4a5e8091fd4818f0707ac9f1209a901a7d1677ff))
+
+
+### Bug Fixes
+
+* eagerly validate offline tool schemas and preserve wire shapes ([b253e52](https://github.com/digitalygo/envai-teams-sdk-php/commit/b253e52f8d3f5eeb4b77331c99ebdef279c58a26))
+* execute canonical verified tool arguments ([2531e67](https://github.com/digitalygo/envai-teams-sdk-php/commit/2531e670869ca2b68ef3c7ab2a2289c7811b4b05))
+* preserve JSON Schema shapes and verify all contract provenance ([ad79b6a](https://github.com/digitalygo/envai-teams-sdk-php/commit/ad79b6a2a0255a520bda82da02a09f0fd90c1829))
+* reject corrupted client tool call records before replay ([f93e6a6](https://github.com/digitalygo/envai-teams-sdk-php/commit/f93e6a6a60605008eaa698851e2a9a685fbd9a66))
+
 ## 0.1.0 (2026-08-31)
 
 
