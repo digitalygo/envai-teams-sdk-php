@@ -19,11 +19,14 @@ fixture; they establish integrity, not freshness against a newer deployment.
 
 ## Upgrading from 0.1
 
-Version 0.2.0 uses Composer package `digitalygo/envai-teams-sdk-php` instead of
+The 0.2 release line uses Composer package `digitalygo/envai-teams-sdk-php` instead of
 `digitalygo/atp-php-sdk`. PHP namespaces and Laravel provider class names are
-unchanged. Add the public VCS repository as described in the
-[installation guide](../README.md#installation), replace the old Composer
-requirement, update the lockfile, and run application checks before deploying.
+unchanged. Version 0.2.1 is published on Packagist. Replace the old Composer
+requirement with `digitalygo/envai-teams-sdk-php:^0.2.1`, update the lockfile,
+and run application checks before deploying. Follow the
+[installation guide](../README.md#installation); no custom VCS repository entry
+is required. Remove any SDK-specific entry retained from a direct-GitHub
+installation while keeping repositories needed by other dependencies.
 
 Also update any Laravel `dont-discover` entry and hard-coded vendor path that
 uses the old Composer name. Existing lockfile installs and fresh dependency

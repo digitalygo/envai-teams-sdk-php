@@ -5,7 +5,7 @@ ATP v2 runtime for chats, event streaming, declarative agents and teams,
 configuration synchronization, and verified client tools. Laravel integration
 is optional.
 
-Version 0.2.0 is available as a Git tag. This pre-1.0 SDK supports the contract
+Version 0.2.1 is available on [Packagist](https://packagist.org/packages/digitalygo/envai-teams-sdk-php). This pre-1.0 SDK supports the contract
 snapshot bundled in the repository; optional features also depend on the server
 capabilities. See the [documentation index](docs/README.md),
 [examples](docs/EXAMPLES.md), and
@@ -17,29 +17,17 @@ Requirements: PHP 8.2 or later in the PHP 8 series, Composer, and the `curl`,
 `json`, `mbstring`, `pdo` and `sodium` extensions. Additional PDO drivers are
 needed only for their corresponding state stores.
 
-Add the public VCS repository to your application's `composer.json`:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/digitalygo/envai-teams-sdk-php"
-        }
-    ]
-}
-```
-
-Then install the released package:
+Install the published package with Composer:
 
 ```bash
-composer require digitalygo/envai-teams-sdk-php:^0.2
+composer require digitalygo/envai-teams-sdk-php:^0.2.1
 ```
 
-This documented route uses GitHub directly and does not depend on a Packagist
-listing. Repository access is public; a personal access token is not required
-for access. Composer may separately request authentication if GitHub's anonymous
-API rate limit is exhausted. Never commit Composer authentication files.
+Composer resolves the package through Packagist. No custom `repositories`
+entry or GitHub personal access token is required for normal installation.
+If your application has an SDK-specific VCS entry from an earlier installation,
+remove that entry to use Packagist; retain entries needed by other packages.
+Never commit Composer authentication files.
 
 Commit `composer.json` and `composer.lock`; deploy with `composer install` to
 reuse the reviewed dependency versions. The Composer name is
@@ -100,7 +88,7 @@ loop does not execute tools. See [client tools](#client-tools).
 
 ## Versioning
 
-Install tagged releases and review their release notes before upgrading. The SDK is pre-1.0; compatibility changes may occur between minor versions. A `^0.2` Composer constraint selects compatible 0.2 releases rather than a development branch.
+Install tagged releases and review their release notes before upgrading. The SDK is pre-1.0; compatibility changes may occur between minor versions. A `^0.2.1` Composer constraint selects compatible 0.2 releases starting at 0.2.1 rather than a development branch.
 
 Requirements: PHP `^8.2`; the `curl`, `json`, `mbstring`, `pdo` and `sodium` extensions; a PSR-3 logger if you want log injection; Symfony Console and Symfony YAML for the core CLI.
 

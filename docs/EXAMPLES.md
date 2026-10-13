@@ -1,6 +1,6 @@
 # Examples and recipes
 
-These examples target the public PHP API in version 0.2.0 and later compatible
+These examples target the public PHP API in version 0.2.1 and later compatible
 0.2 releases. Code under `examples/` is available in a source checkout; it is
 excluded from Composer distribution archives. Install dependencies in the
 checkout with `composer install` before running a script.
