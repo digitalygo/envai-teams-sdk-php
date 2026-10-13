@@ -16,6 +16,7 @@ use Digitalygo\Envai\Client\ImagesService;
 use Digitalygo\Envai\Client\ModelsService;
 use Digitalygo\Envai\Client\TeamsService;
 use Digitalygo\Envai\Client\ToolsService;
+use Digitalygo\Envai\Client\WikiOperationsService;
 use Digitalygo\Envai\Client\WorkspaceFilesService;
 use Digitalygo\Envai\Client\WorkspaceScope;
 use Digitalygo\Envai\Client\WorkspacesService;
@@ -55,6 +56,8 @@ use Digitalygo\Envai\Tools\State\InMemoryClientToolCallStore;
  */
 final class ServiceContainer
 {
+    private ?WikiOperationsService $wiki = null;
+
     private ?WorkspacesService $workspaces = null;
 
     private ?ToolsService $tools = null;
@@ -114,6 +117,11 @@ final class ServiceContainer
         ),
         private readonly ?\Closure $stateStoreResolver = null,
     ) {}
+
+    public function wiki(): WikiOperationsService
+    {
+        return $this->wiki ??= new WikiOperationsService($this->executor, $this->uris, $this->connectTimeoutSeconds, $this->requestTimeoutSeconds);
+    }
 
     public function workspaces(): WorkspacesService
     {

@@ -34,6 +34,14 @@ final readonly class CapabilitiesService
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
     }
 
+    public function wikiWebhookJwks(): JwksDocument
+    {
+        $result = $this->requests->absolute('GET', $this->requests->urlForWikiWebhookJwks(), [], null, JwksDocument::class, EnvelopeMode::TopLevel);
+
+        /** @var JwksDocument $result */
+        return $result;
+    }
+
     /**
      * Returns the protocol metadata and positively advertised names
      * (GET /capabilities).

@@ -1,0 +1,14 @@
+{
+  "origin": "Actual authenticated control-plane GET responses from a disposable PostgreSQL 18.3 fixture application. Synthetic metadata only; no paid provider or customer data.",
+  "snapshot_status": "wiki-v1-working-tree; backend publication commit not assigned",
+  "files": {
+    "source-conversion-retry.json": {
+      "sha256": "d724fa8c04c4023a3bfc354c447c8933590ffe1dd8187ee854d2bdc2943f9d80",
+      "bytes": 821
+    },
+    "completion-legacy.json": {
+      "sha256": "aeb9669316a988bdebafc2c55771f7885c84dad45da3c41f6f84dc4c60fbbb59",
+      "bytes": 728
+    }
+  }
+}

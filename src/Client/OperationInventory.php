@@ -75,5 +75,16 @@ final class OperationInventory
         'listImageModels' => ['method' => 'GET', 'path' => '/images/models'],
         'downloadArtifact' => ['method' => 'GET', 'path' => '/artifacts/download'],
         'handleProviderWebhook' => ['method' => 'POST', 'path' => '/webhooks/providers/{provider}'],
+        'uploadWikiSource' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/files/sources'],
+        'getWikiSource' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/files/sources/{file_id}'],
+        'downloadWikiSource' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/files/sources/{file_id}/download'],
+        'withdrawWikiSource' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/wiki/outbox/files'],
+        'createWikiInboxRun' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/wiki/inbox/runs'],
+        'createWikiOutboxRun' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/wiki/outbox/runs'],
+        'createWikiSyncRun' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/wiki/syncs'],
+        'getWikiOperation' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/wiki/operations/{operation_id}'],
+        'listWikiCategories' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/wiki/categories'],
+        'getWikiCategoryIndex' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/wiki/categories/{category_id}/index'],
+        'getWikiWebhookJwks' => ['method' => 'GET', 'path' => '/.well-known/wiki-webhook-jwks.json'],
     ];
 }

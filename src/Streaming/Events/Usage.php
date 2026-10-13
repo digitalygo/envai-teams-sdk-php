@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Streaming\Events;
 
+use Digitalygo\Envai\Models\Usage\BillingState;
+use Digitalygo\Envai\Models\Usage\UsageCost;
+
 /**
  * Usage and cost summary carried by `agent.done`, `agent.tool.complete` and
  * the terminal turn events.
@@ -28,5 +31,7 @@ final readonly class Usage
         public array $extra = [],
         public ?int $spriteRamGbMs = null,
         public ?int $toolCalls = null,
+        public ?BillingState $billing = null,
+        public ?UsageCost $usageCost = null,
     ) {}
 }

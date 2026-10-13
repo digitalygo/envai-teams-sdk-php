@@ -12,8 +12,11 @@ use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\DownloadResult;
+use Digitalygo\Envai\Http\MultipartBody;
+use Digitalygo\Envai\Http\MultipartFile;
 use Digitalygo\Envai\Http\ResourceResponseBodySink;
 use Digitalygo\Envai\Http\RetrySafety;
+use Digitalygo\Envai\Models\Wiki\WikiSource;
 use Digitalygo\Envai\Models\WorkspaceFile\ConvertToPdfRequest;
 use Digitalygo\Envai\Models\WorkspaceFile\WorkspaceFile;
 use Digitalygo\Envai\Models\WorkspaceFile\WorkspaceFileRequest;
@@ -38,6 +41,39 @@ final readonly class WorkspaceFilesService
         int $requestTimeoutSeconds = 60,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
+    }
+
+    public function uploadSource(string $workspaceId, string $localPath, string $idempotencyKey, string $filename = '', string $mimeType = 'application/octet-stream'): WikiSource
+    {
+        $size = @filesize($localPath);
+        if (! is_file($localPath) || ! is_readable($localPath) || $size === false || $size > 1000000000) {
+            throw FileException::local('Source must be a readable file of at most 1,000,000,000 bytes.');
+        }
+        $result = $this->requests->multipart(
+            'POST',
+            $this->requests->resolve('/workspaces/{workspace_id}/files/sources', ['workspace_id' => $workspaceId]),
+            [],
+            new MultipartBody([MultipartFile::fromPath('file', $localPath, $filename, $mimeType)]),
+            WikiSource::class,
+            EnvelopeMode::Envelope,
+            idempotencyKey: $idempotencyKey,
+        );
+
+        /** @var WikiSource $result */
+        return $result;
+    }
+
+    public function sourceStatus(string $workspaceId, string $fileId): WikiSource
+    {
+        $result = $this->requests->request('GET', $this->requests->resolve('/workspaces/{workspace_id}/files/sources/{file_id}', ['workspace_id' => $workspaceId, 'file_id' => $fileId]), [], null, WikiSource::class, EnvelopeMode::Envelope);
+
+        /** @var WikiSource $result */
+        return $result;
+    }
+
+    public function downloadSource(string $workspaceId, string $fileId, ?ResponseBodySink $sink = null): DownloadResult
+    {
+        return $this->requests->stream('GET', $this->requests->resolve('/workspaces/{workspace_id}/files/sources/{file_id}/download', ['workspace_id' => $workspaceId, 'file_id' => $fileId]), [], null, $sink);
     }
 
     /**

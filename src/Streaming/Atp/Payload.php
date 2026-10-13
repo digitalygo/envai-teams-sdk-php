@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Streaming\Atp;
 
+use Digitalygo\Envai\Models\Internal\Wire;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Models\Usage\BillingState;
+use Digitalygo\Envai\Models\Usage\UsageCost;
 use Digitalygo\Envai\Streaming\Events\ToolKind;
 use Digitalygo\Envai\Streaming\Events\ToolSignature;
 use Digitalygo\Envai\Streaming\Events\Usage;
@@ -303,15 +306,32 @@ final class Payload
             return null;
         }
 
+        $billing = null;
+        $usageCost = null;
+        try {
+            if (isset($value['billing'])) {
+                $billing = BillingState::fromArray(Wire::objectArray($value, 'billing', $context));
+            }
+            if (isset($value['usage_cost'])) {
+                $usageCost = UsageCost::fromArray(Wire::objectArray($value, 'usage_cost', $context));
+            }
+        } catch (\InvalidArgumentException $exception) {
+            $violations[] = $exception->getMessage();
+
+            return null;
+        }
+
         return new Usage(
             inputTokens: $inputTokens,
             outputTokens: $outputTokens,
             costUsd: $costUsd,
             durationMs: $durationMs,
             spriteMs: $spriteMs,
-            extra: self::extra($value, ['input_tokens', 'output_tokens', 'cost_usd', 'duration_ms', 'sprite_ms', 'sprite_ram_gb_ms', 'tool_calls']),
+            extra: self::extra($value, ['input_tokens', 'output_tokens', 'cost_usd', 'duration_ms', 'sprite_ms', 'sprite_ram_gb_ms', 'tool_calls', 'billing', 'usage_cost']),
             spriteRamGbMs: self::nullableInt($value, 'sprite_ram_gb_ms', $violations, $context),
             toolCalls: self::nullableInt($value, 'tool_calls', $violations, $context),
+            billing: $billing,
+            usageCost: $usageCost,
         );
     }
 
@@ -405,6 +425,54 @@ final class Payload
         $violations[] = sprintf('%s: payload field "%s" must be an object, array, string, number, boolean or null, got %s.', $type, $key, get_debug_type($value));
 
         return null;
+    }
+
+    /** @param array<string, mixed> $data
+     * @param  list<string>  $violations
+     */
+    public static function requiredNullableFloat(array $data, string $key, array &$violations, string $type): ?float
+    {
+        if (! array_key_exists($key, $data)) {
+            $violations[] = $type.': missing required field "'.$key.'"';
+
+            return null;
+        }
+
+        return self::nullableFloat($data, $key, $violations, $type);
+    }
+
+    /** @param array<string, mixed> $data
+     * @param  list<string>  $violations
+     */
+    public static function billing(array $data, array &$violations, string $type): ?BillingState
+    {
+        if (! isset($data['billing'])) {
+            return null;
+        }
+        try {
+            return BillingState::fromArray(Wire::objectArray($data, 'billing', $type));
+        } catch (\InvalidArgumentException $exception) {
+            $violations[] = $exception->getMessage();
+
+            return null;
+        }
+    }
+
+    /** @param array<string, mixed> $data
+     * @param  list<string>  $violations
+     */
+    public static function usageCost(array $data, array &$violations, string $type): ?UsageCost
+    {
+        if (! isset($data['usage_cost'])) {
+            return null;
+        }
+        try {
+            return UsageCost::fromArray(Wire::objectArray($data, 'usage_cost', $type));
+        } catch (\InvalidArgumentException $exception) {
+            $violations[] = $exception->getMessage();
+
+            return null;
+        }
     }
 
     /**

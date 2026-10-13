@@ -1,22 +1,36 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "55275860c9a950eaad8e39e9d2b728149084779c",
+  "commit": "5bfc6dd3c82af6afc04e7cc1f3323906cfd4f0e2",
   "protocol_version": 2,
-  "operations": 52,
+  "operations": 63,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
       "snapshot_path": "docs/openapi.yaml",
-      "sha256": "a68b1eb9cae0500c95104d97118d0d287b887969b9bc2b9dde62bb1e08a400b1",
-      "git_blob_sha": "2d3fe7581229a6fb7a798c99ecccfe5f823fa6ed",
-      "bytes": 173824
+      "sha256": "b3abd6fa7721fa8a6c0bb2fc0f539069ec393336bf8a0342cda9d725207f8766",
+      "git_blob_sha": "33f1222283f4a6c8ff0981ee9476e711dfbe24a6",
+      "bytes": 203663
     },
     "events.json": {
       "repository_path": "packages/contracts/events.json",
       "snapshot_path": "docs/events.json",
-      "sha256": "f22869556e488f1e208addf258a25c502966746fcc8e2747c07856d30c28aee7",
-      "git_blob_sha": "5ac832ff2498d9c2721909a6f342dda62ec46f8b",
-      "bytes": 46476
+      "sha256": "268895fd9b7d5d32aa7fb580433f5ab00ed8daba4eb3883080909c11c9609a08",
+      "git_blob_sha": "4fb10cfc38e75f781d1139ba58ad2f23648a96ac",
+      "bytes": 51591
+    },
+    "wiki.json": {
+      "repository_path": "packages/contracts/wiki.json",
+      "snapshot_path": "docs/wiki.json",
+      "bytes": 18820,
+      "sha256": "e7a41ff28309539c47fe19ad882342f2d20fffee7705c3724968ca4889238f6a",
+      "git_blob_sha": "d1fcb97738ebf58b95b39e06660c74959a8d290b"
+    },
+    "terminal-snapshot.json": {
+      "repository_path": "packages/contracts/terminal-snapshot.json",
+      "snapshot_path": "docs/terminal-snapshot.json",
+      "bytes": 8039,
+      "sha256": "39807d1f7471f2025b753c5ba81db54088040f46b27819f946644842c8848734",
+      "git_blob_sha": "43459514deb084f8cabff877d28fe09032b1f75f"
     }
   },
   "generated_fixtures": {
@@ -27,12 +41,12 @@
     },
     "events-valid.json": {
       "snapshot_path": "tests/fixtures/current-server/events-valid.json",
-      "sha256": "74c13afa306ac1d8bb518097b7d09f9262c2f468cc2624b4942c8a99019d00e2",
+      "sha256": "0add3415e5f2ce5b7c7577360e52c1ab134e32cc0fbbf7e75ea7752def97a775",
       "origin": "Locally generated ATP examples; not captured server traffic."
     },
     "operations.json": {
       "snapshot_path": "tests/fixtures/current-server/operations.json",
-      "sha256": "19ff34aeff2381413ace8fdbafe557ce94378aa6247f163e2cf7dfb830832fcd",
+      "sha256": "cbd827a11bc6b3c8b34d2828c008d4dfa7f781f96d8a81f26c1d9bc052ff241b",
       "origin": "Derived operation and authentication inventory from the pinned OpenAPI snapshot."
     },
     "signatures.json": {
@@ -55,5 +69,7 @@
       "sha256": "629ffe06ba1c061a625aa9858b92ed90815d7f10d71c3c7abc837eb674889420",
       "origin": "Locally generated schema object/list fidelity cases for compile, sync, persistence, transport and execution; not server traffic."
     }
-  }
+  },
+  "base_commit": "b590e6b8758b53346d4e0356c384585373b1b8ea",
+  "snapshot_status": "pinned backend commit"
 }

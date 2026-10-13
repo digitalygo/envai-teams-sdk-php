@@ -81,6 +81,11 @@ final readonly class TypedRequester
         return $this->uris->jwksUrl();
     }
 
+    public function urlForWikiWebhookJwks(): string
+    {
+        return $this->uris->wikiWebhookJwksUrl();
+    }
+
     /**
      * Sends a JSON request and decodes the success body according to the
      * envelope mode.
@@ -97,8 +102,9 @@ final readonly class TypedRequester
         EnvelopeMode $mode,
         AuthenticationMode $auth = AuthenticationMode::Bearer,
         RetrySafety $retry = RetrySafety::Safe,
+        ?string $idempotencyKey = null,
     ): object {
-        $response = $this->execute($this->build($method, $this->uris->api($path, $query), $body, $auth, $retry));
+        $response = $this->execute($this->build($method, $this->uris->api($path, $query), $body, $auth, $retry, idempotencyKey: $idempotencyKey));
 
         return match ($mode) {
             EnvelopeMode::Envelope => $this->codec->decodeEnvelopeInto((string) $response->body, $class),
@@ -203,11 +209,12 @@ final readonly class TypedRequester
         EnvelopeMode $mode,
         AuthenticationMode $auth = AuthenticationMode::Bearer,
         RetrySafety $retry = RetrySafety::NeverRetry,
+        ?string $idempotencyKey = null,
     ): object {
         $request = new HttpRequest(
             $method,
             $this->uris->api($path, $query),
-            ['content-type' => $body->contentType()],
+            array_merge(['content-type' => $body->contentType()], self::idempotencyHeaders($idempotencyKey)),
             $body,
             auth: $auth,
             retrySafety: $retry,
@@ -252,9 +259,10 @@ final readonly class TypedRequester
         AuthenticationMode $auth,
         RetrySafety $retry,
         ?ResponseBodySink $sink = null,
+        ?string $idempotencyKey = null,
     ): HttpRequest {
         $encoded = $this->codec->encodeRequestBody($body);
-        $headers = $encoded !== null ? ['content-type' => 'application/json'] : [];
+        $headers = array_merge($encoded !== null ? ['content-type' => 'application/json'] : [], self::idempotencyHeaders($idempotencyKey));
 
         return new HttpRequest(
             $method,
@@ -267,6 +275,19 @@ final readonly class TypedRequester
             $auth,
             $retry,
         );
+    }
+
+    /** @return array<string, string> */
+    private static function idempotencyHeaders(?string $key): array
+    {
+        if ($key === null) {
+            return [];
+        }
+        if (preg_match('/^[\x21-\x7e]{1,255}$/D', $key) !== 1) {
+            throw new \InvalidArgumentException('Idempotency key must contain 1 to 255 printable non-space ASCII bytes.');
+        }
+
+        return ['idempotency-key' => $key];
     }
 
     private function execute(HttpRequest $request): HttpResponse

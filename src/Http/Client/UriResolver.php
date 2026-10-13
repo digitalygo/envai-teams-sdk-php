@@ -70,6 +70,16 @@ final readonly class UriResolver
             return $this->jwksUrl;
         }
 
+        return $this->origin().'/.well-known/jwks.json';
+    }
+
+    public function wikiWebhookJwksUrl(): string
+    {
+        return $this->origin().'/.well-known/wiki-webhook-jwks.json';
+    }
+
+    private function origin(): string
+    {
         $parts = parse_url($this->baseUrl);
 
         if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
@@ -82,7 +92,7 @@ final readonly class UriResolver
             $origin .= ':'.(string) $parts['port'];
         }
 
-        return $origin.'/.well-known/jwks.json';
+        return $origin;
     }
 
     /**

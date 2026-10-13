@@ -310,5 +310,71 @@
     "method": "POST",
     "path": "/webhooks/providers/{provider}",
     "authenticated": false
+  },
+  {
+    "id": "uploadWikiSource",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/files/sources",
+    "authenticated": true
+  },
+  {
+    "id": "getWikiSource",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/files/sources/{file_id}",
+    "authenticated": true
+  },
+  {
+    "id": "downloadWikiSource",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/files/sources/{file_id}/download",
+    "authenticated": true
+  },
+  {
+    "id": "withdrawWikiSource",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/wiki/outbox/files",
+    "authenticated": true
+  },
+  {
+    "id": "createWikiInboxRun",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/wiki/inbox/runs",
+    "authenticated": true
+  },
+  {
+    "id": "createWikiOutboxRun",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/wiki/outbox/runs",
+    "authenticated": true
+  },
+  {
+    "id": "createWikiSyncRun",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/wiki/syncs",
+    "authenticated": true
+  },
+  {
+    "id": "getWikiOperation",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/wiki/operations/{operation_id}",
+    "authenticated": true
+  },
+  {
+    "id": "listWikiCategories",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/wiki/categories",
+    "authenticated": true
+  },
+  {
+    "id": "getWikiCategoryIndex",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/wiki/categories/{category_id}/index",
+    "authenticated": true
+  },
+  {
+    "id": "getWikiWebhookJwks",
+    "method": "GET",
+    "path": "/.well-known/wiki-webhook-jwks.json",
+    "authenticated": false
   }
 ]

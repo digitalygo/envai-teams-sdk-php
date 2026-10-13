@@ -102,6 +102,11 @@ final readonly class EnvaiClient
         return $this->services->tools();
     }
 
+    public function wiki(): WikiOperationsService
+    {
+        return $this->services->wiki();
+    }
+
     public function workspaceFiles(): WorkspaceFilesService
     {
         return $this->services->workspaceFiles();

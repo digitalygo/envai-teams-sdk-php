@@ -17,6 +17,8 @@
             <directory>tests/Definitions</directory>
             <directory>tests/Sync</directory>
             <directory>tests/Tools</directory>
+            <directory>tests/Webhooks</directory>
+            <directory>tests/Wiki</directory>
             <directory>tests/Integration/Laravel</directory>
         </testsuite>
         <testsuite name="Functional">
@@ -26,6 +28,7 @@
     <source>
         <include>
             <directory>src</directory>
+            <directory>database/migrations</directory>
         </include>
     </source>
 </phpunit>

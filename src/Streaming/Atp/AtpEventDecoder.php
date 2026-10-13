@@ -287,18 +287,20 @@ final class AtpEventDecoder
         $violations = [];
         $turnId = Payload::string($data, 'turn_id', $violations, 'turn.completed');
         $usage = Payload::usage($data, 'usage', $violations, 'turn.completed');
-        $cost = Payload::float($data, 'cost', $violations, 'turn.completed');
+        $cost = Payload::requiredNullableFloat($data, 'cost', $violations, 'turn.completed');
         $chatUsage = Payload::usage($data, 'chat_usage', $violations, 'turn.completed');
-        $chatCost = Payload::float($data, 'chat_cost', $violations, 'turn.completed');
+        $chatCost = Payload::requiredNullableFloat($data, 'chat_cost', $violations, 'turn.completed');
+        $billing = Payload::billing($data, $violations, 'turn.completed');
+        $usageCost = Payload::usageCost($data, $violations, 'turn.completed');
         $finishReason = Payload::string($data, 'finish_reason', $violations, 'turn.completed');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
         }
 
-        assert($turnId !== null && $usage !== null && $cost !== null && $chatUsage !== null && $chatCost !== null && $finishReason !== null);
+        assert($turnId !== null && $usage !== null && $chatUsage !== null && $finishReason !== null);
 
-        return new TurnCompletedEvent($envelope, $turnId, $usage, $cost, $chatUsage, $chatCost, $finishReason, Payload::extra($data, ['turn_id', 'usage', 'cost', 'chat_usage', 'chat_cost', 'finish_reason']));
+        return new TurnCompletedEvent($envelope, $turnId, $usage, $cost, $chatUsage, $chatCost, $finishReason, Payload::extra($data, ['turn_id', 'usage', 'cost', 'chat_usage', 'chat_cost', 'finish_reason', 'billing', 'usage_cost']), $billing, $usageCost);
     }
 
     /**
@@ -310,17 +312,19 @@ final class AtpEventDecoder
         $turnId = Payload::string($data, 'turn_id', $violations, 'turn.cancelled');
         $reason = Payload::string($data, 'reason', $violations, 'turn.cancelled');
         $usage = Payload::usage($data, 'usage', $violations, 'turn.cancelled');
-        $cost = Payload::float($data, 'cost', $violations, 'turn.cancelled');
+        $cost = Payload::requiredNullableFloat($data, 'cost', $violations, 'turn.cancelled');
         $chatUsage = Payload::usage($data, 'chat_usage', $violations, 'turn.cancelled');
-        $chatCost = Payload::float($data, 'chat_cost', $violations, 'turn.cancelled');
+        $chatCost = Payload::requiredNullableFloat($data, 'chat_cost', $violations, 'turn.cancelled');
+        $billing = Payload::billing($data, $violations, 'turn.cancelled');
+        $usageCost = Payload::usageCost($data, $violations, 'turn.cancelled');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
         }
 
-        assert($turnId !== null && $reason !== null && $usage !== null && $cost !== null && $chatUsage !== null && $chatCost !== null);
+        assert($turnId !== null && $reason !== null && $usage !== null && $chatUsage !== null);
 
-        return new TurnCancelledEvent($envelope, $turnId, $reason, $usage, $cost, $chatUsage, $chatCost, Payload::extra($data, ['turn_id', 'reason', 'usage', 'cost', 'chat_usage', 'chat_cost']));
+        return new TurnCancelledEvent($envelope, $turnId, $reason, $usage, $cost, $chatUsage, $chatCost, Payload::extra($data, ['turn_id', 'reason', 'usage', 'cost', 'chat_usage', 'chat_cost', 'billing', 'usage_cost']), $billing, $usageCost);
     }
 
     /**
@@ -333,17 +337,19 @@ final class AtpEventDecoder
         $code = Payload::string($data, 'code', $violations, 'turn.failed');
         $message = Payload::string($data, 'message', $violations, 'turn.failed');
         $usage = Payload::usage($data, 'usage', $violations, 'turn.failed');
-        $cost = Payload::float($data, 'cost', $violations, 'turn.failed');
+        $cost = Payload::requiredNullableFloat($data, 'cost', $violations, 'turn.failed');
         $chatUsage = Payload::usage($data, 'chat_usage', $violations, 'turn.failed');
-        $chatCost = Payload::float($data, 'chat_cost', $violations, 'turn.failed');
+        $chatCost = Payload::requiredNullableFloat($data, 'chat_cost', $violations, 'turn.failed');
+        $billing = Payload::billing($data, $violations, 'turn.failed');
+        $usageCost = Payload::usageCost($data, $violations, 'turn.failed');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
         }
 
-        assert($turnId !== null && $code !== null && $message !== null && $usage !== null && $cost !== null && $chatUsage !== null && $chatCost !== null);
+        assert($turnId !== null && $code !== null && $message !== null && $usage !== null && $chatUsage !== null);
 
-        return new TurnFailedEvent($envelope, $turnId, $code, $message, $usage, $cost, $chatUsage, $chatCost, Payload::extra($data, ['turn_id', 'code', 'message', 'usage', 'cost', 'chat_usage', 'chat_cost']));
+        return new TurnFailedEvent($envelope, $turnId, $code, $message, $usage, $cost, $chatUsage, $chatCost, Payload::extra($data, ['turn_id', 'code', 'message', 'usage', 'cost', 'chat_usage', 'chat_cost', 'billing', 'usage_cost']), $billing, $usageCost);
     }
 
     /**

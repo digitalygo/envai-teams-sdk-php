@@ -21,7 +21,7 @@ info:
     defaults}` object. Since 1.1.0 the image operations are reserved to authenticated api
     keys. Since 1.2.0 the workspace files api exposes the workspace fake filesystem
     (wiki, skills and `MEMORY.md` are plain files under it) through the control plane.
-  version: 2.0.0
+  version: 2.1.0
   license:
     name: MIT
     identifier: MIT
@@ -615,9 +615,11 @@ paths:
         reserved platform tool name (`read`, `list`, `stat`, `write`,
         `execute`, `wiki_read`, `wiki_ls`, `wiki_write`, `skill_read`,
         `skill_list`, `skill_write`, `exa_search`, `exa_contents`,
-        `calculator`, `convert_units`, `delegate_task`). `parameters` must
-        be a JSON Schema with root type `object`; `timeout_seconds` defaults
-        to 120 and is capped at 600.
+        `calculator`, `convert_units`, `delegate_task`, `set_chat_title`).
+        `set_chat_title` is a built-in `server` tool available only to the
+        orchestrator, never a `client` tool. `parameters` must be a JSON
+        Schema with root type `object`; `timeout_seconds` defaults to 120 and
+        is capped at 600.
       tags:
         - Tools
       requestBody:
@@ -1967,6 +1969,439 @@ paths:
           $ref: '#/components/responses/ServerError'
 
 
+  /workspaces/{workspace_id}/files/sources:
+    post:
+      operationId: uploadWikiSource
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: ^[!-~]+$
+      responses:
+        '202':
+          description: Durably accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiSource'
+        '409':
+          description: idempotency_conflict; same key with a different payload
+        '429':
+          description: wiki_queue_full; no queue slot consumed
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                const: 30
+        '413':
+          description: Original exceeds 1,000,000,000 bytes
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Original up to 1,000,000,000 bytes inclusive; MD TXT
+                    CSV XLSX PDF DOCX MP3 MP4 only. MP4 audio only.
+  /workspaces/{workspace_id}/files/sources/{file_id}:
+    get:
+      operationId: getWikiSource
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiSource'
+  /workspaces/{workspace_id}/files/sources/{file_id}/download:
+    get:
+      operationId: downloadWikiSource
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /workspaces/{workspace_id}/wiki/outbox/files:
+    post:
+      operationId: withdrawWikiSource
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiSource'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - file_id
+              properties:
+                file_id:
+                  type: string
+  /workspaces/{workspace_id}/wiki/inbox/runs:
+    post:
+      operationId: createWikiInboxRun
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: ^[!-~]+$
+      responses:
+        '202':
+          description: Durably accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiOperation'
+        '409':
+          description: idempotency_conflict; same key with a different payload
+        '429':
+          description: wiki_queue_full; no queue slot consumed
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                const: 30
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - webhook_url
+              properties:
+                webhook_url:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+  /workspaces/{workspace_id}/wiki/outbox/runs:
+    post:
+      operationId: createWikiOutboxRun
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: ^[!-~]+$
+      responses:
+        '202':
+          description: Durably accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiOperation'
+        '409':
+          description: idempotency_conflict; same key with a different payload
+        '429':
+          description: wiki_queue_full; no queue slot consumed
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                const: 30
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - webhook_url
+              properties:
+                webhook_url:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+  /workspaces/{workspace_id}/wiki/syncs:
+    post:
+      operationId: createWikiSyncRun
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: ^[!-~]+$
+      responses:
+        '202':
+          description: Durably accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiOperation'
+        '409':
+          description: idempotency_conflict; same key with a different payload
+        '429':
+          description: wiki_queue_full; no queue slot consumed
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                const: 30
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - webhook_url
+              properties:
+                webhook_url:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+  /workspaces/{workspace_id}/wiki/operations/{operation_id}:
+    get:
+      operationId: getWikiOperation
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WikiOperation'
+  /workspaces/{workspace_id}/wiki/categories:
+    get:
+      operationId: listWikiCategories
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Categories'
+  /workspaces/{workspace_id}/wiki/categories/{category_id}/index:
+    get:
+      operationId: getWikiCategoryIndex
+      tags:
+      - Wiki
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: from
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      - name: to
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      - name: all
+        in: query
+        schema:
+          type: boolean
+      - name: type
+        in: query
+        schema:
+          enum:
+          - raw
+          - artifact
+      - name: catalog_revision
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CategoryIndex'
+        '409':
+          description: catalog_revision_changed; restart the read
+      description: No AI. Select all=true or from/to inclusive starting at 1. type omitted
+        includes raw and artifact. Send catalog_revision for subsequent reads; changed
+        revision returns 409 catalog_revision_changed. Ordered by inserted_at then entry_id;
+        current lifecycle gates every read.
+
+  /.well-known/wiki-webhook-jwks.json:
+    servers:
+    - url: http://localhost:8111
+      description: Control-plane origin, outside /api/v1
+    get:
+      operationId: getWikiWebhookJwks
+      summary: Read existing public wiki webhook signing keys
+      description: Uses existing active and retained signing keys. Read never generates
+        credentials. Verify domain-separated envai-webhook-v1 signatures, not JWT or
+        client-tool signatures.
+      tags:
+      - Wiki
+      security: []
+      responses:
+        '200':
+          description: Public Ed25519 signing key set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksDocument'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2221,6 +2656,711 @@ components:
         default: false
 
   schemas:
+    CompletionTerminalSnapshotUsage:
+      type: object
+      additionalProperties: false
+      properties:
+        input_tokens:
+          type: integer
+          minimum: 0
+        output_tokens:
+          type: integer
+          minimum: 0
+        duration_ms:
+          type: integer
+          minimum: 0
+        sprite_ms:
+          type: integer
+          minimum: 0
+        sprite_ram_gb_ms:
+          type: integer
+          minimum: 0
+        tool_calls:
+          type: integer
+          minimum: 0
+        cost_usd:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+    CompletionTerminalSnapshot:
+      type: object
+      required:
+      - event_id
+      - occurred_at
+      - event_type
+      - data
+      additionalProperties: false
+      description: Immutable metadata-only terminal journal snapshot. Not a replayable
+        ATP envelope and contains no response text. Missing/null for legacy turns. Late
+        provider-cost reconciliation changes current completion usage_cost only.
+      properties:
+        event_id:
+          type: string
+          minLength: 1
+        occurred_at:
+          type: string
+          format: date-time
+        event_type:
+          enum:
+          - turn.completed
+          - turn.failed
+          - turn.cancelled
+        data:
+          type: object
+          required:
+          - turn_id
+          additionalProperties: false
+          properties:
+            turn_id:
+              type: string
+              minLength: 1
+            usage:
+              $ref: '#/components/schemas/CompletionTerminalSnapshotUsage'
+            cost:
+              type:
+              - number
+              - 'null'
+              minimum: 0
+            finish_reason:
+              type: string
+            reason:
+              type: string
+            code:
+              type: string
+            message:
+              type: string
+              description: Sanitized constant diagnostic; never assistant response text.
+            chat_usage:
+              $ref: '#/components/schemas/CompletionTerminalSnapshotChatUsage'
+            chat_cost:
+              type:
+              - number
+              - 'null'
+              minimum: 0
+              description: Frozen chat lifetime USD cost, mirroring chat_usage.cost_usd;
+                null when incomplete or unknown.
+    CompletionTerminalSnapshotChatUsage:
+      type: object
+      description: Chat lifetime usage frozen with this terminal snapshot; the ATP Usage
+        fields and nullable legacy USD cost. Omitted by older recovery snapshots.
+      required:
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - duration_ms
+      properties:
+        input_tokens:
+          type: integer
+          minimum: 0
+          description: Input tokens consumed.
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Output tokens produced.
+        cost_usd:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          description: Legacy provider USD cost; null when unknown. Authoritative usage_cost
+            preserves per-currency decimal totals and provenance; no billing.
+        duration_ms:
+          type: integer
+          minimum: 0
+          description: Wall clock duration of the work in milliseconds.
+        sprite_ms:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Time spent in the ephemeral Sprite sandbox, 0 when no code tool
+            ran.
+        sprite_ram_gb_ms:
+          type: integer
+          minimum: 0
+          description: Sprite RAM billed in GB-milliseconds, 0 when no code tool ran.
+        tool_calls:
+          type: integer
+          minimum: 0
+          description: Tool invocations counted in the usage window.
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+      additionalProperties: false
+    BillingState:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - inactive
+      additionalProperties: true
+    CurrencyAmount:
+      type: object
+      required:
+      - currency
+      - amount
+      properties:
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        amount:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)(\.[0-9]+)?$
+      additionalProperties: true
+    UsageCost:
+      type: object
+      required:
+      - status
+      - basis
+      - scope_status
+      - revision
+      - as_of
+      - invocation_count
+      - pending_invocation_count
+      - totals
+      - priced_subtotals
+      properties:
+        status:
+          type: string
+          enum:
+          - pending
+          - complete
+        basis:
+          type: string
+          enum:
+          - reported
+          - calculated
+          - mixed
+          - none
+        scope_status:
+          type: string
+          enum:
+          - open
+          - closed
+        revision:
+          type: integer
+          minimum: 0
+        as_of:
+          type: string
+        invocation_count:
+          type: integer
+          minimum: 0
+        pending_invocation_count:
+          type: integer
+          minimum: 0
+        totals:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/CurrencyAmount'
+          - type: 'null'
+        priced_subtotals:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrencyAmount'
+      additionalProperties: true
+      allOf:
+      - if:
+          properties:
+            status:
+              const: complete
+        then:
+          properties:
+            scope_status:
+              const: closed
+            pending_invocation_count:
+              const: 0
+            totals:
+              type: array
+        else:
+          properties:
+            totals:
+              type: 'null'
+    ConversionState:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+        error_code:
+          type:
+          - string
+          - 'null'
+          description: Sanitized stable conversion failure code; never a raw provider
+            response or secret. Null when no failure is recorded.
+          pattern: ^[a-z][a-z0-9_]{0,119}$
+          maxLength: 120
+        recoverable:
+          type: boolean
+          description: 'True only when an automatic technical recovery is durably scheduled
+            and eligible: attempts remain and the source has not completed or been withdrawn.
+            False for initial queued work, healthy running, terminal failures and exhausted
+            retries.'
+        next_retry_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Time of the scheduled automatic technical recovery when recoverable
+            is true; otherwise null. Not an initial work schedule or an operator-repair
+            promise.
+      additionalProperties: true
+    IndexingState:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - pending_conversion
+          - pending
+          - processed
+          - withdrawn
+          - failed
+      additionalProperties: true
+    WikiSource:
+      type: object
+      required:
+      - file_id
+      - workspace_id
+      - original_name
+      - mime_type
+      - byte_size
+      - lifecycle
+      - source_revision
+      - conversion
+      - indexing
+      - canonical_raw_path
+      - billing
+      - usage_cost
+      - status_url
+      properties:
+        file_id:
+          type: string
+        workspace_id:
+          type: string
+        original_name:
+          type: string
+        mime_type:
+          type: string
+        byte_size:
+          type: integer
+          minimum: 0
+        lifecycle:
+          type: string
+          enum:
+          - uploaded
+          - inbox
+          - raw
+          - outbox
+          - deleting
+          - deleted
+        source_revision:
+          type: integer
+          minimum: 0
+        conversion:
+          $ref: '#/components/schemas/ConversionState'
+        indexing:
+          $ref: '#/components/schemas/IndexingState'
+        canonical_raw_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+        status_url:
+          type: string
+      additionalProperties: true
+    BatchSizes:
+      type: object
+      required:
+      - inbox
+      - outbox
+      properties:
+        inbox:
+          type: integer
+          minimum: 1
+        outbox:
+          type: integer
+          minimum: 1
+      additionalProperties: true
+    FileOutcome:
+      type: object
+      required:
+      - file_id
+      - status
+      - error_code
+      properties:
+        file_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - succeeded
+          - withdrawn
+          - failed
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+      additionalProperties: true
+    PhaseResult:
+      type: object
+      required:
+      - status
+      - selected
+      - succeeded
+      - withdrawn
+      - failed
+      - files
+      properties:
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped_empty
+        selected:
+          type: integer
+          minimum: 0
+        succeeded:
+          type: integer
+          minimum: 0
+        withdrawn:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileOutcome'
+      additionalProperties: true
+    WikiOperation:
+      type: object
+      required:
+      - operation_id
+      - workspace_id
+      - kind
+      - status
+      - phase
+      - phases
+      - started_at
+      - finished_at
+      - batch_sizes
+      - billing
+      - usage_cost
+      properties:
+        operation_id:
+          type: string
+        workspace_id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - inbox
+          - outbox
+          - sync
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+        phase:
+          anyOf:
+          - type: string
+          - type: 'null'
+        phases: &id006
+          type: object
+          properties:
+            inbox:
+              $ref: '#/components/schemas/PhaseResult'
+            outbox:
+              $ref: '#/components/schemas/PhaseResult'
+          additionalProperties: false
+        started_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+        finished_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+        batch_sizes:
+          $ref: '#/components/schemas/BatchSizes'
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+      additionalProperties: true
+    Category:
+      type: object
+      required:
+      - category_id
+      - name
+      - description
+      properties:
+        category_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+      additionalProperties: true
+    Categories:
+      type: object
+      required:
+      - categories
+      - catalog_revision
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        catalog_revision:
+          type: integer
+          minimum: 0
+      additionalProperties: true
+    CatalogEntry:
+      type: object
+      required:
+      - entry_id
+      - type
+      - target_id
+      - canonical_path
+      - description
+      - inserted_at
+      properties:
+        entry_id:
+          type: string
+        type:
+          type: string
+          enum:
+          - raw
+          - artifact
+        target_id:
+          type: string
+        canonical_path:
+          type: string
+        description:
+          type: string
+        inserted_at:
+          type: string
+      additionalProperties: true
+    IndexRange:
+      type: object
+      required:
+      - from
+      - to
+      properties:
+        from:
+          type: integer
+          minimum: 1
+        to:
+          type: integer
+          minimum: 1
+      additionalProperties: true
+    CategoryIndex:
+      type: object
+      required:
+      - entries
+      - total_count
+      - returned_count
+      - requested_range
+      - actual_range
+      - catalog_revision
+      - is_complete
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogEntry'
+        total_count:
+          type: integer
+          minimum: 0
+        returned_count:
+          type: integer
+          minimum: 0
+        requested_range:
+          anyOf:
+          - $ref: '#/components/schemas/IndexRange'
+          - type: 'null'
+        actual_range:
+          anyOf:
+          - $ref: '#/components/schemas/IndexRange'
+          - type: 'null'
+        catalog_revision:
+          type: integer
+          minimum: 0
+        is_complete:
+          type: boolean
+      additionalProperties: true
+    WikiFileProcessedEvent:
+      type: object
+      required:
+      - schema_version
+      - event_id
+      - event_type
+      - operation_id
+      - workspace_id
+      - occurred_at
+      - file_id
+      - source_revision
+      - canonical_raw_path
+      - availability
+      properties:
+        schema_version: &id001
+          const: '1'
+        event_id: &id002
+          type: string
+          minLength: 1
+        event_type:
+          const: wiki.inbox.file.processed
+        operation_id: &id003
+          type: string
+          minLength: 1
+        workspace_id: &id004
+          type: string
+          minLength: 1
+        occurred_at: &id005
+          type: string
+          format: date-time
+        file_id:
+          type: string
+        source_revision:
+          type: integer
+          minimum: 1
+        canonical_raw_path:
+          type: string
+        availability:
+          const: raw
+      additionalProperties: true
+    WikiFileDeletedEvent:
+      type: object
+      required:
+      - schema_version
+      - event_id
+      - event_type
+      - operation_id
+      - workspace_id
+      - occurred_at
+      - file_id
+      - source_revision
+      - previous_canonical_raw_path
+      - lifecycle
+      properties:
+        schema_version: *id001
+        event_id: *id002
+        event_type:
+          const: wiki.outbox.file.deleted
+        operation_id: *id003
+        workspace_id: *id004
+        occurred_at: *id005
+        file_id:
+          type: string
+        source_revision:
+          type: integer
+          minimum: 1
+        previous_canonical_raw_path:
+          type:
+          - string
+          - 'null'
+        lifecycle:
+          const: deleted
+      additionalProperties: true
+    WikiOperationEvent:
+      type: object
+      required:
+      - schema_version
+      - event_id
+      - event_type
+      - operation_id
+      - workspace_id
+      - occurred_at
+      - status
+      - phases
+      - finished_at
+      - billing
+      - usage_cost
+      properties:
+        schema_version: *id001
+        event_id: *id002
+        event_type:
+          enum:
+          - wiki.inbox.completed
+          - wiki.inbox.failed
+          - wiki.outbox.completed
+          - wiki.outbox.failed
+          - wiki.sync.completed
+          - wiki.sync.failed
+        operation_id: *id003
+        workspace_id: *id004
+        occurred_at: *id005
+        status:
+          enum:
+          - completed
+          - failed
+        phases: *id006
+        finished_at:
+          type: string
+          format: date-time
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+      additionalProperties: true
+      allOf:
+      - if:
+          properties:
+            event_type:
+              enum:
+              - wiki.inbox.completed
+              - wiki.outbox.completed
+              - wiki.sync.completed
+        then:
+          properties:
+            status:
+              const: completed
+      - if:
+          properties:
+            event_type:
+              enum:
+              - wiki.inbox.failed
+              - wiki.outbox.failed
+              - wiki.sync.failed
+        then:
+          properties:
+            status:
+              const: failed
+    WikiWebhookEvent:
+      oneOf:
+      - $ref: '#/components/schemas/WikiFileProcessedEvent'
+      - $ref: '#/components/schemas/WikiFileDeletedEvent'
+      - $ref: '#/components/schemas/WikiOperationEvent'
     Error:
       type: object
       description: Standard error envelope shared by both planes
@@ -2533,6 +3673,7 @@ components:
             enum:
               - turn
               - agent
+              - chat
         event_types:
           type: array
           description: Dotted event types the server actually emits; additive and not an exhaustive parser allowlist
@@ -2541,6 +3682,7 @@ components:
           example:
             - ping
             - turn.started
+            - chat.title.updated
             - turn.completed
             - turn.cancelled
             - turn.failed
@@ -2578,6 +3720,7 @@ components:
               - ping
               - background_delegation
               - client_tools
+              - chat_title
 
     Workspace:
       type: object
@@ -2791,8 +3934,8 @@ components:
           maxLength: 255
           pattern: '^[a-z][a-z0-9_]{0,254}$'
           description: >
-            Tool name, unique per user. Reserved platform tool names are
-            rejected.
+            Tool name, unique per user. Reserved platform tool names,
+            including `set_chat_title`, are rejected.
           example: send_email
         kind:
           type: string
@@ -2895,6 +4038,7 @@ components:
         - workspace_id
         - user_id
         - team_id
+        - title
         - created_at
         - updated_at
       properties:
@@ -2919,6 +4063,13 @@ components:
             creation validates that the team exists and belongs to the chat
             owner, 422 otherwise.
           example: team_01j5abcdefghjkmnpqrstvwxyz
+        title:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          readOnly: true
+          description: Server/runtime-managed chat title, null before it is generated
         created_at:
           type: string
           format: date-time
@@ -3040,10 +4191,19 @@ components:
               type: integer
             sprite_ram_gb_ms:
               type: integer
+        billing:
+          $ref: '#/components/schemas/BillingState'
+        usage_cost:
+          $ref: '#/components/schemas/UsageCost'
+        terminal_snapshot:
+          description: Optional immutable metadata-only terminal outcome, not response-text replay. Null or absent for legacy turns; current costs can advance without changing this snapshot.
+          anyOf:
+            - $ref: '#/components/schemas/CompletionTerminalSnapshot'
+            - type: 'null'
         cost_usd:
-          type: number
+          type: [number, 'null']
           format: double
-          description: Aggregated turn cost in USD (LLM plus Fly.io Sprites), sub-cent precision
+          description: For tracked scopes, complete USD-only provider total or zero for a closed empty scope; null while pending or when a multi-currency total cannot be represented. Historical no-scope values remain unchanged. usage_cost is authoritative and never a customer charge.
         status:
           type: string
           enum: [running, succeeded, failed, canceled]

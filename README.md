@@ -769,3 +769,7 @@ transport tests start a loopback HTTP server.
 
 MIT. See [LICENSE](LICENSE). Bundled JSON Schema metaschemas retain their
 [upstream notices and licenses](resources/json-schema/LICENSE).
+
+## Managed wiki and provider usage
+
+The wiki V1 client supports durable source upload/status/download, explicit inbox/outbox/sync operations, immediate withdrawal and revisioned catalog reads. It includes Ed25519 webhook verification and transactional PDO receipt + application outbox persistence. See [the integration guide](docs/WIKI.md). Provider usage is tracked with inactive billing; legacy cost fields are nullable when unknown.
