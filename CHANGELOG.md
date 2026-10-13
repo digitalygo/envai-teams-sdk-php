@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Eagerly validate complete tool schemas against pinned offline metaschemas; guard nonproductive reference cycles and keep literal IDs inert.
+- Preserve tool schema object/list shapes through definitions, sync snapshots, HTTP create/update and response hydration.
+
 - Rename Composer identity to `digitalygo/envai-teams-sdk-php`, update repository references, and document release-first consumer migration. PHP namespaces and old release tags stay unchanged.
 
 - Refresh OpenAPI and ATP v2 contracts to server commit `55275860c9a950eaad8e39e9d2b728149084779c`.

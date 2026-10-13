@@ -54,8 +54,8 @@ final readonly class JsonObject implements \JsonSerializable
         return $this->data === [];
     }
 
-    public function jsonSerialize(): mixed
+    public function jsonSerialize(): \stdClass
     {
-        return $this->data;
+        return (object) $this->data;
     }
 }

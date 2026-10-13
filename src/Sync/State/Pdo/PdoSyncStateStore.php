@@ -659,9 +659,7 @@ final class PdoSyncStateStore implements SyncStateStore
             $data = [];
 
             foreach (get_object_vars($value) as $key => $item) {
-                if (is_string($key)) {
-                    $data[$key] = self::jsonValueToPayload($item);
-                }
+                $data[$key] = self::jsonValueToPayload($item);
             }
 
             return new JsonObject($data);

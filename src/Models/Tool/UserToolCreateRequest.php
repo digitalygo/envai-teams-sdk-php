@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Models\Tool;
 
+use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
+
 /**
  * Payload to register a client tool in the caller's user registry.
  *
@@ -30,10 +33,11 @@ final readonly class UserToolCreateRequest
      */
     public function toArray(): array
     {
+        $parameters = ToolSchemaNormalizer::forPayload($this->parameters);
         $payload = [
             'name' => $this->name,
             'kind' => $this->kind,
-            'parameters' => $this->parameters,
+            'parameters' => array_is_list($parameters) ? new JsonObject($parameters) : $parameters,
             'timeout_seconds' => $this->timeoutSeconds,
         ];
 

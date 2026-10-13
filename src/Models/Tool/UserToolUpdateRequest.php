@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Models\Tool;
 
 use Digitalygo\Envai\Models\Common\OptionalField;
+use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
 
 /**
  * Payload to update a client tool. Only `description`, `parameters` and
@@ -66,7 +68,9 @@ final readonly class UserToolUpdateRequest
         }
 
         if ($this->parameters->isPresent()) {
-            $payload['parameters'] = $this->parameters->value();
+            $value = $this->parameters->value();
+            $parameters = is_array($value) ? ToolSchemaNormalizer::forPayload($value) : $value;
+            $payload['parameters'] = is_array($parameters) && array_is_list($parameters) ? new JsonObject($parameters) : $parameters;
         }
 
         if ($this->timeoutSeconds->isPresent()) {

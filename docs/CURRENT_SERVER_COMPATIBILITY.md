@@ -96,16 +96,34 @@ when the ping and turn events arrive in one network chunk.
 
 Client tools verify the Ed25519 signature and JWK algorithm, require the supplied
 chat to match the event chat, claim the call in the store, and validate the full
-local JSON Schema before invoking a handler. Verified arguments are copied from
+local JSON Schema before invoking a handler. The schema itself is eagerly
+validated against bundled official draft metaschemas, even for unused optional
+properties, definitions, combinators and conditional branches. Recognized local
+references are resolved before execution, including referenced targets stored
+under extension keys; unresolved external references fail closed. Ordinary
+unknown extensions and literal `const`/`default` values remain data. Verified arguments are copied from
 their canonical JSON representation before schema validation or execution, so
 handlers receive the exact binary64 numeric semantics covered by the signature,
 including when PHP could represent a larger integer exactly. Encode identifiers
 or precision-sensitive integers/decimals as strings when exact precision is
 required. The validator supports JSON Schema
-Draft 6, 7, 2019-09 and 2020-12 through `opis/json-schema`. It preserves `{}` versus
-`[]` until validation, then passes native arrays to handlers as before. External
+Draft 6, 7, 2019-09 and 2020-12 through `opis/json-schema`; absent `$schema`
+defaults to 2020-12. Each document must use one dialect: mixed-dialect embedded
+resources and custom dialects are currently unsupported and fail closed. The official
+metaschema snapshots and their source hashes/licenses are in
+`resources/json-schema`. Unsupported custom dialects, malformed non-JSON values
+and invalid schemas fail closed. It preserves `{}` versus `[]` until validation,
+then passes native arrays to handlers as before. External
 schema references are not fetched, and custom filters/mappers/default mutation
 are disabled. Invalid or unresolved schemas fail closed.
+Only schema locations contribute resource IDs and anchors; IDs inside inert
+literal/extension data cannot satisfy references. JSON Pointers may explicitly
+promote such values to schemas, at which point they are fully checked. Finite
+productive recursion is supported. If evaluation revisits the same schema and
+instance location without descending, the entire validation fails closed with
+`invalid_arguments`, avoiding an unbounded reference loop. This conservative
+rule also applies when an `anyOf` alternative has already matched but the
+validator evaluates another cyclic branch for annotation bookkeeping.
 
 PHP schema/map positions (including `dependentRequired`, `dependentSchemas`,
 and Draft 6/7 `dependencies`) accept associative arrays; empty schema/map arrays
@@ -118,6 +136,18 @@ objects or numeric-key objects unambiguously. `JsonObject::fromJson()` retains
 its historical associative decoding and is not a shape-preserving constructor
 for nested empty objects. A nonempty PHP list cannot stand in for a schema;
 malformed shapes still fail closed before handler effects.
+
+The same normalization is now used for definition compilation and outbound tool
+create/update schemas. Valid schemas using native PHP maps, nested `stdClass`
+values (`json_decode(..., false)`) or explicit JSON wrappers survive manifest
+hashing, sync planning, file/PDO snapshot roundtrips, HTTP requests and `UserTool`
+responses without changing empty/numeric-key objects into arrays. Invalid local
+schemas produce a `tool.invalid_schema` compilation violation. The public root
+`parameters` property remains an array for compatibility; nested ambiguous
+objects use `JsonObject`. `JsonObject` now serializes as a JSON object even when
+empty or numerically keyed. Legacy sync snapshots that already lost shape cannot
+be repaired by inference; recompile/resynchronize their definitions.
+
 
 The gateway rejects an empty tool output string even though the OpenAPI string
 schema has no `minLength`. The runner converts an empty handler result to a

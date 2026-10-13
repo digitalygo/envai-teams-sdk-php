@@ -51,6 +51,16 @@
       "snapshot_path": "tests/fixtures/current-server/sse-cases.json",
       "sha256": "05bba69df6858f6b7ac4d4b45c87c1266cb017515b064891d4fd09488948ae23",
       "origin": "Locally generated SSE parser edge cases; not captured server traffic."
+    },
+    "schema-validity-cases.json": {
+      "snapshot_path": "tests/fixtures/current-server/schema-validity-cases.json",
+      "sha256": "60b72fd3e4aeb7e7804b45e2e68e0a9706beb4dabd44fec365da5463eab7c5b6",
+      "origin": "Locally generated eager-schema-validity, offline-reference and explicit safety-policy regression cases; not server traffic. Non-policy schema cases were reference-checked against their declared draft."
+    },
+    "schema-wire-cases.json": {
+      "snapshot_path": "tests/fixtures/current-server/schema-wire-cases.json",
+      "sha256": "629ffe06ba1c061a625aa9858b92ed90815d7f10d71c3c7abc837eb674889420",
+      "origin": "Locally generated schema object/list fidelity cases for compile, sync, persistence, transport and execution; not server traffic."
     }
   }
 }

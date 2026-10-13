@@ -45,7 +45,7 @@ final class CurrentServerContractTest extends TestCase
     {
         $provenance = self::fixture('provenance.json');
         $fixtures = get_object_vars($provenance->generated_fixtures);
-        $this->assertCount(5, $fixtures);
+        $this->assertCount(7, $fixtures);
         foreach ($fixtures as $name => $fixture) {
             $this->assertSame('tests/fixtures/current-server/'.$name, $fixture->snapshot_path);
             $this->assertNotEmpty($fixture->origin);

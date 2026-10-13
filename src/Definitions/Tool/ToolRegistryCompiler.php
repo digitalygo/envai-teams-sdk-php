@@ -8,6 +8,8 @@ use Digitalygo\Envai\Definitions\Validation\DefinitionViolation;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Tools\Contracts\ClientTool;
 use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaDocument;
+use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
 
 /**
  * Compiles the `envai/tools.php` registry into ToolDefinition instances.
@@ -18,7 +20,9 @@ use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
  *
  * The schema is normalized: non-string keys are dropped and a missing
  * root `type` defaults to `object`. A root type that contradicts `object`
- * is a violation and the tool is excluded. The timeout defaults to 120
+ * is a violation and the tool is excluded. The complete schema is checked
+ * against its bundled draft metaschema and offline references; invalid schemas
+ * become tool.invalid_schema violations. The timeout defaults to 120
  * seconds and is clamped to the 1..600 range. Reserved platform tool
  * names are deliberately not validated locally: the platform rejects
  * them.
@@ -148,11 +152,20 @@ final class ToolRegistryCompiler
                 continue;
             }
 
+            try {
+                $document = ToolSchemaDocument::prepare($normalizedSchema);
+                $parameters = ToolSchemaNormalizer::objectPayload($document->schema);
+            } catch (\Throwable) {
+                $violations[] = new DefinitionViolation($name, 'schema', 'tool.invalid_schema', sprintf('Tool "%s" schema must be valid and resolvable offline.', $name));
+
+                continue;
+            }
+
             $definitions[$name] = new ToolDefinition(
                 localKey: $name,
                 handlerClass: $className,
                 description: $description,
-                parameters: new JsonObject($normalizedSchema),
+                parameters: new JsonObject($parameters),
                 timeoutSeconds: self::clampTimeout($timeout),
             );
         }
