@@ -104,6 +104,11 @@ final readonly class EnvaiClient
         return $this->services->tools();
     }
 
+    public function attachments(): ChatAttachmentsService
+    {
+        return $this->services->attachments();
+    }
+
     public function wiki(): WikiOperationsService
     {
         return $this->services->wiki();

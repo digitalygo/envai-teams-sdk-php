@@ -16,12 +16,15 @@ use Digitalygo\Envai\Streaming\Atp\MessageSender;
  */
 final readonly class ChatsMessageSender implements MessageSender
 {
+    /** @param list<string> $attachmentIds */
     public function __construct(
         private readonly ChatsService $chats,
+        private array $attachmentIds = [],
+        private ?string $idempotencyKey = null,
     ) {}
 
     public function send(string $chatId, string $message): ChatMessageAccepted
     {
-        return $this->chats->sendMessage($chatId, new ChatMessageRequest($message));
+        return $this->chats->sendMessage($chatId, new ChatMessageRequest($message, $this->attachmentIds), $this->idempotencyKey);
     }
 }

@@ -53,3 +53,7 @@ V3 replay remains incremental, preserves original versions/IDs/sequence/data and
 Optional `CompletionTerminalSnapshot::$v` and `$acceptedProtocolVersion` retain envelope version and accepted-turn provenance; old missing fields remain supported. A recovery snapshot can be v3 for a turn originally accepted under v2. Late cost reconciliation changes current GET usage, not the committed terminal snapshot. Snapshot metadata is not response-text replay.
 
 See [Wiki APIs and signatures](WIKI.md) and [executed validation and limits](WIKI_VALIDATION.md). Companion backend integration is [Envai Teams #45](https://github.com/digitalygo/envai-teams/pull/45); managed filesystem changes are [FFS #9](https://github.com/digitalygo/fake-filesystem-for-agents/pull/9).
+
+## Chat attachments and deferred Wiki outcomes
+
+Update to the matching backend before enabling attachment sends. Contract 3 remains selected, and `chat_attachments` is an additional capability requirement. Preserve message idempotency keys and ordered IDs; verify acceptance. Handle the new `deferred` Wiki file outcome. See [attachment integration](CHAT_ATTACHMENTS.md).

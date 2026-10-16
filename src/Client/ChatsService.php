@@ -63,7 +63,7 @@ final readonly class ChatsService
      * Sends a user message and starts a turn (POST
      * /chats/{chat_id}/messages, HTTP 202).
      */
-    public function sendMessage(string $chatId, ChatMessageRequest $request): ChatMessageAccepted
+    public function sendMessage(string $chatId, ChatMessageRequest $request, ?string $idempotencyKey = null): ChatMessageAccepted
     {
         $result = $this->requests->request(
             'POST',
@@ -74,6 +74,7 @@ final readonly class ChatsService
             EnvelopeMode::TopLevel,
             AuthenticationMode::Bearer,
             RetrySafety::NeverRetry,
+            idempotencyKey: $idempotencyKey,
         );
 
         /** @var ChatMessageAccepted $result */

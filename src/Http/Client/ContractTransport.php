@@ -17,6 +17,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
 {
     private bool $verifiedCapabilities = false;
 
+    /** @var array<mixed> */
+    private array $features = [];
+
     public function __construct(
         private readonly HttpTransport&EventStreamTransport $transport,
         private readonly UriResolver $uris,
@@ -41,13 +44,24 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             return $this->transport->send($request);
         }
         $mutation = ! in_array(strtoupper($request->method), ['GET', 'HEAD'], true);
-        if ($this->version === 2 && ($mutation || $kind === 'wiki')) {
+        if ($this->version === 2 && ($mutation || in_array($kind, ['wiki', 'attachment'], true))) {
             throw new ContractCompatibilityException('Contract 2 supports historical reads only; select contract 3 for this operation.');
         }
         $headers = $this->selectedHeaders($request->headers);
         $uri = $this->selectedUri($request->uri, $kind);
+        $attachmentIds = [];
+        if ($mutation && is_string($request->body) && preg_match('#/chats/[^/]+/messages$#', $request->uri)) {
+            $body = json_decode($request->body, true);
+            $attachmentIds = is_array($body) ? ($body['attachment_ids'] ?? []) : [];
+            if ($attachmentIds !== [] && ! isset($request->headers['idempotency-key'])) {
+                throw new \InvalidArgumentException('Attachment messages require Idempotency-Key.');
+            }
+        }
         if ($mutation) {
             $this->preflight($request);
+            if (($kind === 'attachment' || $attachmentIds !== []) && ! in_array('chat_attachments', $this->features, true)) {
+                throw new ContractCompatibilityException('Server does not advertise chat_attachments.');
+            }
         }
         $response = $this->transport->send(new HttpRequest(
             $request->method, $uri, $headers,
@@ -59,6 +73,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             throw new ContractCompatibilityException('The server rejected the contract 3 route; no fallback was attempted.');
         }
         if ($response->status >= 200 && $response->status < 300) {
+            if ($attachmentIds !== [] && ($this->json($response)['attachment_ids'] ?? null) !== $attachmentIds) {
+                throw new ContractCompatibilityException('Message acceptance omitted or changed attachment IDs.');
+            }
             if ($kind === 'capabilities') {
                 $this->validateCapabilities($response);
             } elseif ($kind === 'completion' && $this->version === 2) {
@@ -149,6 +166,7 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($this->version === 3 && (($data['contract_version'] ?? null) !== 3 || ! is_array($supported) || ! array_is_list($supported) || count(array_filter($supported, 'is_int')) !== count($supported) || ! in_array(3, $supported, true))) {
             throw new ContractCompatibilityException('Server does not advertise contract 3 support.');
         }
+        $this->features = is_array($data['features'] ?? null) ? $data['features'] : [];
         $this->verifiedCapabilities = true;
     }
 
@@ -213,6 +231,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         }
         if (preg_match('#/api/v1/(?:atp/v3/)?chats/[^/]+(?:/|$)#', $path)) {
             return 'atp';
+        }
+        if (preg_match('#/api/v1/workspaces/[^/]+/chats/[^/]+/attachments(?:/|$)#', $path)) {
+            return 'attachment';
         }
         if (preg_match('#/api/v1/workspaces/[^/]+/chats/[^/]+/completions(?:/|$)#', $path)) {
             return 'completion';

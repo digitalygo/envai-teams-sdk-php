@@ -1,12 +1,22 @@
 # Contract 3 and Wiki V1 validation
 
+## Chat attachments contract update (2026-10-16)
+
+Current source schemas are pinned to backend commit `6a4e45bafe6f5856ef92a57b37db08769738b412`, with 71 HTTP operations. The attachment guide documents asynchronous conversion, whole-message rejection, explicit retry, retention and independent conversion costs. Source manifests identify exact upstream bytes separately from generated inventories and synthetic fixtures. Historical HTTP captures retain their original source commits. This update does not deploy the backend.
+
+Local checks on PHP 8.5: 2,229 tests / 9,598 assertions passed with PostgreSQL, MySQL and separately installed Illuminate 13 packages, with no skips. Pint, maximum-level PHPStan, Composer strict validation/audit, shared source/fixture checks and release-tooling checks passed. Optional framework dependencies were installed outside the SDK repository.
+
+## Earlier validation records
+
+The following counts, SDK heads and backend pins describe earlier checkpoints. They do not attest the current attachment implementation.
+
 Final migration validation on 2026-10-13 extends the published SDK feature head `3a3953a0cb9fe8559af8846cf8105ee442d4f55a` (tree `b09970d205aa62884f1f77f395f0161ff510103b`) and pins the real backend commit `c27963d0848540679bccf30d2aeab354097b1a38`. [Migration guide](CONTRACT_V3.md).
 
 ## Final contract 3 results
 
 - Complete PHP 8.4.24 / PHPUnit 11.5.57 / isolated Illuminate 12 / real PostgreSQL 18.3 suite: **2,218 tests, 9,404 assertions, no failures; 25 optional MySQL skips**. Executed with PCOV 1.0.12.
 - Total executable delta from verified original main: **874/877 statements, 99.66%**. The two defensive missing/corrupt bundled-schema exceptions and the optional MySQL inbox branch are the only uncovered statements. Per-file detail: `wiki-delta-coverage.json`.
-- Pint, maximum-level PHPStan, strict Composer validation, Composer audit, workflow actionlint and `git diff --check`: passed. JSON schemas, fixture validation and all **65** OpenAPI operation inventory entries: passed.
+- Pint, maximum-level PHPStan, strict Composer validation, Composer audit, workflow actionlint and `git diff --check`: passed. JSON schemas, fixture validation and all **71** OpenAPI operation inventory entries: passed.
 - Release tooling was installed from the unchanged lockfile using a workspace npm cache, patched with the repository CI script and tested on Node 24.19.0. The initial invocation had no installed Semantic Release package; after installation the complete release tooling suite and npm security audit passed, with 100% release-matcher coverage. No release automation source changed.
 - Independently fetched GitHub blob IDs for all five source schemas at the pinned backend commit match the SDK snapshots byte-for-byte. The immutable numeric v2 schema is also shipped under `src/resources/atp`, outside export-ignored documentation.
 - Native cURL tests exercised the real HTTP acknowledgment boundary, old-server preflight rejection, legacy HTTP 426, nullable REST hydration and unchanged mixed v2/v3 SSE bytes.

@@ -52,9 +52,9 @@ final class InventoryTest extends TestCase
         return $operations;
     }
 
-    public function test_openapi_defines_exactly_65_operations(): void
+    public function test_openapi_defines_exactly_71_operations(): void
     {
-        $this->assertCount(65, self::openApiOperations());
+        $this->assertCount(71, self::openApiOperations());
     }
 
     public function test_inventory_matches_openapi_exactly(): void

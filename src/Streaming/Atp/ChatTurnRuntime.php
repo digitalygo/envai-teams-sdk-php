@@ -19,6 +19,11 @@ use Digitalygo\Envai\Streaming\Events\AtpEvent;
  */
 final class ChatTurnRuntime
 {
+    /** @var list<AtpEvent> */
+    private array $replay = [];
+
+    private int $replayBytes = 0;
+
     /**
      * @param  string|null  $chatId  Chat id used for sends; falls back to the stream chat id.
      */
@@ -26,6 +31,7 @@ final class ChatTurnRuntime
         private readonly ChatEventStream $stream,
         private readonly MessageSender $sender,
         private readonly ?string $chatId = null,
+        private readonly bool $retainReplay = false,
     ) {}
 
     /**
@@ -34,7 +40,7 @@ final class ChatTurnRuntime
     public function send(string $message): ChatMessageAccepted
     {
         try {
-            if (! $this->stream->waitLiveConfirmation()) {
+            if (! $this->stream->waitLiveConfirmation(onReplay: $this->retainReplay ? $this->retainReplayEvent(...) : null)) {
                 throw new TransportException('The event stream ended or timed out before live confirmation; the message was not sent.');
             }
 
@@ -59,7 +65,7 @@ final class ChatTurnRuntime
         $accepted = $this->send($message);
         $await = new TurnAwait($accepted->turnId);
 
-        foreach ($this->stream as $event) {
+        foreach ($this->events() as $event) {
             $terminal = $await->push($event);
 
             if ($event->envelope->turnId === $accepted->turnId) {
@@ -80,13 +86,30 @@ final class ChatTurnRuntime
         $accepted = $this->send($message);
         $await = new TurnAwait($accepted->turnId);
 
-        foreach ($this->stream as $event) {
+        foreach ($this->events() as $event) {
             if ($await->push($event)) {
                 break;
             }
         }
 
         return $await->result($this->chatId(), $this->stream->lastCursor());
+    }
+
+    private function retainReplayEvent(AtpEvent $event, int $bytes): void
+    {
+        $this->replayBytes += $bytes;
+        if ($this->replayBytes > 16 * 1024 * 1024) {
+            throw new TransportException('Idempotent send replay exceeds 16 MiB; resume using the known turn cursor.');
+        }
+        $this->replay[] = $event;
+    }
+
+    /** @return \Generator<int, AtpEvent, mixed, void> */
+    private function events(): \Generator
+    {
+        yield from $this->replay;
+        $this->replay = [];
+        yield from $this->stream;
     }
 
     private function chatId(): string

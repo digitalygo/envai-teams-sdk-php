@@ -14,12 +14,14 @@ use Digitalygo\Envai\Models\Internal\Wire;
 final readonly class ChatMessageAccepted implements ArrayHydratable
 {
     /**
+     * @param  list<string>|null  $attachmentIds
      * @param  array<string, mixed>  $extra  Unknown payload keys preserved for forward compatibility.
      */
     public function __construct(
         public string $status,
         public string $turnId,
         public array $extra = [],
+        public ?array $attachmentIds = null,
     ) {}
 
     /**
@@ -32,7 +34,8 @@ final readonly class ChatMessageAccepted implements ArrayHydratable
         return new self(
             status: Wire::string($data, 'status', $context),
             turnId: Wire::string($data, 'turn_id', $context),
-            extra: Wire::extra($data, ['status', 'turn_id']),
+            extra: Wire::extra($data, ['status', 'turn_id', 'attachment_ids']),
+            attachmentIds: array_key_exists('attachment_ids', $data) ? Wire::stringList($data, 'attachment_ids', $context) : null,
         );
     }
 
@@ -44,6 +47,6 @@ final readonly class ChatMessageAccepted implements ArrayHydratable
         return array_merge([
             'status' => $this->status,
             'turn_id' => $this->turnId,
-        ], $this->extra);
+        ], $this->extra, $this->attachmentIds === null ? [] : ['attachment_ids' => $this->attachmentIds]);
     }
 }

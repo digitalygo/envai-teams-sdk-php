@@ -7,6 +7,7 @@ namespace Digitalygo\Envai\Client\Internal;
 use Digitalygo\Envai\Client\AgentsService;
 use Digitalygo\Envai\Client\ApiKeysService;
 use Digitalygo\Envai\Client\CapabilitiesService;
+use Digitalygo\Envai\Client\ChatAttachmentsService;
 use Digitalygo\Envai\Client\ChatRuntime;
 use Digitalygo\Envai\Client\ChatsService;
 use Digitalygo\Envai\Client\ChatsToolOutputSender;
@@ -56,6 +57,8 @@ use Digitalygo\Envai\Tools\State\InMemoryClientToolCallStore;
  */
 final class ServiceContainer
 {
+    private ?ChatAttachmentsService $attachments = null;
+
     private ?WikiOperationsService $wiki = null;
 
     private ?WorkspacesService $workspaces = null;
@@ -117,6 +120,11 @@ final class ServiceContainer
         ),
         private readonly ?\Closure $stateStoreResolver = null,
     ) {}
+
+    public function attachments(): ChatAttachmentsService
+    {
+        return $this->attachments ??= new ChatAttachmentsService($this->executor, $this->uris, $this->connectTimeoutSeconds, $this->requestTimeoutSeconds);
+    }
 
     public function wiki(): WikiOperationsService
     {
