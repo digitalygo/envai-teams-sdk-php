@@ -257,7 +257,7 @@ final class ChatEventStream implements \IteratorAggregate
      * With a blocking transport the timeout is only observed between reads:
      * enforce it promptly by cancelling the connection from another context.
      */
-    public function waitLiveConfirmation(?float $timeoutSeconds = 60): bool
+    public function waitLiveConfirmation(?float $timeoutSeconds = 60, ?callable $onReplay = null): bool
     {
         if ($this->liveConfirmed) {
             return true;
@@ -292,7 +292,11 @@ final class ChatEventStream implements \IteratorAggregate
 
                 // Historical terminal events are replay, not proof that the
                 // new live subscription is ready. Continue until the ping.
+                $previousCursor = $this->cursor;
                 $this->advanceCursor($event);
+                if ($onReplay !== null && $this->cursor > $previousCursor) {
+                    $onReplay($event, strlen($frame->data));
+                }
             }
         }
     }

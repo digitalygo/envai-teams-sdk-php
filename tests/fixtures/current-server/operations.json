@@ -312,6 +312,42 @@
     "authenticated": false
   },
   {
+    "id": "uploadChatAttachment",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments",
+    "authenticated": true
+  },
+  {
+    "id": "listChatAttachments",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments",
+    "authenticated": true
+  },
+  {
+    "id": "getChatAttachment",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments/{attachment_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteChatAttachment",
+    "method": "DELETE",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments/{attachment_id}",
+    "authenticated": true
+  },
+  {
+    "id": "retryChatAttachment",
+    "method": "POST",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments/{attachment_id}/retry",
+    "authenticated": true
+  },
+  {
+    "id": "downloadChatAttachment",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}/attachments/{attachment_id}/download",
+    "authenticated": true
+  },
+  {
     "id": "uploadWikiSource",
     "method": "POST",
     "path": "/workspaces/{workspace_id}/files/sources",

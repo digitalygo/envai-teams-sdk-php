@@ -66,42 +66,42 @@ final class ChatRuntime
      * Sends a user message that opens a turn and returns the accepted
      * acknowledgment (POST /chats/{chat_id}/messages, HTTP 202).
      */
-    public function sendMessage(string $message): ChatMessageAccepted
+    /** @param list<string> $attachmentIds */
+    public function sendMessage(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): ChatMessageAccepted
     {
-        return $this->chats->sendMessage($this->chatId, $this->messageRequest($message));
+        return $this->chats->sendMessage($this->chatId, new ChatMessageRequest($message, $attachmentIds), $idempotencyKey);
     }
 
     /**
      * Sends the message and streams every event of the accepted turn
      * until its first terminal event.
      *
+     * @param  list<string>  $attachmentIds
      * @return \Generator<int, AtpEvent, mixed, void>
      */
-    public function sendAndStream(string $message): \Generator
+    public function sendAndStream(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): \Generator
     {
-        return $this->runtime()->sendAndStream($message);
+        return $this->runtime($attachmentIds, $idempotencyKey)->sendAndStream($message);
     }
 
     /**
      * Sends the message and awaits the terminal event of the accepted
      * turn.
      */
-    public function sendAndWait(string $message): TurnResult
+    /** @param list<string> $attachmentIds */
+    public function sendAndWait(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): TurnResult
     {
-        return $this->runtime()->sendAndWait($message);
+        return $this->runtime($attachmentIds, $idempotencyKey)->sendAndWait($message);
     }
 
-    private function runtime(): ChatTurnRuntime
+    /** @param list<string> $attachmentIds */
+    private function runtime(array $attachmentIds, ?string $idempotencyKey): ChatTurnRuntime
     {
         return new ChatTurnRuntime(
             $this->events(),
-            new ChatsMessageSender($this->chats),
+            new ChatsMessageSender($this->chats, $attachmentIds, $idempotencyKey),
             $this->chatId,
+            retainReplay: $idempotencyKey !== null,
         );
-    }
-
-    private function messageRequest(string $message): ChatMessageRequest
-    {
-        return new ChatMessageRequest($message);
     }
 }

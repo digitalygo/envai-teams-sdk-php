@@ -30,8 +30,8 @@ final class CurrentServerContractTest extends TestCase
     {
         $provenance = self::fixture('provenance.json');
         $this->assertSame('digitalygo/envai-teams', $provenance->repository);
-        $this->assertSame('c27963d0848540679bccf30d2aeab354097b1a38', $provenance->commit);
-        $this->assertSame('b590e6b8758b53346d4e0356c384585373b1b8ea', $provenance->base_commit);
+        $this->assertSame('96acf00162984af4a86a671f924c53a18960fae6', $provenance->commit);
+        $this->assertSame('64ef890be069b406ecd21a14ad7ae6041b8783b6', $provenance->base_commit);
         $this->assertSame('pinned backend commit', $provenance->snapshot_status);
         $this->assertSame(['openapi.yaml', 'events.json', 'wiki.json', 'terminal-snapshot.json', 'events-v2.json'], array_keys(get_object_vars($provenance->sources)));
         foreach ($provenance->sources as $name => $source) {
@@ -65,6 +65,18 @@ final class CurrentServerContractTest extends TestCase
         }
         $this->assertInstanceOf(UnknownEvent::class, $event);
         $this->assertSame('preserved', $event->data->get('new'));
+    }
+
+    public function test_shared_attachment_fixtures_are_attributed_and_byte_exact(): void
+    {
+        $fixtures = get_object_vars(self::fixture('provenance.json')->shared_fixtures);
+        $this->assertSame(['failed.json', 'pending.json', 'ready.json', 'recoverable.json'], array_keys($fixtures));
+        foreach ($fixtures as $name => $fixture) {
+            $this->assertSame('tests/fixtures/chat-attachments/'.$name, $fixture->snapshot_path);
+            $this->assertSame('packages/contracts/fixtures/chat-attachments/'.$name, $fixture->repository_path);
+            $this->assertNotEmpty($fixture->origin);
+            $this->assertSame($fixture->sha256, hash_file('sha256', dirname(__DIR__, 3).'/'.$fixture->snapshot_path));
+        }
     }
 
     public function test_shared_invalid_version_sequence_and_tool_kind_are_rejected(): void

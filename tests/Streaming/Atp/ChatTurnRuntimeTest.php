@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Tests\Streaming\Atp;
 
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
 use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
@@ -41,6 +42,46 @@ final class ChatTurnRuntimeTest extends TestCase
         $this->assertSame('accepted', $accepted->status);
         $this->assertSame(Fixtures::TURN_ID, $accepted->turnId);
         $this->assertSame([['chatId' => Fixtures::CHAT_ID, 'message' => self::MESSAGE]], $sender->calls);
+    }
+
+    public function test_idempotent_acceptance_returns_the_completed_turn_replayed_before_ping(): void
+    {
+        foreach ([true, false] as $streaming) {
+            $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes([...Fixtures::simpleTurn(), Fixtures::ping()]), chatId: Fixtures::CHAT_ID);
+            $sender = new FakeMessageSender(new ChatMessageAccepted('accepted', Fixtures::TURN_ID));
+            $runtime = new ChatTurnRuntime($stream, $sender, Fixtures::CHAT_ID, retainReplay: true);
+            if ($streaming) {
+                $events = iterator_to_array($runtime->sendAndStream(self::MESSAGE));
+                $this->assertCount(7, $events);
+                $this->assertInstanceOf(TurnCompletedEvent::class, $events[6]);
+            } else {
+                $result = $runtime->sendAndWait(self::MESSAGE);
+                $this->assertInstanceOf(TurnCompletedEvent::class, $result->terminal);
+                $this->assertStringContainsString('12k visitatori', $result->orchestratorText);
+            }
+            $this->assertCount(1, $sender->calls);
+        }
+    }
+
+    public function test_idempotent_send_rejects_excessive_replay_before_submitting(): void
+    {
+        $frames = [];
+        for ($seq = 1; $seq <= 34; $seq++) {
+            $event = Fixtures::sample('agent.text.delta');
+            $event['seq'] = $seq;
+            $event['data']['delta'] = str_repeat('x', 512 * 1024);
+            $frames[] = $event;
+        }
+        $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes($frames), chatId: Fixtures::CHAT_ID);
+        $sender = new FakeMessageSender(new ChatMessageAccepted('accepted', Fixtures::TURN_ID));
+        $runtime = new ChatTurnRuntime($stream, $sender, Fixtures::CHAT_ID, retainReplay: true);
+        try {
+            $runtime->send(self::MESSAGE);
+            $this->fail('Excessive replay must not submit a message');
+        } catch (TransportException $error) {
+            $this->assertStringContainsString('exceeds 16 MiB', $error->getMessage());
+            $this->assertSame([], $sender->calls);
+        }
     }
 
     public function test_send_and_stream_yields_only_events_of_the_accepted_turn(): void
