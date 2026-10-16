@@ -152,33 +152,9 @@ final class ChatEventStream implements \IteratorAggregate
                         continue;
                     }
 
-                    if ($this->replayPending) {
-                        $this->replayPending = false;
-
-                        if ($seq > $this->cursor + 1) {
-                            $this->connection->close();
-
-                            throw new ReplayGapException(
-                                sprintf(
-                                    'Replay after seq %d starts at seq %d: events %d..%d are no longer retained by the gateway.',
-                                    $this->cursor,
-                                    $seq,
-                                    $this->cursor + 1,
-                                    $seq - 1,
-                                ),
-                                missingFrom: $this->cursor + 1,
-                                missingTo: $seq - 1,
-                            );
-                        }
-                    }
-
-                    if ($seq > $this->cursor + 1) {
-                        $this->startRecovery($seq);
-
+                    if (! $this->advanceCursor($event)) {
                         continue 2;
                     }
-
-                    $this->cursor = $seq;
 
                     yield $event;
                 }
@@ -292,9 +268,13 @@ final class ChatEventStream implements \IteratorAggregate
 
                 // Historical terminal events are replay, not proof that the
                 // new live subscription is ready. Continue until the ping.
-                $previousCursor = $this->cursor;
-                $this->advanceCursor($event);
-                if ($onReplay !== null && $this->cursor > $previousCursor) {
+                if ($event->envelope->seq <= $this->cursor) {
+                    continue;
+                }
+                if (! $this->advanceCursor($event)) {
+                    continue 2;
+                }
+                if ($onReplay !== null) {
                     $onReplay($event, strlen($frame->data));
                 }
             }
@@ -384,13 +364,38 @@ final class ChatEventStream implements \IteratorAggregate
         }
     }
 
-    private function advanceCursor(AtpEvent $event): void
+    private function advanceCursor(AtpEvent $event): bool
     {
         $seq = $event->envelope->seq;
+        if ($this->replayPending) {
+            $this->replayPending = false;
 
-        if ($seq > $this->cursor) {
-            $this->cursor = $seq;
+            if ($seq > $this->cursor + 1) {
+                $this->connection->close();
+
+                throw new ReplayGapException(
+                    sprintf(
+                        'Replay after seq %d starts at seq %d: events %d..%d are no longer retained by the gateway.',
+                        $this->cursor,
+                        $seq,
+                        $this->cursor + 1,
+                        $seq - 1,
+                    ),
+                    missingFrom: $this->cursor + 1,
+                    missingTo: $seq - 1,
+                );
+            }
         }
+
+        if ($seq > $this->cursor + 1) {
+            $this->startRecovery($seq);
+
+            return false;
+        }
+
+        $this->cursor = $seq;
+
+        return true;
     }
 
     private function learnChatId(AtpEvent $event): void

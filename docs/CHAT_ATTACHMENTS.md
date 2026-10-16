@@ -23,6 +23,6 @@ $result = $client->chat($workspaceId, $chatId)->sendAndWait('Summarize the invoi
 
 `attachments()` exposes `upload`, `all`, `get`, `retry`, `delete`, `download`, and `wait`. Uploads are path-backed multipart files. `wait` accepts a bounded timeout, polling interval and cooperative cancellation token. Low-level `chats()->sendMessage($chatId, new ChatMessageRequest($text, $ids), $messageKey)` retains the IDs and key. `ChatRuntime` exposes those same optional parameters on `sendMessage`, `sendAndStream`, and `sendAndWait`.
 
-See the matching backend [attachment guide](https://github.com/digitalygo/envai-teams/blob/96acf00162984af4a86a671f924c53a18960fae6/docs/guides/chat-attachments.md) for limits, operator settings, and retention. Publishing this SDK does not deploy the backend.
+See the matching backend [attachment guide](https://github.com/digitalygo/envai-teams/blob/6a4e45bafe6f5856ef92a57b37db08769738b412/docs/guides/chat-attachments.md) for limits, operator settings, and retention. Publishing this SDK does not deploy the backend.
 
 With a stable message key, turn helpers retain the initial replay until the acknowledgment identifies the accepted turn. A previously completed turn can therefore finish from retained events without another inference call. The pre-send replay buffer is limited to 16 MiB; exceeding it fails before submitting the message. Resume a known turn with its event cursor when the retained stream is larger or a replay gap is reported.

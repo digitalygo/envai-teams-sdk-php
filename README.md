@@ -672,6 +672,8 @@ Output delivery posts to `/chats/{chat_id}/tool-output` and maps failures withou
 
 Controlled outcomes: unknown tools deliver `tool_not_found`, concurrency saturation delivers `tool_busy` (cap via `RunnerOptions::maxConcurrent`, default 4), invalid arguments deliver `invalid_arguments`, handler exceptions deliver a sanitized `handler_error` (never a stack trace), oversized outputs are replaced by `output_too_large` (131072 byte limit), and a handler that exceeds its conservative deadline (`timeout_seconds - submissionMarginSeconds`) is marked ambiguous so the server's own deadline auto-resolves the branch.
 
+The PHP client-tool runner skips new requests for a turn after observing its terminal event through `handleEvents()` or `observe()`. This barrier belongs to the runner instance; existing call-store interfaces and durable deduplication of individual calls remain unchanged. Feed terminal events to each runner that processes a chat.
+
 ## Error handling
 
 Every exception extends `EnvaiException` (a `RuntimeException`), which carries `context()`, `apiError()` and `requestId()`.

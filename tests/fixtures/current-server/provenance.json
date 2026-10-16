@@ -1,14 +1,14 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "96acf00162984af4a86a671f924c53a18960fae6",
+  "commit": "6a4e45bafe6f5856ef92a57b37db08769738b412",
   "protocol_version": 3,
   "operations": 71,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
-      "bytes": 232844,
-      "sha256": "3347eaad83510eaf97519a28dac9e74063b66f57d174ed527281c932496c3f0d",
-      "git_blob_sha": "7ea3448fe8d80610ae68b674f5ba902c08e46688",
+      "bytes": 233072,
+      "sha256": "af736ba76d9673f34eac453e725fe57acb4517f6faf660bb8aed43465c7a0245",
+      "git_blob_sha": "347a58fa0ce76dc43a9f2c4ff94661ff0fe3cbf8",
       "snapshot_path": "docs/openapi.yaml"
     },
     "events.json": {

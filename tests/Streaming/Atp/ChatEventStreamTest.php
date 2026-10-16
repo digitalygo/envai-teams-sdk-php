@@ -7,7 +7,9 @@ namespace Digitalygo\Envai\Tests\Streaming\Atp;
 use Digitalygo\Envai\Exceptions\OperationCancelledException;
 use Digitalygo\Envai\Exceptions\ReplayGapException;
 use Digitalygo\Envai\Exceptions\TransportException;
+use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
+use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
 use Digitalygo\Envai\Streaming\Events\AgentDoneEvent;
 use Digitalygo\Envai\Streaming\Events\AgentStartedEvent;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
@@ -348,7 +350,7 @@ final class ChatEventStreamTest extends TestCase
     public function test_wait_live_confirmation_returns_false_on_terminal_event(): void
     {
         $frames = [Fixtures::simpleTurn()[6]]; // turn.completed before any ping
-        $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes($frames));
+        $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes($frames), initialCursor: 6);
 
         $confirmed = $stream->waitLiveConfirmation(5);
 
@@ -415,5 +417,41 @@ final class ChatEventStreamTest extends TestCase
         $this->assertInstanceOf(AgentDoneEvent::class, $events[6]);
         $this->assertSame('Dati raccolti', $events[6]->summary);
         $this->assertSame(18, $stream->lastCursor());
+    }
+
+    public function test_wait_live_rejects_evicted_replay_before_sending(): void
+    {
+        $frame = Fixtures::simpleTurn()[0];
+        $frame['seq'] = 50;
+        $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes([$frame, Fixtures::ping()]), chatId: Fixtures::CHAT_ID);
+        $sender = new FakeMessageSender(new ChatMessageAccepted('accepted', $frame['turn_id']));
+        try {
+            (new ChatTurnRuntime($stream, $sender, retainReplay: true))->send('read');
+            $this->fail('Replay gap was accepted');
+        } catch (ReplayGapException $error) {
+            $this->assertSame(1, $error->missingFrom);
+            $this->assertSame(49, $error->missingTo);
+        }
+        $this->assertSame([], $sender->calls);
+        $this->assertSame(0, $stream->lastCursor());
+    }
+
+    public function test_wait_live_recovers_a_gap_and_ignores_duplicate_replay(): void
+    {
+        $frames = Fixtures::simpleTurn();
+        $stream = new ChatEventStream(
+            FakeEventStreamConnection::fromEnvelopes([$frames[0], $frames[2]]),
+            connectionFactory: function (int $after) use ($frames): FakeEventStreamConnection {
+                $this->assertSame(1, $after);
+
+                return FakeEventStreamConnection::fromEnvelopes([$frames[0], $frames[1], $frames[2], Fixtures::ping()]);
+            },
+        );
+        $seqs = [];
+        $this->assertTrue($stream->waitLiveConfirmation(onReplay: function (AtpEvent $event) use (&$seqs): void {
+            $seqs[] = $event->envelope->seq;
+        }));
+        $this->assertSame([1, 2, 3], $seqs);
+        $this->assertSame(3, $stream->lastCursor());
     }
 }

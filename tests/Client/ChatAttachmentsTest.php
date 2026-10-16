@@ -48,7 +48,7 @@ final class ChatAttachmentsTest extends TestCase
             self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
             self::assertStringEndsWith('/workspaces/w%2Fa/chats/c%2Fb/attachments', $request->uri);
             foreach (['get', 'retry', 'delete'] as $method) {
-                $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $this->resource()])));
+                $transport->queueResponse(new HttpResponse($method === 'get' ? 200 : 202, [], json_encode(['data' => $this->resource()])));
                 $source = $method === 'retry' ? $client->attachments()->retry('w/a', 'c/b', 'a', 'retry') : $client->attachments()->$method('w/a', 'c/b', 'a');
                 self::assertSame('ready', $source->lifecycle);
             }

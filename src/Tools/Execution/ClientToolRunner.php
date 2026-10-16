@@ -10,6 +10,10 @@ use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
+use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\TurnCancelledEvent;
+use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
+use Digitalygo\Envai\Streaming\Events\TurnFailedEvent;
 use Digitalygo\Envai\Tools\Contracts\ClientToolFactory;
 use Digitalygo\Envai\Tools\Contracts\SafeToolMessageException;
 use Digitalygo\Envai\Tools\Contracts\ToolInvocation;
@@ -86,6 +90,9 @@ final readonly class ClientToolRunner
      */
     private readonly InFlightTracker $inFlight;
 
+    /** @var \ArrayObject<string, true> */
+    private \ArrayObject $terminalTurns;
+
     public function __construct(
         private readonly ClientToolRegistry $registry,
         private readonly ClientToolFactory $factory,
@@ -96,6 +103,9 @@ final readonly class ClientToolRunner
         private readonly RunnerOptions $options = new RunnerOptions,
     ) {
         $this->inFlight = new InFlightTracker;
+        /** @var \ArrayObject<string, true> $terminalTurns */
+        $terminalTurns = new \ArrayObject;
+        $this->terminalTurns = $terminalTurns;
     }
 
     /**
@@ -122,6 +132,10 @@ final readonly class ClientToolRunner
             turnId: $event->envelope->turnId,
         );
 
+        if ($event->envelope->turnId !== null && isset($this->terminalTurns[$chatId."\0".$event->envelope->turnId])) {
+            return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
+        }
+
         $registered = $this->registry->lookup($verified->toolName);
 
         if ($registered === null) {
@@ -141,6 +155,13 @@ final readonly class ClientToolRunner
         return $this->runRegistered($event, $identity, $registered, $verified);
     }
 
+    public function observe(AtpEvent $event): void
+    {
+        if (($event instanceof TurnCompletedEvent || $event instanceof TurnCancelledEvent || $event instanceof TurnFailedEvent) && $event->envelope->turnId !== null) {
+            $this->terminalTurns[$event->envelope->chatId."\0".$event->envelope->turnId] = true;
+        }
+    }
+
     /**
      * Convenience over a chat event stream iteration: filters
      * AgentToolRequestEvent instances and runs them in order.
@@ -153,6 +174,9 @@ final readonly class ClientToolRunner
         $results = [];
 
         foreach ($events as $event) {
+            if ($event instanceof AtpEvent) {
+                $this->observe($event);
+            }
             if ($event instanceof AgentToolRequestEvent) {
                 $results[] = $this->handle($event, $chatId);
             }
