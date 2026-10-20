@@ -8,6 +8,9 @@ use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
+use Digitalygo\Envai\Exceptions\OperationCancelledException;
+use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
+use Digitalygo\Envai\Http\CancellationSource;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\MultipartBody;
 use Digitalygo\Envai\Http\RetrySafety;
@@ -22,9 +25,9 @@ final class ChatAttachmentsTest extends TestCase
         return json_decode(file_get_contents(dirname(__DIR__).'/fixtures/chat-attachments/'.$name.'.json'), true)['data'];
     }
 
-    private function client(FakeTransport $transport, bool $feature = true): EnvaiClient
+    private function client(FakeTransport $transport, array $features = ['chat_attachments' => true, 'chat_attachment_originals' => true]): EnvaiClient
     {
-        $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3'], json_encode(['protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3], 'legacy_v2_mode' => 'historical_reads_replay_only', 'features' => $feature ? ['chat_attachments'] : []])));
+        $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3'], json_encode(['protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3], 'legacy_v2_mode' => 'historical_reads_replay_only', 'features' => $features])));
 
         return new EnvaiClient(new EnvaiConfig(baseUrl: 'https://envai.example', apiKey: new SensitiveString('synthetic')), $transport);
     }
@@ -68,7 +71,7 @@ final class ChatAttachmentsTest extends TestCase
         self::assertSame(['message' => 'Read', 'attachment_ids' => ['a']], $request->toArray());
         foreach ([false, true] as $feature) {
             $transport = new FakeTransport;
-            $client = $this->client($transport, $feature);
+            $client = $this->client($transport, $feature ? ['chat_attachments' => true, 'chat_attachment_originals' => true] : []);
             $transport->queueResponse(new HttpResponse(202, [], json_encode(['status' => 'accepted', 'turn_id' => 'cmpl_test', 'attachment_ids' => ['different']])));
             try {
                 $client->chats()->sendMessage('c', $request, 'stable');
@@ -86,18 +89,117 @@ final class ChatAttachmentsTest extends TestCase
         $client->chats()->sendMessage('c', $request);
     }
 
-    public function test_polling_reuses_converted_resources_and_returns_failed_state(): void
+    public function test_original_ready_attachment_returns_without_an_extra_poll(): void
     {
         $transport = new FakeTransport;
         $client = new EnvaiClient(new EnvaiConfig(baseUrl: 'https://envai.example', apiKey: new SensitiveString('synthetic')), $transport);
-        foreach (['pending', 'ready', 'failed'] as $name) {
-            $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $this->resource($name)])));
+        $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $this->resource('original-ready')])));
+
+        $attachment = $client->attachments()->wait('w', 'c', 'a');
+
+        self::assertInstanceOf(ChatAttachment::class, $attachment);
+        self::assertSame('ready', $attachment->lifecycle);
+        self::assertSame('not_required', $attachment->conversion->status);
+        self::assertNull($attachment->derived);
+        self::assertSame(['GET'], array_map(fn ($request) => $request->method, $transport->requests));
+    }
+
+    public function test_not_required_attachment_waits_until_ready_and_preserves_legacy_terminal_states(): void
+    {
+        $transport = new FakeTransport;
+        $client = new EnvaiClient(new EnvaiConfig(baseUrl: 'https://envai.example', apiKey: new SensitiveString('synthetic')), $transport);
+        $notReady = $this->resource('original-ready');
+        $notReady['lifecycle'] = 'uploaded';
+        foreach ([$notReady, $this->resource('original-ready'), $this->resource('pending'), $this->resource('ready'), $this->resource('recoverable'), $this->resource('failed')] as $resource) {
+            $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $resource])));
         }
+
         self::assertSame('ready', $client->attachments()->wait('w', 'c', 'a', intervalMilliseconds: 1)->lifecycle);
-        self::assertTrue($client->attachments()->wait('w', 'c', 'a')->conversion->retryable);
-        self::assertSame(['GET', 'GET', 'GET'], array_map(fn ($r) => $r->method, $transport->requests));
+        self::assertSame('ready', $client->attachments()->wait('w', 'c', 'a', intervalMilliseconds: 1)->lifecycle);
+        $failed = $client->attachments()->wait('w', 'c', 'a', intervalMilliseconds: 1);
+        self::assertFalse($failed->conversion->recoverable);
+        self::assertTrue($failed->conversion->retryable);
+        self::assertSame(['GET', 'GET', 'GET', 'GET', 'GET', 'GET'], array_map(fn ($request) => $request->method, $transport->requests));
+    }
+
+    public function test_wait_preserves_withdrawn_and_cancellation_behavior(): void
+    {
+        $transport = new FakeTransport;
+        $client = new EnvaiClient(new EnvaiConfig(baseUrl: 'https://envai.example', apiKey: new SensitiveString('synthetic')), $transport);
+        $withdrawn = $this->resource('pending');
+        $withdrawn['lifecycle'] = 'deleted';
+        $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $withdrawn])));
+        self::assertSame('deleted', $client->attachments()->wait('w', 'c', 'a')->lifecycle);
+
+        $cancelled = new CancellationSource;
+        $cancelled->cancel();
+        try {
+            $client->attachments()->wait('w', 'c', 'a', token: $cancelled);
+            self::fail('Cancelled polling continued.');
+        } catch (OperationCancelledException) {
+            self::assertCount(1, $transport->requests);
+        }
+
         $this->expectException(\InvalidArgumentException::class);
         $client->attachments()->wait('w', 'c', 'a', timeoutSeconds: 0);
+    }
+
+    public function test_native_upload_requires_both_advertised_capabilities(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'envai-attachment');
+        file_put_contents($path, 'synthetic');
+        try {
+            foreach ([
+                'missing original flag' => ['chat_attachments' => true],
+                'listed original flag is not boolean' => ['chat_attachments', 'chat_attachment_originals'],
+                'false original flag' => ['chat_attachments' => true, 'chat_attachment_originals' => false],
+                'unknown original flag' => ['chat_attachments' => true, 'chat_attachment_originals_beta' => true],
+            ] as $features) {
+                $transport = new FakeTransport;
+                $client = $this->client($transport, $features);
+                try {
+                    $client->attachments()->upload('w', 'c', $path, 'stable-upload');
+                    self::fail('Native upload passed without both capabilities.');
+                } catch (UnsupportedCapabilityException) {
+                    self::assertCount(1, $transport->requests, 'Only the capability preflight may reach the transport.');
+                    self::assertSame('GET', $transport->requests[0]->method);
+                    self::assertCount(0, array_filter($transport->requests, static fn ($request): bool => $request->method !== 'GET'));
+                }
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_native_upload_also_requires_legacy_attachment_capability(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'envai-attachment');
+        file_put_contents($path, 'synthetic');
+        try {
+            $transport = new FakeTransport;
+            $client = $this->client($transport, []);
+            try {
+                $client->attachments()->upload('w', 'c', $path, 'stable-upload');
+                self::fail('Native upload passed without chat_attachments.');
+            } catch (UnsupportedCapabilityException) {
+                self::assertCount(1, $transport->requests);
+                self::assertSame('GET', $transport->requests[0]->method);
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_legacy_attachment_reads_and_deletes_do_not_require_original_capability(): void
+    {
+        $transport = new FakeTransport;
+        $client = new EnvaiClient(new EnvaiConfig(baseUrl: 'https://envai.example', apiKey: new SensitiveString('synthetic')), $transport);
+        $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $this->resource()])));
+        self::assertSame('ready', $client->attachments()->get('w', 'c', 'a')->lifecycle);
+
+        $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3'], json_encode(['protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3], 'legacy_v2_mode' => 'historical_reads_replay_only', 'features' => ['chat_attachments']])));
+        $transport->queueResponse(new HttpResponse(202, [], json_encode(['data' => $this->resource()])));
+        self::assertSame('ready', $client->attachments()->delete('w', 'c', 'a')->lifecycle);
     }
 
     public function test_invalid_ids_do_not_reach_transport(): void

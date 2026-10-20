@@ -93,7 +93,12 @@ final readonly class ChatAttachmentsService
             $remaining = max(1, (int) ceil($deadline - microtime(true)));
             $requests = new TypedRequester($this->executor, $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining));
             $value = $this->resource('GET', $workspaceId, $chatId, $attachmentId, requests: $requests);
-            if (in_array($value->lifecycle, ['deleting', 'deleted'], true) || $value->conversion->status === 'completed' || $value->conversion->status === 'failed' && ! $value->conversion->recoverable) {
+            if (
+                in_array($value->lifecycle, ['deleting', 'deleted'], true)
+                || $value->conversion->status === 'completed'
+                || ($value->conversion->status === 'failed' && ! $value->conversion->recoverable)
+                || ($value->conversion->status === 'not_required' && $value->lifecycle === 'ready')
+            ) {
                 return $value;
             }
             $until = min($deadline, microtime(true) + $intervalMilliseconds / 1000);

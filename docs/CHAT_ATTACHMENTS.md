@@ -1,10 +1,10 @@
 # Chat attachments
 
-This unreleased feature requires a matching backend advertising `chat_attachments` in contract-3 capabilities. The SDK checks this before attachment mutations and messages containing attachment IDs. It never falls back to sending the text alone.
+Native chat-file uploads require contract-3 capabilities advertising `chat_attachments` and the boolean feature `features.chat_attachment_originals: true`. The SDK checks these capabilities before sending the multipart upload. It does not fall back to OCR or send the message text without its attachment IDs.
 
-Upload one immutable original with an upload idempotency key, poll its conversion, then send ordered attachment IDs with a separate stable message idempotency key. A message acknowledgment must contain those same IDs. Pending or failed selected files block the whole turn; explicitly retry a permitted conversion or remove that file before sending. Successful conversions are reused. Poll timeouts cancel only the local wait. Mutations are never automatically retried, even with a key: reconcile an uncertain response before explicitly replaying the same payload/key.
+A native upload becomes ready after the server stores the original. Its conversion status is `not_required` and `derived` is null. `wait()` returns for this state when the lifecycle is `ready`, without an extra status request. It continues to recognize converted `completed`, terminal `failed`, recoverable failures, and withdrawn resources from older attachment records. Send ordered attachment IDs with a separate stable message idempotency key. A message acknowledgment must contain those same IDs. Mutations are never automatically retried, even with a key. Reconcile an uncertain response before explicitly replaying the same payload and key.
 
-Supported inputs are `.md`, `.txt`, `.csv`, `.xlsx`, `.pdf`, `.docx`, `.mp3`, and `.mp4`. PDF/DOCX use existing Mistral OCR; MP3 and the mixed audio tracks of MP4 use direct ElevenLabs Scribe. MP4 visual frames are not analyzed. Native workbook conversion does not execute formulas. There is no model-specific multimodal routing, automatic Wiki indexing, guaranteed Office editing/export, or automatic mounting of original files in tools.
+The legacy conversion path supports `.md`, `.txt`, `.csv`, `.xlsx`, `.pdf`, `.docx`, `.mp3`, and `.mp4`. PDF/DOCX use existing Mistral OCR; MP3 and the mixed audio tracks of MP4 use direct ElevenLabs Scribe. MP4 visual frames are not analyzed. Native uploads retain their originals without invoking these converters. The server and selected model determine whether a native format is supported. There is no automatic Wiki indexing, guaranteed Office editing/export, or automatic mounting of original files in tools.
 
 The complete textual projection must fit the server and model context budgets; oversized input fails explicitly and the converted attachment stays available. No silent truncation occurs. Originals and derivatives remain private and scoped to the owning user, workspace and chat. Forked/restored text does not grant access to originals. Status/list/download/retry/delete are separate operations. Download selects `kind=original` or `kind=derived`.
 
@@ -15,7 +15,7 @@ Conversion cost is exposed in the attachment's `usage_cost`; inference is attrib
 ```php
 $uploaded = $client->attachments()->upload($workspaceId, $chatId, 'invoice.pdf', 'upload-invoice-1', 'application/pdf');
 $ready = $client->attachments()->wait($workspaceId, $chatId, $uploaded->attachmentId);
-if ($ready->lifecycle !== 'ready' || $ready->conversion->status !== 'completed') {
+if ($ready->lifecycle !== 'ready' || ! in_array($ready->conversion->status, ['completed', 'not_required'], true)) {
     throw new RuntimeException('Resolve or remove the failed attachment before sending');
 }
 $result = $client->chat($workspaceId, $chatId)->sendAndWait('Summarize the invoice.', [$ready->attachmentId], 'message-invoice-1');
