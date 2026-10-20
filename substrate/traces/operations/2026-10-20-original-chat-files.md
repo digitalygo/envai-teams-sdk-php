@@ -33,3 +33,15 @@ git diff --check
 Source manifests were compared against the actual worktree and both verification copies with no drift. Frozen ten-file package: 19ef2713b077b330ed94c0b0f0aa81c427dc02182bb9ee13b67c46c31d336914. Independent quality PASS and focused security PASS cover this exact package. No provider, OCR, production API or real user-file request was made.
 
 The repository has no pull request template or directives/expectations directories. AGENTS.md and the current CI workflow were read. Review capability failures before multipart, ready/not_required polling, original source field serialization and unchanged default-mode behavior. Rollback through a reviewed compatibility change, never by silently allowing OCR fallback. Temporary test resources are owned by the parent task and are removed after combined verification.
+
+## Update 2026-10-20: canonical capability-list interoperability
+
+Local activation exposed a contract mismatch missed by the original boolean-map fixtures. The real Envai v3 endpoint and the published Go CapabilitiesResponse both advertise enabled capabilities as a string list. All three required original-file names were present, but SDK v1.2.0 and the consumer's map-only gate rejected that valid response. The earlier diagnostic of absent server capabilities was therefore incorrect; the consumer interpretation was wrong.
+
+The SDK now accepts an exact required name in a homogeneous positive string list or an exact true value in a strict boolean map. Missing new names, old lists advertising only chat attachments, false values, mixed lists and non-boolean maps still fail before multipart transmission. Protocol negotiation, authorization, original bytes, idempotency, no-blind-retry behavior and the no-OCR fallback guarantee are unchanged. No server or schema change is needed.
+
+A canonical fixture and provenance record are tied to the actual Envai Go source. New interoperability tests exercise both native attachment and original wiki uploads with GET-before-POST ordering, exact bytes/checksums, original mode and unchanged keys. The old test that incorrectly rejected a fully advertised list was corrected explicitly; negative missing-name coverage was preserved and expanded.
+
+The leader independently ran PHP 8.2 Composer validation/Pint/PHPStan/audit and the full PHP 8.5 suite plus Clover coverage. All exited 0: 2250 cases, 9119 assertions, 169 existing optional Illuminate/database-DSN skips; ContractTransport covers 179/180 executable statements. Frozen eight-file package 3994e37dcb0aea29ddcf6042706453f4a9d84dd4bdbd86ffba90383179b406a0 received quality PASS and focused security PASS. A subsequent guide-only clarification included both required names in the map example and clarified that unrelated names are ignored, not rejected; executable files are unchanged.
+
+No real file or paid inference was used. BudgetMind remains fail-closed on installed SDK v1.2.0 until this correction is released and its own admission gate is aligned. Publication is a corrective SDK pull request under the previously authorized feature workflow; merge/tag/deployment is not claimed here.

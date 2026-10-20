@@ -13,6 +13,7 @@ use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
 use Digitalygo\Envai\Http\CancellationSource;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\MultipartBody;
+use Digitalygo\Envai\Http\MultipartFile;
 use Digitalygo\Envai\Http\RetrySafety;
 use Digitalygo\Envai\Models\Chat\ChatAttachment;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
@@ -151,9 +152,12 @@ final class ChatAttachmentsTest extends TestCase
         try {
             foreach ([
                 'missing original flag' => ['chat_attachments' => true],
-                'listed original flag is not boolean' => ['chat_attachments', 'chat_attachment_originals'],
+                'legacy list missing original flags' => ['chat_attachments'],
                 'false original flag' => ['chat_attachments' => true, 'chat_attachment_originals' => false],
                 'unknown original flag' => ['chat_attachments' => true, 'chat_attachment_originals_beta' => true],
+                'unknown original name in list' => ['chat_attachments', 'chat_attachment_originals_beta'],
+                'non boolean original flag' => ['chat_attachments' => true, 'chat_attachment_originals' => 'true'],
+                'mixed feature list' => ['chat_attachments', 'chat_attachment_originals', 42],
             ] as $features) {
                 $transport = new FakeTransport;
                 $client = $this->client($transport, $features);
@@ -166,6 +170,31 @@ final class ChatAttachmentsTest extends TestCase
                     self::assertCount(0, array_filter($transport->requests, static fn ($request): bool => $request->method !== 'GET'));
                 }
             }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_native_upload_accepts_an_advertised_feature_name_list(): void
+    {
+        $bytes = "listed native bytes\n";
+        $path = tempnam(sys_get_temp_dir(), 'envai-attachment');
+        file_put_contents($path, $bytes);
+        try {
+            $transport = new FakeTransport;
+            $client = $this->client($transport, ['chat_attachments', 'chat_attachment_originals']);
+            $transport->queueResponse(new HttpResponse(202, [], json_encode(['data' => $this->resource('original-ready')])));
+
+            $attachment = $client->attachments()->upload('w', 'c', $path, 'listed-upload');
+
+            self::assertSame('ready', $attachment->lifecycle);
+            self::assertSame(['GET', 'POST'], array_map(static fn ($request): string => $request->method, $transport->requests));
+            $request = $transport->requests[1];
+            self::assertSame(['listed-upload'], $request->headers['idempotency-key']);
+            self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
+            self::assertInstanceOf(MultipartBody::class, $request->body);
+            self::assertInstanceOf(MultipartFile::class, $request->body->parts[0]);
+            self::assertSame($bytes, $request->body->parts[0]->contents());
         } finally {
             unlink($path);
         }

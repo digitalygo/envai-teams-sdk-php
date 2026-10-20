@@ -152,6 +152,37 @@ final class WikiServicesTest extends TestCase
         }
     }
 
+    public function test_original_source_upload_accepts_an_advertised_feature_name_list(): void
+    {
+        $bytes = "listed original wiki bytes\n";
+        $path = tempnam(sys_get_temp_dir(), 'envai-wiki-original');
+        file_put_contents($path, $bytes);
+        try {
+            $transport = new FakeTransport;
+            $client = $this->client($transport);
+            $this->capabilities($transport, ['replay', 'wiki_original_sources']);
+            $source = WikiContractTest::fixture('source-accepted')['data'];
+            $source['conversion']['status'] = 'not_required';
+            $this->responseData($transport, $source, 202);
+
+            $uploaded = $client->workspaceFiles()->uploadSource('w', $path, 'listed-original-key', 'source.txt', 'text/plain', 'original');
+
+            self::assertSame('not_required', $uploaded->conversion->status);
+            self::assertSame(['GET', 'POST'], array_map(static fn ($request): string => $request->method, $transport->requests));
+            $request = $transport->requests[1];
+            self::assertSame(['listed-original-key'], $request->headers['idempotency-key']);
+            self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
+            self::assertInstanceOf(MultipartBody::class, $request->body);
+            self::assertCount(2, $request->body->parts);
+            self::assertInstanceOf(MultipartField::class, $request->body->parts[0]);
+            self::assertSame('original', $request->body->parts[0]->value);
+            self::assertInstanceOf(MultipartFile::class, $request->body->parts[1]);
+            self::assertSame($bytes, $request->body->parts[1]->contents());
+        } finally {
+            unlink($path);
+        }
+    }
+
     public function test_original_source_upload_requires_true_capability_before_mutation(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'envai-wiki-original');
@@ -159,9 +190,12 @@ final class WikiServicesTest extends TestCase
         try {
             foreach ([
                 'missing' => [],
+                'legacy list missing original' => ['chat_attachments'],
                 'false' => ['wiki_original_sources' => false],
                 'unknown' => ['wiki_original_sources_beta' => true],
+                'unknown name in list' => ['wiki_original_sources_beta'],
                 'not boolean' => ['wiki_original_sources' => 'true'],
+                'mixed list' => ['wiki_original_sources', 42],
             ] as $features) {
                 $transport = new FakeTransport;
                 $client = $this->client($transport);
@@ -170,7 +204,7 @@ final class WikiServicesTest extends TestCase
 
                 try {
                     $client->workspaceFiles()->uploadSource('w', $path, 'key', processing: 'original');
-                    self::fail('Original upload passed without the boolean capability.');
+                    self::fail('Original upload passed without the advertised capability.');
                 } catch (UnsupportedCapabilityException) {
                     self::assertCount(1, $transport->requests);
                     self::assertSame('GET', $transport->requests[0]->method);

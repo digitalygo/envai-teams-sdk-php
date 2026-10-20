@@ -67,13 +67,13 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
                 if (! $this->hasFeature('chat_attachments')) {
                     throw new UnsupportedCapabilityException('Server does not advertise chat_attachments.');
                 }
-                if (! $this->hasBooleanFeature('chat_attachment_originals')) {
+                if (! $this->hasFeature('chat_attachment_originals')) {
                     throw new UnsupportedCapabilityException('Server does not advertise chat_attachment_originals.');
                 }
             } elseif (($kind === 'attachment' || $attachmentIds !== []) && ! $this->hasFeature('chat_attachments')) {
                 throw new ContractCompatibilityException('Server does not advertise chat_attachments.');
             }
-            if ($kind === 'wiki' && $this->usesOriginalSourceProcessing($request) && ! $this->hasBooleanFeature('wiki_original_sources')) {
+            if ($kind === 'wiki' && $this->usesOriginalSourceProcessing($request) && ! $this->hasFeature('wiki_original_sources')) {
                 throw new UnsupportedCapabilityException('Server does not advertise wiki_original_sources.');
             }
         }
@@ -187,15 +187,22 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
     private function hasFeature(string $name): bool
     {
         if (array_is_list($this->features)) {
+            foreach ($this->features as $feature) {
+                if (! is_string($feature)) {
+                    return false;
+                }
+            }
+
             return in_array($name, $this->features, true);
         }
 
-        return ($this->features[$name] ?? null) === true;
-    }
+        foreach ($this->features as $feature => $enabled) {
+            if (! is_string($feature) || ! is_bool($enabled)) {
+                return false;
+            }
+        }
 
-    private function hasBooleanFeature(string $name): bool
-    {
-        return ! array_is_list($this->features) && ($this->features[$name] ?? null) === true;
+        return ($this->features[$name] ?? null) === true;
     }
 
     private function isChatAttachmentUpload(HttpRequest $request): bool
