@@ -13,6 +13,7 @@ use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\DownloadResult;
 use Digitalygo\Envai\Http\MultipartBody;
+use Digitalygo\Envai\Http\MultipartField;
 use Digitalygo\Envai\Http\MultipartFile;
 use Digitalygo\Envai\Http\ResourceResponseBodySink;
 use Digitalygo\Envai\Http\RetrySafety;
@@ -43,17 +44,23 @@ final readonly class WorkspaceFilesService
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
     }
 
-    public function uploadSource(string $workspaceId, string $localPath, string $idempotencyKey, string $filename = '', string $mimeType = 'application/octet-stream'): WikiSource
+    public function uploadSource(string $workspaceId, string $localPath, string $idempotencyKey, string $filename = '', string $mimeType = 'application/octet-stream', string $processing = 'convert'): WikiSource
     {
+        if (! in_array($processing, ['convert', 'original'], true)) {
+            throw new \InvalidArgumentException('Source processing must be convert or original.');
+        }
+
         $size = @filesize($localPath);
         if (! is_file($localPath) || ! is_readable($localPath) || $size === false || $size > 1000000000) {
             throw FileException::local('Source must be a readable file of at most 1,000,000,000 bytes.');
         }
+        $parts = $processing === 'original' ? [new MultipartField('processing', 'original')] : [];
+        $parts[] = MultipartFile::fromPath('file', $localPath, $filename, $mimeType);
         $result = $this->requests->multipart(
             'POST',
             $this->requests->resolve('/workspaces/{workspace_id}/files/sources', ['workspace_id' => $workspaceId]),
             [],
-            new MultipartBody([MultipartFile::fromPath('file', $localPath, $filename, $mimeType)]),
+            new MultipartBody($parts),
             WikiSource::class,
             EnvelopeMode::Envelope,
             idempotencyKey: $idempotencyKey,

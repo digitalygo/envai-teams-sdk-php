@@ -8,9 +8,12 @@ use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Exceptions\FileException;
+use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
 use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\MultipartBody;
+use Digitalygo\Envai\Http\MultipartField;
+use Digitalygo\Envai\Http\MultipartFile;
 use Digitalygo\Envai\Http\RetrySafety;
 use Digitalygo\Envai\Models\Wiki\CategoryIndexRequest;
 use Digitalygo\Envai\Models\Wiki\WikiRunRequest;
@@ -27,7 +30,25 @@ final class WikiServicesTest extends TestCase
 
     private function response(FakeTransport $transport, string $fixture, int $status = 200): void
     {
-        $transport->queueResponse(new HttpResponse($status, [], json_encode(['data' => WikiContractTest::fixture($fixture)['data']])));
+        $this->responseData($transport, WikiContractTest::fixture($fixture)['data'], $status);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function responseData(FakeTransport $transport, array $data, int $status = 200): void
+    {
+        $transport->queueResponse(new HttpResponse($status, [], json_encode(['data' => $data])));
+    }
+
+    /** @param array<mixed> $features */
+    private function capabilities(FakeTransport $transport, array $features): void
+    {
+        $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3'], json_encode([
+            'protocol_version' => 3,
+            'contract_version' => 3,
+            'supported_contract_versions' => [2, 3],
+            'legacy_v2_mode' => 'historical_reads_replay_only',
+            'features' => $features,
+        ])));
     }
 
     public function test_all_public_services_use_scoped_paths_and_safe_retry_rules(): void
@@ -75,9 +96,14 @@ final class WikiServicesTest extends TestCase
             self::assertSame('pending_conversion', $source->indexing->status);
             $request = end($transport->requests);
             self::assertInstanceOf(MultipartBody::class, $request->body);
+            self::assertCount(1, $request->body->parts);
+            self::assertInstanceOf(MultipartFile::class, $request->body->parts[0]);
             self::assertSame($path, $request->body->parts[0]->path);
             self::assertNull($request->body->parts[0]->contents);
             self::assertSame('file', $request->body->parts[0]->name);
+            self::assertSame('notes.md', $request->body->parts[0]->filename);
+            self::assertSame('text/markdown', $request->body->parts[0]->mimeType);
+            self::assertSame(hash_file('sha256', $path), hash('sha256', $request->body->parts[0]->contents()));
             self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
             self::assertSame(['upload-key'], $request->headers['idempotency-key']);
             $this->response($transport, 'source-accepted');
@@ -89,6 +115,107 @@ final class WikiServicesTest extends TestCase
             self::assertSame(RetrySafety::NeverRetry, end($transport->requests)->retrySafety);
         } finally {
             unlink($path);
+        }
+    }
+
+    public function test_original_source_upload_is_explicit_and_preserves_file_bytes(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'envai-wiki-original');
+        file_put_contents($path, "original bytes\n");
+        try {
+            $transport = new FakeTransport;
+            $client = $this->client($transport);
+            $this->capabilities($transport, ['wiki_original_sources' => true]);
+            $source = WikiContractTest::fixture('source-accepted')['data'];
+            $source['conversion']['status'] = 'not_required';
+            $this->responseData($transport, $source, 202);
+
+            $uploaded = $client->workspaceFiles()->uploadSource('w', $path, 'stable-original-key', 'source.txt', 'text/plain', 'original');
+
+            self::assertSame('not_required', $uploaded->conversion->status);
+            $request = end($transport->requests);
+            self::assertInstanceOf(MultipartBody::class, $request->body);
+            self::assertCount(2, $request->body->parts);
+            self::assertInstanceOf(MultipartField::class, $request->body->parts[0]);
+            self::assertSame('processing', $request->body->parts[0]->name);
+            self::assertSame('original', $request->body->parts[0]->value);
+            self::assertInstanceOf(MultipartFile::class, $request->body->parts[1]);
+            self::assertSame($path, $request->body->parts[1]->path);
+            self::assertSame('source.txt', $request->body->parts[1]->filename);
+            self::assertSame('text/plain', $request->body->parts[1]->mimeType);
+            self::assertSame(hash_file('sha256', $path), hash('sha256', $request->body->parts[1]->contents()));
+            self::assertSame(['stable-original-key'], $request->headers['idempotency-key']);
+            self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
+            self::assertSame(['/api/v1/atp/v3/capabilities', '/api/v1/workspaces/w/files/sources'], array_map(static fn ($request): string => parse_url($request->uri, PHP_URL_PATH), $transport->requests));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_original_source_upload_requires_true_capability_before_mutation(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'envai-wiki-original');
+        file_put_contents($path, 'synthetic');
+        try {
+            foreach ([
+                'missing' => [],
+                'false' => ['wiki_original_sources' => false],
+                'unknown' => ['wiki_original_sources_beta' => true],
+                'not boolean' => ['wiki_original_sources' => 'true'],
+            ] as $features) {
+                $transport = new FakeTransport;
+                $client = $this->client($transport);
+                $this->capabilities($transport, $features);
+                $this->response($transport, 'source-accepted', 202);
+
+                try {
+                    $client->workspaceFiles()->uploadSource('w', $path, 'key', processing: 'original');
+                    self::fail('Original upload passed without the boolean capability.');
+                } catch (UnsupportedCapabilityException) {
+                    self::assertCount(1, $transport->requests);
+                    self::assertSame('GET', $transport->requests[0]->method);
+                }
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_original_upload_retry_reuses_key_and_never_retries_automatically(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'envai-wiki-original');
+        file_put_contents($path, 'synthetic');
+        try {
+            $transport = new FakeTransport;
+            $client = $this->client($transport);
+            $this->capabilities($transport, ['wiki_original_sources' => true]);
+            $this->response($transport, 'source-accepted', 202);
+            $this->response($transport, 'source-accepted', 202);
+
+            $client->workspaceFiles()->uploadSource('w', $path, 'same-key', processing: 'original');
+            $client->workspaceFiles()->uploadSource('w', $path, 'same-key', processing: 'original');
+
+            $uploads = array_values(array_filter($transport->requests, static fn ($request): bool => $request->method === 'POST'));
+            self::assertCount(2, $uploads);
+            foreach ($uploads as $request) {
+                self::assertSame(['same-key'], $request->headers['idempotency-key']);
+                self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_invalid_processing_mode_fails_without_transport_access(): void
+    {
+        $transport = new FakeTransport;
+        $path = tempnam(sys_get_temp_dir(), 'envai-wiki-invalid');
+        try {
+            $this->expectException(\InvalidArgumentException::class);
+            $this->client($transport)->workspaceFiles()->uploadSource('w', $path, 'key', processing: 'ocr');
+        } finally {
+            unlink($path);
+            self::assertSame([], $transport->requests);
         }
     }
 

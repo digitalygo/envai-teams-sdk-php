@@ -12,7 +12,7 @@ use Digitalygo\Envai\Models\Internal\Wire;
  *
  * `event_types` is a positive discovery list rather than a parser allowlist:
  * clients remain forward compatible with valid ATP events absent from this
- * response, and every list is preserved as received.
+ * response. `features` preserves the legacy name list or boolean flag map.
  */
 final readonly class Capabilities implements ArrayHydratable
 {
@@ -20,7 +20,7 @@ final readonly class Capabilities implements ArrayHydratable
      * @param  list<string>  $families
      * @param  list<string>  $eventTypes
      * @param  list<string>  $toolKinds
-     * @param  list<string>  $features
+     * @param  list<string>|array<string, bool>  $features
      * @param  list<int>  $supportedContractVersions
      * @param  array<string, mixed>  $extra  Unknown payload keys preserved for forward compatibility.
      */
@@ -54,12 +54,30 @@ final readonly class Capabilities implements ArrayHydratable
             $versions[] = $version;
         }
 
+        $features = $data['features'] ?? null;
+        if (! is_array($features)) {
+            throw new \InvalidArgumentException('Capabilities features must be a list or a boolean map.');
+        }
+        if (array_is_list($features)) {
+            foreach ($features as $feature) {
+                if (! is_string($feature)) {
+                    throw new \InvalidArgumentException('Capabilities features list must contain strings.');
+                }
+            }
+        } else {
+            foreach ($features as $name => $enabled) {
+                if (! is_string($name) || ! is_bool($enabled)) {
+                    throw new \InvalidArgumentException('Capabilities feature map must contain boolean values.');
+                }
+            }
+        }
+
         return new self(
             protocolVersion: Wire::int($data, 'protocol_version', $context),
             families: Wire::stringList($data, 'families', $context),
             eventTypes: Wire::stringList($data, 'event_types', $context),
             toolKinds: Wire::stringList($data, 'tool_kinds', $context),
-            features: Wire::stringList($data, 'features', $context),
+            features: $features,
             extra: Wire::extra($data, ['protocol_version', 'families', 'event_types', 'tool_kinds', 'features', 'contract_version', 'supported_contract_versions', 'legacy_v2_mode']),
             contractVersion: Wire::nullableInt($data, 'contract_version', $context),
             supportedContractVersions: $versions,

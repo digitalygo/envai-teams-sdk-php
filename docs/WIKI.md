@@ -11,6 +11,8 @@ The public contract is `packages/contracts/openapi.yaml`; `wiki.json` describes 
 5. Explicitly POST `/wiki/outbox/runs` to clean artifacts and delete the original and Markdown. `wiki.outbox.file.deleted` follows confirmation of both deletes.
 6. POST `/wiki/syncs` runs inbox then outbox; a failed first phase does not skip the second. Outbox is snapshotted when its phase starts. New uploads after an inbox snapshot wait for a later run.
 
+To upload an original without conversion, pass `processing: 'original'` as the sixth argument to `uploadSource()`. The server must advertise the boolean capability `features.wiki_original_sources: true`; otherwise the SDK rejects the request before sending the multipart upload. The source reports `conversion.status=not_required`. This mode does not start inbox or outbox runs. Omitting the argument, or passing `convert`, keeps the existing conversion flow and multipart fields unchanged.
+
 Paths above are relative to `/api/v1/workspaces/{workspace_id}` except where fully specified. All metadata responses use `{data: ...}`. Source status retains scoped tombstones. Original download at GET `/files/sources/{file_id}/download` checks current RAW visibility; it is not a public S3 URL.
 
 Supported originals: MD/TXT, CSV, XLSX, PDF/DOCX via `mistral-ocr-latest`, MP3 and MP4 audio via direct ElevenLabs `scribe_v2`. MP4 has no frame analysis. The inclusive original limit is 1,000,000,000 bytes. There is no independent application duration limit. Provider limitations and incomplete conversion are explicit errors, never silent truncation. Stream large uploads from a local file; align proxy/PHP request-size and timeout settings with this limit.
@@ -102,7 +104,16 @@ $index = $client->wiki()->categoryIndex(
 $withdrawn = $client->wiki()->withdraw($workspaceId, $source->fileId);
 ```
 
-`outbox()` and `sync()` use the same `WikiRunRequest` and explicit idempotency key. Mutations and upload are never retried automatically by the SDK. An ambiguous upload must reuse the same key and original bytes if the application deliberately replays it. Never generate a new key merely because HTTP timed out. `uploadSource()` keeps a filesystem-backed multipart part; the standard cURL transport streams it without loading 1 GB into PHP memory. The application must keep the file unchanged for the request and replay.
+An original-only upload is separate from the conversion-and-inbox flow above:
+
+```php
+$original = $client->workspaceFiles()->uploadSource(
+    $workspaceId, '/private/input/report.pdf', $stableOriginalKey,
+    filename: 'report.pdf', mimeType: 'application/pdf', processing: 'original',
+);
+```
+
+This call stores the source without starting an inbox or outbox run. `outbox()` and `sync()` use the same `WikiRunRequest` and explicit idempotency key. Mutations and upload are never retried automatically by the SDK. An ambiguous upload must reuse the same key and original bytes if the application deliberately replays it. Never generate a new key merely because HTTP timed out. `uploadSource()` keeps a filesystem-backed multipart part; the standard cURL transport streams it without loading 1 GB into PHP memory. The application must keep the file unchanged for the request and replay.
 
 ### Verify and durably accept
 

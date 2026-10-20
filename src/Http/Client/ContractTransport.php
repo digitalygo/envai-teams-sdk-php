@@ -9,8 +9,11 @@ use Digitalygo\Envai\Contracts\EventStreamTransport;
 use Digitalygo\Envai\Contracts\HttpTransport;
 use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Exceptions\TransportException;
+use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
 use Digitalygo\Envai\Http\HttpRequest;
 use Digitalygo\Envai\Http\HttpResponse;
+use Digitalygo\Envai\Http\MultipartBody;
+use Digitalygo\Envai\Http\MultipartField;
 use Digitalygo\Envai\Http\StreamRequest;
 
 final class ContractTransport implements EventStreamTransport, HttpTransport
@@ -59,8 +62,19 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         }
         if ($mutation) {
             $this->preflight($request);
-            if (($kind === 'attachment' || $attachmentIds !== []) && ! in_array('chat_attachments', $this->features, true)) {
+            $chatAttachmentUpload = $this->isChatAttachmentUpload($request);
+            if ($chatAttachmentUpload) {
+                if (! $this->hasFeature('chat_attachments')) {
+                    throw new UnsupportedCapabilityException('Server does not advertise chat_attachments.');
+                }
+                if (! $this->hasBooleanFeature('chat_attachment_originals')) {
+                    throw new UnsupportedCapabilityException('Server does not advertise chat_attachment_originals.');
+                }
+            } elseif (($kind === 'attachment' || $attachmentIds !== []) && ! $this->hasFeature('chat_attachments')) {
                 throw new ContractCompatibilityException('Server does not advertise chat_attachments.');
+            }
+            if ($kind === 'wiki' && $this->usesOriginalSourceProcessing($request) && ! $this->hasBooleanFeature('wiki_original_sources')) {
+                throw new UnsupportedCapabilityException('Server does not advertise wiki_original_sources.');
             }
         }
         $response = $this->transport->send(new HttpRequest(
@@ -168,6 +182,44 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         }
         $this->features = is_array($data['features'] ?? null) ? $data['features'] : [];
         $this->verifiedCapabilities = true;
+    }
+
+    private function hasFeature(string $name): bool
+    {
+        if (array_is_list($this->features)) {
+            return in_array($name, $this->features, true);
+        }
+
+        return ($this->features[$name] ?? null) === true;
+    }
+
+    private function hasBooleanFeature(string $name): bool
+    {
+        return ! array_is_list($this->features) && ($this->features[$name] ?? null) === true;
+    }
+
+    private function isChatAttachmentUpload(HttpRequest $request): bool
+    {
+        return strtoupper($request->method) === 'POST'
+            && preg_match('#/workspaces/[^/]+/chats/[^/]+/attachments$#', (string) parse_url($request->uri, PHP_URL_PATH)) === 1;
+    }
+
+    private function usesOriginalSourceProcessing(HttpRequest $request): bool
+    {
+        if (strtoupper($request->method) !== 'POST' || ! $request->body instanceof MultipartBody) {
+            return false;
+        }
+        if (preg_match('#/workspaces/[^/]+/files/sources$#', (string) parse_url($request->uri, PHP_URL_PATH)) !== 1) {
+            return false;
+        }
+
+        foreach ($request->body->parts as $part) {
+            if ($part instanceof MultipartField && $part->name === 'processing' && $part->value === 'original') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function validateResponse(HttpResponse $response): void

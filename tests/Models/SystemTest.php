@@ -43,6 +43,36 @@ final class SystemTest extends TestCase
         $this->assertSame([], $capabilities->extra);
     }
 
+    public function test_capabilities_preserves_boolean_feature_flags(): void
+    {
+        $features = [
+            'chat_attachment_originals' => true,
+            'wiki_original_sources' => false,
+        ];
+        $capabilities = Capabilities::fromArray([
+            'protocol_version' => 3,
+            'families' => [],
+            'event_types' => [],
+            'tool_kinds' => [],
+            'features' => $features,
+        ]);
+
+        self::assertSame($features, $capabilities->features);
+        self::assertSame($features, $capabilities->toArray()['features']);
+    }
+
+    public function test_capabilities_rejects_non_boolean_feature_maps(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Capabilities::fromArray([
+            'protocol_version' => 3,
+            'families' => [],
+            'event_types' => [],
+            'tool_kinds' => [],
+            'features' => ['chat_attachment_originals' => 'true'],
+        ]);
+    }
+
     public function test_capabilities_preserves_unknown_top_level_key_in_extra(): void
     {
         $capabilities = Capabilities::fromArray([
