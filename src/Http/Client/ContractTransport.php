@@ -10,6 +10,7 @@ use Digitalygo\Envai\Contracts\HttpTransport;
 use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
+use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\HttpRequest;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\MultipartBody;
@@ -23,11 +24,14 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
     /** @var array<mixed> */
     private array $features = [];
 
+    /** @param array<string, string> $defaultHeaders */
     public function __construct(
         private readonly HttpTransport&EventStreamTransport $transport,
         private readonly UriResolver $uris,
         private readonly int $version = 3,
         private readonly int $maxLegacyReplayBytes = 67_108_864,
+        private readonly bool $nativeTasks = false,
+        private readonly array $defaultHeaders = [],
     ) {
         if ($maxLegacyReplayBytes < 1) {
             throw new \InvalidArgumentException('maxLegacyReplayBytes must be positive.');
@@ -39,6 +43,13 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
 
     public function send(HttpRequest $request): HttpResponse
     {
+        if ($request->auth === AuthenticationMode::Bearer) {
+            foreach ($this->defaultHeaders as $name => $value) {
+                if (! isset($request->headers[strtolower($name)])) {
+                    $request = $request->withHeader($name, $value);
+                }
+            }
+        }
         if ($this->version === 2 && strtoupper($request->method) !== 'GET') {
             throw new ContractCompatibilityException('Contract 2 read-only mode permits GET requests only.');
         }
@@ -60,8 +71,35 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
                 throw new \InvalidArgumentException('Attachment messages require Idempotency-Key.');
             }
         }
-        if ($mutation) {
+        $nativeFeature = null;
+        if (preg_match('#/chats/[^/]+/deliveries$#', $uri)) {
+            $nativeFeature = 'native_deliveries';
+        } elseif (preg_match('#/chats/[^/]+/delegations$#', $uri)) {
+            $nativeFeature = 'cross_team_delegation';
+        } elseif (preg_match('#/chats/[^/]+/tasks/[^/]+(?:/cancel)?$#', $uri)) {
+            $nativeFeature = 'detached_background';
+        } elseif (preg_match('#/chats/[^/]+/classify-phase$#', $uri)) {
+            $nativeFeature = 'phase_classification';
+        }
+        if ($nativeFeature !== null && (! $this->nativeTasks || $this->version !== 3)) {
+            throw new ContractCompatibilityException('Native background operations require contract 3 with nativeTasks enabled.');
+        }
+        if ($mutation || $nativeFeature !== null) {
             $this->preflight($request);
+            if ($this->nativeTasks && $kind === 'atp' && ! $this->hasFeature('detached_background')) {
+                throw new UnsupportedCapabilityException('Server does not advertise detached_background for the native task extension.');
+            }
+            if ($nativeFeature !== null && ! $this->hasFeature($nativeFeature)) {
+                throw new UnsupportedCapabilityException('Server does not advertise '.$nativeFeature.'.');
+            }
+            $nativeBody = is_string($request->body) ? json_decode($request->body, true) : null;
+            if (is_array($nativeBody)) {
+                foreach (['strict_model' => 'strict_model', 'notify_origin' => 'delegation_notify_origin'] as $field => $feature) {
+                    if (array_key_exists($field, $nativeBody) && (! $this->nativeTasks || ! $this->hasFeature($feature))) {
+                        throw new UnsupportedCapabilityException('Server does not advertise '.$feature.'.');
+                    }
+                }
+            }
             $chatAttachmentUpload = $this->isChatAttachmentUpload($request);
             if ($chatAttachmentUpload) {
                 if (! $this->hasFeature('chat_attachments')) {
@@ -83,7 +121,10 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             $request->requestTimeoutSeconds, $request->auth, $request->retrySafety,
         ));
         $this->validateResponse($response);
-        if ($this->version === 3 && $response->status === 404 && in_array($kind, ['atp', 'capabilities'], true)) {
+        if ($this->nativeTasks && in_array($kind, ['atp', 'capabilities'], true) && $response->status >= 200 && $response->status < 300) {
+            $this->assertNativeAcknowledgment($response->headers);
+        }
+        if ($this->version === 3 && $response->status === 404 && $nativeFeature === null && in_array($kind, ['atp', 'capabilities'], true)) {
             throw new ContractCompatibilityException('The server rejected the contract 3 route; no fallback was attempted.');
         }
         if ($response->status >= 200 && $response->status < 300) {
@@ -102,11 +143,26 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
 
     public function open(StreamRequest $request): EventStreamConnection
     {
+        $defaults = [];
+        foreach ($this->defaultHeaders as $name => $value) {
+            $defaults[strtolower($name)] = [$value];
+        }
+        if ($defaults !== []) {
+            $request = new StreamRequest($request->uri, $request->headers + $defaults,
+                $request->connectTimeoutSeconds, $request->responseHeaderTimeoutSeconds,
+                $request->streamTimeoutSeconds, $request->cancellationToken);
+        }
         $kind = $this->kind($request->uri);
         if ($kind !== 'atp') {
             return $this->transport->open($request);
         }
         $headers = $this->selectedHeaders($request->headers);
+        if ($this->nativeTasks) {
+            $this->preflight(new HttpRequest('GET', $request->uri, $headers, connectTimeoutSeconds: $request->connectTimeoutSeconds));
+            if (! $this->hasFeature('detached_background')) {
+                throw new UnsupportedCapabilityException('Server does not advertise detached_background for the native task stream.');
+            }
+        }
         try {
             $connection = $this->transport->open(new StreamRequest(
                 $this->selectedUri($request->uri, $kind), $headers,
@@ -125,6 +181,7 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
                 throw new ContractCompatibilityException('The negotiated event stream was rejected with HTTP '.$status.'.');
             }
             $this->assertAcknowledgment($connection->headers());
+            $this->assertNativeAcknowledgment($connection->headers());
         } catch (\Throwable $exception) {
             $connection->close();
             throw $exception;
@@ -154,7 +211,8 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($this->verifiedCapabilities) {
             return;
         }
-        $headers = ['x-envai-contract-version' => ['3'], 'accept' => ['application/json']];
+        $headers = $this->selectedHeaders($request->headers);
+        $headers['accept'] = ['application/json'];
         if (isset($request->headers['authorization'])) {
             $headers['authorization'] = $request->headers['authorization'];
         }
@@ -167,6 +225,7 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($response->status !== 200) {
             throw new ContractCompatibilityException('Contract 3 capabilities preflight failed with HTTP '.$response->status.'.');
         }
+        $this->assertNativeAcknowledgment($response->headers);
         $this->validateCapabilities($response);
     }
 
@@ -243,6 +302,23 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
     }
 
     /** @param array<string, list<string>> $headers */
+    private function assertNativeAcknowledgment(array $headers): void
+    {
+        if (! $this->nativeTasks) {
+            return;
+        }
+        $tokens = [];
+        foreach ($headers['x-envai-extensions'] ?? [] as $value) {
+            foreach (explode(',', $value) as $token) {
+                $tokens[] = trim($token);
+            }
+        }
+        if (! in_array('native-tasks-v1', $tokens, true)) {
+            throw new ContractCompatibilityException('Server did not acknowledge native-tasks-v1. A submitted mutation may have executed; do not retry automatically.');
+        }
+    }
+
+    /** @param array<string, list<string>> $headers */
     private function assertAcknowledgment(array $headers): void
     {
         if (($headers['x-envai-contract-version'] ?? []) !== [(string) $this->version]) {
@@ -259,6 +335,13 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             throw new ContractCompatibilityException('Conflicting contract selector.');
         }
         $headers['x-envai-contract-version'] = [(string) $this->version];
+        $extensions = $this->nativeTasks ? ['native-tasks-v1'] : null;
+        if (isset($headers['x-envai-extensions']) && $headers['x-envai-extensions'] !== $extensions) {
+            throw new ContractCompatibilityException('Conflicting native task extension selector. Use nativeTasks configuration.');
+        }
+        if ($extensions !== null) {
+            $headers['x-envai-extensions'] = $extensions;
+        }
 
         return $headers;
     }

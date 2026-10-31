@@ -1,16 +1,18 @@
 # Compatibility and safety
 
-This guide describes the public PHP SDK behavior for the bundled ATP v2
-contract snapshot. It is a compatibility reference, not a guarantee that every
-optional feature is enabled on every Envai deployment.
+This guide describes the bundled ATP v3 contract and optional native task
+extension. ATP v2 remains an immutable historical-read contract. These source
+snapshots do not establish compatibility of previously published SDK packages.
 
 ## Contract snapshots
 
-[`openapi.yaml`](openapi.yaml) and [`events.json`](events.json) are exact
-snapshots covering 52 HTTP operations and ATP v2 event shapes. Their upstream
-revision, source paths, SHA-256 hashes, Git blob IDs and byte counts are recorded
-in [`provenance.json`](../tests/fixtures/current-server/provenance.json).
-Only these two machine-readable contracts are declared as source snapshots.
+[`openapi.yaml`](openapi.yaml) covers 76 HTTP operations. [`events.json`](events.json)
+and [`smidja-native.json`](smidja-native.json) describe ATP v3 and native task
+semantics, including explicit `native-tasks-v1` negotiation. The exact server
+revision, source paths, SHA-256 hashes, Git blob IDs and byte counts for all six
+contract snapshots are recorded in
+[`provenance.json`](../tests/fixtures/current-server/provenance.json).
+See [native background task usage](BACKGROUND_TASKS.md) for opt-in behavior.
 
 The manifest separately records locally generated fixtures. Their events and
 signatures are deterministic test data, not captured customer traffic or

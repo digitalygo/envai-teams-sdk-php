@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Client;
 
+use Digitalygo\Envai\Client\Internal\Poller;
 use Digitalygo\Envai\Client\Internal\TypedRequester;
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\ResponseBodySink;
 use Digitalygo\Envai\Exceptions\FileException;
 use Digitalygo\Envai\Http\AuthenticationMode;
@@ -36,12 +38,22 @@ final readonly class WorkspaceFilesService
     private TypedRequester $requests;
 
     public function __construct(
-        RequestExecutor $executor,
-        UriResolver $uris,
-        int $connectTimeoutSeconds = 10,
-        int $requestTimeoutSeconds = 60,
+        private RequestExecutor $executor,
+        private UriResolver $uris,
+        private int $connectTimeoutSeconds = 10,
+        private int $requestTimeoutSeconds = 60,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
+    }
+
+    /** Waits for an existing resource; never submits a generation or Wiki run. */
+    public function waitForSource(string $workspaceId, string $fileId, float $timeoutSeconds = 300, int $intervalMilliseconds = 1000, ?CancellationToken $token = null): WikiSource
+    {
+        return Poller::wait(
+            fn (int $remaining): WikiSource => (new self($this->executor->withoutRetries(), $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining)))->sourceStatus($workspaceId, $fileId),
+            static fn (WikiSource $value): bool => $value->conversion->status === 'completed' || ($value->conversion->status === 'not_required' && in_array($value->lifecycle, ['inbox', 'raw'], true)) || ($value->conversion->status === 'failed' && ! $value->conversion->recoverable) || in_array($value->lifecycle, ['deleted', 'deleting', 'outbox'], true),
+            $timeoutSeconds, $intervalMilliseconds, $token,
+        );
     }
 
     public function uploadSource(string $workspaceId, string $localPath, string $idempotencyKey, string $filename = '', string $mimeType = 'application/octet-stream', string $processing = 'convert'): WikiSource

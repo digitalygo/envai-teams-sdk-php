@@ -47,7 +47,7 @@ final class EnvaiConfigTest extends IntegrationTestCase
 
         $production = $connections['production'];
 
-        $this->assertSame(['base_url', 'api_key', 'contract_version', 'max_legacy_replay_bytes'], array_keys($production));
+        $this->assertSame(['base_url', 'api_key', 'contract_version', 'native_tasks', 'strict_validation', 'jwks_url', 'headers', 'connect_timeout_seconds', 'request_timeout_seconds', 'stream_timeout_seconds', 'retry_policy', 'max_legacy_replay_bytes'], array_keys($production));
         $this->assertSame(env('ENVAI_BASE_URL'), $production['base_url']);
         $this->assertSame(env('ENVAI_API_KEY'), $production['api_key']);
         $this->assertSame(3, $production['contract_version']);

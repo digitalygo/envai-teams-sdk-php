@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Tests\Sync;
 
 use Digitalygo\Envai\Definitions\Compiler\DefinitionCompiler;
 use Digitalygo\Envai\Exceptions\DefinitionsNotSynchronizedException;
+use Digitalygo\Envai\Exceptions\EnvaiException;
 use Digitalygo\Envai\Sync\DefinitionsService;
 use Digitalygo\Envai\Sync\Planner\SyncOptions;
 use Digitalygo\Envai\Sync\Reconciler\SyncReportStatus;
@@ -21,6 +22,24 @@ use Digitalygo\Envai\Tests\Sync\Fakes\FakeRemoteWriter;
 final class DefinitionsServiceTest extends SyncTestCase
 {
     private const C = 'production';
+
+    public function test_real_apply_invalidates_readiness_before_catalog_or_planner_failure(): void
+    {
+        foreach (['catalog', 'duplicate'] as $failure) {
+            $store = new InMemorySyncStateStore;
+            $store->markManifestReady(self::C, 'previous-ready');
+            $reader = new FakeRemoteReader(tools: $failure === 'duplicate' ? [$this->remoteTool('duplicate'), $this->remoteTool('duplicate')] : []);
+            $service = new DefinitionsService(new DefinitionCompiler, $store, $reader, new FakeRemoteWriter,
+                connection: self::C, definitionsPath: $this->layout(), catalogProvider: $failure === 'catalog' ? static fn () => null : null);
+            try {
+                $service->apply();
+                self::fail('Remote preparation failure was accepted.');
+            } catch (EnvaiException $exception) {
+                self::assertNull($store->readyManifest(self::C));
+            }
+            $store->acquireLock(self::C)->release();
+        }
+    }
 
     public function test_validate_is_a_pure_local_phase(): void
     {

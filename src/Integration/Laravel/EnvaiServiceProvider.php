@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Integration\Laravel;
 
 use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
+use Digitalygo\Envai\Configuration\RetryPolicy;
 use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Integration\Laravel\Actions\ReceiveEnvaiWebhook;
 use Digitalygo\Envai\Integration\Laravel\Console\EnvaiPlanCommand;
@@ -244,7 +245,7 @@ final class EnvaiServiceProvider extends ServiceProvider
             ), previous: $exception);
         }
 
-        if (! is_object($implementation) || ! is_a($implementation, $contract)) {
+        if (! $this->implementsContract($implementation, $contract)) {
             throw new \LogicException(sprintf(
                 'The Envai webhook %s binding must resolve to an implementation of %s.',
                 $configurationKey,
@@ -253,6 +254,11 @@ final class EnvaiServiceProvider extends ServiceProvider
         }
 
         return $implementation;
+    }
+
+    private function implementsContract(mixed $implementation, string $contract): bool
+    {
+        return is_object($implementation) && is_a($implementation, $contract);
     }
 
     private function eventsDispatcher(Container $app): Dispatcher
@@ -270,6 +276,7 @@ final class EnvaiServiceProvider extends ServiceProvider
         return $dispatcher;
     }
 
+    /** @return array{path:string, connection:string, database_connection:?string, table:string, max_body_bytes:int, rate_limit_per_minute:int} */
     private function webhookConfig(ConfigRepository $config): array
     {
         $webhooks = $config->get('envai.webhooks');
@@ -400,6 +407,14 @@ final class EnvaiServiceProvider extends ServiceProvider
                     baseUrl: is_string($baseUrl) ? $baseUrl : '',
                     apiKey: new SensitiveString(is_string($apiKey) ? $apiKey : ''),
                     connectionName: $connection,
+                    jwksUrl: $this->nullableConnectionString($connectionConfig, 'jwks_url'),
+                    connectTimeoutSeconds: $this->connectionInteger($connectionConfig, 'connect_timeout_seconds', 10),
+                    requestTimeoutSeconds: $this->connectionInteger($connectionConfig, 'request_timeout_seconds', 60),
+                    streamTimeoutSeconds: isset($connectionConfig['stream_timeout_seconds']) ? $this->connectionInteger($connectionConfig, 'stream_timeout_seconds', 60) : null,
+                    nativeTasks: $this->connectionBoolean($connectionConfig, 'native_tasks', false),
+                    strictValidation: $this->connectionBoolean($connectionConfig, 'strict_validation', false),
+                    headers: $this->connectionHeaders($connectionConfig),
+                    retryPolicy: $this->connectionRetryPolicy($connectionConfig),
                     contractVersion: $contractVersion,
                     maxLegacyReplayBytes: $maxLegacyReplayBytes,
                     definitionsPath: $this->stringConfig($config, 'envai.definitions.path', null),
@@ -415,6 +430,87 @@ final class EnvaiServiceProvider extends ServiceProvider
                 $exception->getMessage(),
             ), previous: $exception);
         }
+    }
+
+    /** @param array<array-key, mixed> $config */
+    private function connectionInteger(array $config, string $key, int $default): int
+    {
+        $value = $config[$key] ?? $default;
+        if (! is_int($value)) {
+            throw new \InvalidArgumentException($key.' must be an integer.');
+        }
+
+        return $value;
+    }
+
+    /** @param array<array-key, mixed> $config */
+    private function connectionBoolean(array $config, string $key, bool $default): bool
+    {
+        $value = $config[$key] ?? $default;
+        if (! is_bool($value)) {
+            throw new \InvalidArgumentException($key.' must be a boolean.');
+        }
+
+        return $value;
+    }
+
+    /** @param array<array-key, mixed> $config */
+    private function nullableConnectionString(array $config, string $key): ?string
+    {
+        $value = $config[$key] ?? null;
+        if ($value !== null && ! is_string($value)) {
+            throw new \InvalidArgumentException($key.' must be a string or null.');
+        }
+
+        return $value;
+    }
+
+    /** @param array<array-key, mixed> $config
+     * @return array<string, string>
+     */
+    private function connectionHeaders(array $config): array
+    {
+        $headers = $config['headers'] ?? [];
+        if (! is_array($headers)) {
+            throw new \InvalidArgumentException('headers must be an array.');
+        }
+        foreach ($headers as $key => $value) {
+            if (! is_string($key) || ! is_string($value)) {
+                throw new \InvalidArgumentException('headers must map string names to string values.');
+            }
+        }
+
+        return $headers;
+    }
+
+    /** @param array<array-key, mixed> $config */
+    private function connectionRetryPolicy(array $config): ?RetryPolicy
+    {
+        $retry = $config['retry_policy'] ?? null;
+        if ($retry === null || $retry instanceof RetryPolicy) {
+            return $retry;
+        }
+        if (! is_array($retry)) {
+            throw new \InvalidArgumentException('retry_policy must be an array, RetryPolicy or null.');
+        }
+        $statuses = $retry['retryable_statuses'] ?? [429, 502, 503, 504];
+        if (! is_array($statuses) || ! array_is_list($statuses)) {
+            throw new \InvalidArgumentException('retryable_statuses must be a list of integers.');
+        }
+        foreach ($statuses as $status) {
+            if (! is_int($status)) {
+                throw new \InvalidArgumentException('retryable_statuses must be a list of integers.');
+            }
+        }
+
+        return new RetryPolicy(
+            maxAttempts: $this->connectionInteger($retry, 'max_attempts', 3),
+            baseDelayMs: $this->connectionInteger($retry, 'base_delay_ms', 200),
+            maxDelayMs: $this->connectionInteger($retry, 'max_delay_ms', 10000),
+            jitter: $this->connectionBoolean($retry, 'jitter', true),
+            retryableStatuses: $statuses,
+            respectRetryAfter: $this->connectionBoolean($retry, 'respect_retry_after', true),
+        );
     }
 
     private function defaultConnection(ConfigRepository $config): string

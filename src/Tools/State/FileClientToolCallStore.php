@@ -22,7 +22,7 @@ use Digitalygo\Envai\Exceptions\FileException;
  * error and throws. Existing state is validated before every operation;
  * malformed rows cause a FileException without rewriting the state file.
  */
-final class FileClientToolCallStore implements ClientToolCallStore
+final class FileClientToolCallStore implements ClientToolCallStore, ToolReplayBarrierStore
 {
     private const FORMAT = 1;
 
@@ -40,6 +40,34 @@ final class FileClientToolCallStore implements ClientToolCallStore
         if (! is_dir($directory)) {
             throw FileException::local(sprintf('State file directory "%s" does not exist.', $directory));
         }
+    }
+
+    public function markTerminal(string $chatId, string $kind, string $id): void
+    {
+        // Separate versioned sidecar preserves compatibility with format-1 call
+        // records. A durable claim is already a tombstone; no second write needed.
+        (new self($this->path.'.barriers'))->begin($this->barrierIdentity($chatId, $kind, $id));
+    }
+
+    public function isTerminal(string $chatId, string $kind, string $id): bool
+    {
+        $identity = $this->barrierIdentity($chatId, $kind, $id);
+        foreach ((new self($this->path.'.barriers'))->records() as $record) {
+            if ($record->identity->chatId === $identity->chatId && $record->identity->callId === $identity->callId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function barrierIdentity(string $chatId, string $kind, string $id): ToolCallIdentity
+    {
+        if (! in_array($kind, ['call', 'turn', 'task'], true) || $chatId === '' || $id === '') {
+            throw new \InvalidArgumentException('Invalid replay barrier identity.');
+        }
+
+        return new ToolCallIdentity($chatId, hash('sha256', json_encode([$kind, $id], JSON_THROW_ON_ERROR)), $kind);
     }
 
     public function begin(ToolCallIdentity $identity): BeginResult
@@ -109,6 +137,10 @@ final class FileClientToolCallStore implements ClientToolCallStore
             }
 
             $row = $calls[$key];
+            $previous = self::statusOf($row);
+            if ($previous === ClientToolCallStatus::Resolved || ($previous === ClientToolCallStatus::Ambiguous && $status === ClientToolCallStatus::Submitted)) {
+                return [$calls, null];
+            }
             $row['status'] = $status->value;
             $row['updated_at'] = self::nowString();
             $calls[$key] = $row;

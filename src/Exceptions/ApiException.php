@@ -34,6 +34,11 @@ class ApiException extends EnvaiException
             $context['api_error'] ??= $apiError;
         }
 
+        foreach ($headers as $name => $values) {
+            if (strtolower($name) === 'x-request-id' && isset($values[0])) {
+                $context['request_id'] ??= $values[0];
+            }
+        }
         parent::__construct($message, $context, $previous);
     }
 

@@ -38,6 +38,8 @@ final class FakeRemoteWriter implements RemoteWriter
      */
     public array $calls = [];
 
+    public ?\Closure $beforeMutation = null;
+
     /**
      * @var array<string, \Throwable>
      */
@@ -135,6 +137,9 @@ final class FakeRemoteWriter implements RemoteWriter
      */
     private function mutate(string $method, string $key, ?array $payload, string $prefix): array
     {
+        if ($this->beforeMutation !== null) {
+            ($this->beforeMutation)();
+        }
         $failureKey = $method.':'.substr($key, strpos($key, ':') + 1);
 
         // Record the attempt before any scripted failure so tests can

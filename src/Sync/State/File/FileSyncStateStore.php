@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Sync\State\File;
 
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Sync\State\InvalidatesReadyManifest;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
@@ -71,8 +72,8 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  *
  * Store-specific notes:
  *
- * - metadata of ManagedResourceState is not persisted: the file format
- *   version 1 has no metadata field, mirroring the database store.
+ * - Resource metadata persists the durable mutation journal. The file format
+ *   version 1 accepts an optional state_metadata object for older files.
  * - The file format records only the manifest hash, so
  *   ReadyManifest::synchronizedAt is the time the record was read, not a
  *   persisted timestamp.
@@ -81,7 +82,7 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  * - updated_at per resource is a bookkeeping write timestamp; it is not
  *   exposed by the contract.
  */
-final class FileSyncStateStore implements SyncStateStore
+final class FileSyncStateStore implements InvalidatesReadyManifest, SyncStateStore
 {
     private const FORMAT = 1;
 
@@ -202,6 +203,7 @@ final class FileSyncStateStore implements SyncStateStore
         $entry->last_applied = self::payloadToJsonValue($state->lastAppliedPayload);
         $entry->remote_marker = self::payloadToJsonValue($state->remoteMarker);
         $entry->status = $state->status->value;
+        $entry->state_metadata = self::payloadToJsonValue(new JsonObject($state->metadata));
         $entry->synchronized_at = $state->synchronizedAt?->format(self::TIME_FORMAT);
         $entry->updated_at = $this->now()->format(self::TIME_FORMAT);
         $resources->{$key} = $entry;
@@ -237,6 +239,14 @@ final class FileSyncStateStore implements SyncStateStore
         }
 
         unset($resources->{$key});
+        $this->writeDocument($document);
+    }
+
+    public function clearManifestReady(string $connection): void
+    {
+        $document = $this->loadDocument();
+        $node = $this->connectionNodeOrCreate($document, $connection);
+        $node->ready_manifest = null;
         $this->writeDocument($document);
     }
 
@@ -426,8 +436,29 @@ final class FileSyncStateStore implements SyncStateStore
             remoteMarker: $entry->remote_marker ?? null,
             synchronizedAt: $this->nullableTimestampMember($entry, 'synchronized_at', $connection, $type, $localKey),
             status: $status,
-            metadata: [],
+            metadata: self::metadataFromEntry($entry),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private static function metadataFromEntry(\stdClass $entry): array
+    {
+        $value = self::jsonValueToPayload($entry->state_metadata ?? new \stdClass);
+        if ($value instanceof JsonObject) {
+            $metadata = $value->toArray();
+            foreach ($metadata as $key => $_) {
+                if (! is_string($key)) {
+                    throw new \RuntimeException('Invalid persisted resource metadata key.');
+                }
+            }
+
+            /** @var array<string, mixed> $metadata */
+            return $metadata;
+        }
+        if ($value === []) {
+            return [];
+        }
+        throw new \RuntimeException('Invalid persisted resource metadata.');
     }
 
     private function nullableStringMember(\stdClass $entry, string $member, string $connection, ResourceType $type, string $localKey): ?string

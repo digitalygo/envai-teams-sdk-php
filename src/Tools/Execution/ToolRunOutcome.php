@@ -12,6 +12,9 @@ enum ToolRunOutcome: string
     /** The handler ran and the output was delivered (or already present). */
     case Executed = 'executed';
 
+    /** Handler was cancelled/resolved while running; no late output delivered. */
+    case Cancelled = 'cancelled';
+
     /** The call store already holds this call; the handler was not run. */
     case SkippedByStore = 'skipped_by_store';
 

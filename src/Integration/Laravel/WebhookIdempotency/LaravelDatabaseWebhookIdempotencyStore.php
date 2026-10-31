@@ -78,6 +78,7 @@ final class LaravelDatabaseWebhookIdempotencyStore implements WebhookIdempotency
         $this->mark($key, WebhookRecordStatus::Failed);
     }
 
+    /** @param array<string, mixed> $row */
     private function resolveClaim(WebhookIdempotencyKey $key, string $deduplicationKey, array $row): WebhookClaimResult
     {
         $record = $this->recordFromRow($key, $row);
@@ -192,15 +193,28 @@ final class LaravelDatabaseWebhookIdempotencyStore implements WebhookIdempotency
         }
     }
 
+    /** @return array<string, mixed>|null */
     private function find(string $deduplicationKey): ?array
     {
         $row = $this->connection->table($this->table)
             ->where('deduplication_key', $deduplicationKey)
             ->first();
 
-        return $row === null ? null : (array) $row;
+        if ($row === null) {
+            return null;
+        }
+        $result = [];
+        foreach ((array) $row as $key => $value) {
+            if (! is_string($key)) {
+                throw new \UnexpectedValueException('Webhook receipt has an invalid column name.');
+            }
+            $result[$key] = $value;
+        }
+
+        return $result;
     }
 
+    /** @param array<string, mixed> $row */
     private function recordFromRow(WebhookIdempotencyKey $requestedKey, array $row): WebhookIdempotencyRecord
     {
         $storedKey = new WebhookIdempotencyKey(
@@ -285,6 +299,7 @@ final class LaravelDatabaseWebhookIdempotencyStore implements WebhookIdempotency
         return false;
     }
 
+    /** @param array<string, mixed> $row */
     private static function rowString(array $row, string $column): string
     {
         $value = $row[$column] ?? null;
@@ -296,6 +311,7 @@ final class LaravelDatabaseWebhookIdempotencyStore implements WebhookIdempotency
         return $value;
     }
 
+    /** @param array<string, mixed> $row */
     private static function nullableRowString(array $row, string $column): ?string
     {
         $value = $row[$column] ?? null;

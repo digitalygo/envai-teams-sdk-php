@@ -35,11 +35,7 @@ final readonly class ReceiveEnvaiWebhook
 
     private function webhookRequest(Request $request): WebhookRequest
     {
-        $rawBody = $request->getContent();
-
-        if (! is_string($rawBody)) {
-            throw new \LogicException('The Laravel webhook request body must be available as a string.');
-        }
+        $rawBody = $this->requireBody($request->getContent());
 
         return new WebhookRequest(
             method: $request->getMethod(),
@@ -55,6 +51,15 @@ final readonly class ReceiveEnvaiWebhook
         );
     }
 
+    private function requireBody(mixed $body): string
+    {
+        if (! is_string($body)) {
+            throw new \LogicException('The Laravel webhook request body must be available as a string.');
+        }
+
+        return $body;
+    }
+
     private function serverString(Request $request, string $key): ?string
     {
         $value = $request->server($key);
@@ -64,7 +69,7 @@ final readonly class ReceiveEnvaiWebhook
 
     private function serverPort(Request $request): ?int
     {
-        $value = $request->server('SERVER_PORT');
+        $value = $request->server->get('SERVER_PORT');
 
         if (is_int($value)) {
             return $value >= 1 && $value <= 65535 ? $value : null;

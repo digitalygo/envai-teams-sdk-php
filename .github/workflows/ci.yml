@@ -122,6 +122,61 @@ jobs:
       - name: Run PHPUnit (full suite)
         run: vendor/bin/phpunit
 
+  laravel:
+    name: Laravel ${{ matrix.laravel }} (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      ENVAI_TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=test
+      ENVAI_TEST_MYSQL_USER: test
+      ENVAI_TEST_MYSQL_PASSWORD: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {php: '8.2', laravel: '11'}
+          - {php: '8.2', laravel: '12'}
+          - {php: '8.3', laravel: '12'}
+          - {php: '8.4', laravel: '13'}
+          - {php: '8.5', laravel: '13'}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring, sodium, sqlite3, pdo_mysql
+          coverage: none
+      - name: Install actual optional framework dependencies
+        env:
+          LARAVEL_VERSION: ${{ matrix.laravel }}
+        run: |
+          composer require --dev --with-all-dependencies --no-interaction --prefer-dist \
+            "illuminate/config:^${LARAVEL_VERSION}.0" "illuminate/console:^${LARAVEL_VERSION}.0" \
+            "illuminate/contracts:^${LARAVEL_VERSION}.0" "illuminate/database:^${LARAVEL_VERSION}.0" \
+            "illuminate/support:^${LARAVEL_VERSION}.0" "illuminate/container:^${LARAVEL_VERSION}.0" \
+            "illuminate/events:^${LARAVEL_VERSION}.0" "illuminate/cache:^${LARAVEL_VERSION}.0" \
+            "illuminate/http:^${LARAVEL_VERSION}.0" "illuminate/routing:^${LARAVEL_VERSION}.0" "vlucas/phpdotenv:^5.6"
+      - name: Type-check actual Laravel integration
+        run: vendor/bin/phpstan analyse -c phpstan.laravel.neon
+      - name: Run real Laravel integration tests
+        run: vendor/bin/phpunit tests/Integration/Laravel tests/Sync/State/Pdo/MysqlIdentityTest.php --fail-on-skipped
+
   release-checks:
     name: Release tooling
     runs-on: ubuntu-latest
@@ -139,7 +194,7 @@ jobs:
       - run: npm audit --audit-level=high --prefix .github/release-tools
 
   release:
-    needs: [quality, test, release-checks]
+    needs: [quality, test, laravel, release-checks]
     if: github.event_name == 'push' && contains(fromJSON('["dev", "alpha", "beta", "main"]'), github.ref_name)
     permissions:
       contents: write

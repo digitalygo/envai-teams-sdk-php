@@ -19,6 +19,7 @@ final class ConsoleBootstrapTest extends TestCase
         'ENVAI_DEFINITIONS_PATH',
         'ENVAI_STATE_DRIVER',
         'ENVAI_STATE_PATH',
+        'ENVAI_STRICT_VALIDATION',
     ];
 
     protected function setUp(): void
@@ -33,6 +34,22 @@ final class ConsoleBootstrapTest extends TestCase
         foreach (self::ORIGINAL as $name) {
             putenv($name);
         }
+    }
+
+    public function test_strict_validation_environment_is_validated_and_defaults_false(): void
+    {
+        putenv('ENVAI_BASE_URL=https://api.example.test');
+        putenv('ENVAI_API_KEY=test');
+        self::assertFalse(ConsoleBootstrap::config()->strictValidation);
+        foreach (['true' => true, '1' => true, 'false' => false, '0' => false] as $value => $expected) {
+            putenv('ENVAI_STRICT_VALIDATION='.$value);
+            self::assertSame($expected, ConsoleBootstrap::config()->strictValidation);
+            self::assertSame($expected, ConsoleBootstrap::client()->config()->strictValidation);
+        }
+        putenv('ENVAI_STRICT_VALIDATION=perhaps');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('ENVAI_STRICT_VALIDATION');
+        ConsoleBootstrap::config();
     }
 
     public function test_config_reads_the_environment(): void

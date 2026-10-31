@@ -13,7 +13,7 @@ namespace Digitalygo\Envai\Sync\State;
  * Resource keys are `connection:type:localKey`; manifest readiness is
  * kept per connection with the store format version "1".
  */
-final class InMemorySyncStateStore implements SyncStateStore
+final class InMemorySyncStateStore implements InvalidatesReadyManifest, SyncStateStore
 {
     /**
      * @var array<string, ManagedResourceState>
@@ -68,6 +68,11 @@ final class InMemorySyncStateStore implements SyncStateStore
     public function deleteResource(string $connection, ResourceType $type, string $localKey): void
     {
         unset($this->resources[self::key($connection, $type, $localKey)]);
+    }
+
+    public function clearManifestReady(string $connection): void
+    {
+        unset($this->manifests[$connection]);
     }
 
     public function markManifestReady(string $connection, string $manifestHash): void

@@ -23,6 +23,11 @@ final class OperationInventory
      * @var array<string, array{method: string, path: string}>
      */
     public const OPERATIONS = [
+        'deliverWorkflowResult' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/deliveries'],
+        'delegateToTeam' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/delegations'],
+        'getDetachedTask' => ['method' => 'GET', 'path' => '/atp/v3/chats/{chat_id}/tasks/{task_id}'],
+        'cancelDetachedTask' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/tasks/{task_id}/cancel'],
+        'classifyPhase' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/classify-phase'],
         'sendChatMessage' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/messages'],
         'streamChatEvents' => ['method' => 'GET', 'path' => '/atp/v3/chats/{chat_id}/events'],
         'cancelChatTurn' => ['method' => 'POST', 'path' => '/atp/v3/chats/{chat_id}/cancel'],

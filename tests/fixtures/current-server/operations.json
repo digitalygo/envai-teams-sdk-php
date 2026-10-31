@@ -1,5 +1,35 @@
 [
   {
+    "id": "deliverWorkflowResult",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/deliveries",
+    "authenticated": true
+  },
+  {
+    "id": "delegateToTeam",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/delegations",
+    "authenticated": true
+  },
+  {
+    "id": "getDetachedTask",
+    "method": "GET",
+    "path": "/atp/v3/chats/{chat_id}/tasks/{task_id}",
+    "authenticated": true
+  },
+  {
+    "id": "cancelDetachedTask",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/tasks/{task_id}/cancel",
+    "authenticated": true
+  },
+  {
+    "id": "classifyPhase",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/classify-phase",
+    "authenticated": true
+  },
+  {
     "id": "sendChatMessage",
     "method": "POST",
     "path": "/atp/v3/chats/{chat_id}/messages",

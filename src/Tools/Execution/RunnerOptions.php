@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Tools\Execution;
 
+use Digitalygo\Envai\Contracts\CancellationToken;
+
 /**
  * Tunables of the ClientToolRunner.
  *
@@ -22,6 +24,7 @@ final readonly class RunnerOptions
         public int $maxConcurrent = 4,
         public float $submissionMarginSeconds = 5.0,
         public bool $allowSubmissionPastDeadline = false,
+        public ?CancellationToken $cancellationToken = null,
     ) {
         if ($maxConcurrent < 1) {
             throw new \InvalidArgumentException('maxConcurrent must be at least 1.');

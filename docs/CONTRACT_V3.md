@@ -57,3 +57,7 @@ See [Wiki APIs and signatures](WIKI.md) and [executed validation and limits](WIK
 ## Chat attachments and deferred Wiki outcomes
 
 Update to the matching backend before enabling attachment sends. Contract 3 remains selected, and `chat_attachments` is an additional capability requirement. Preserve message idempotency keys and ordered IDs; verify acceptance. Handle the new `deferred` Wiki file outcome. See [attachment integration](CHAT_ATTACHMENTS.md).
+
+## Native task extension
+
+`EnvaiConfig(nativeTasks: true)` negotiates `X-Envai-Extensions: native-tasks-v1` on execution requests and SSE. The default remains disabled. See [typed APIs, job waiters, signed tools and replay guarantees](BACKGROUND_TASKS.md) and the byte-exact [native contract](smidja-native.json).

@@ -6,6 +6,8 @@ namespace Digitalygo\Envai\Streaming\Atp;
 
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
+use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
+use Digitalygo\Envai\Streaming\Events\AgentToolResultEvent;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
 
 /**
@@ -107,7 +109,25 @@ final class ChatTurnRuntime
     /** @return \Generator<int, AtpEvent, mixed, void> */
     private function events(): \Generator
     {
-        yield from $this->replay;
+        // Establish all replay barriers before exposing any executable request
+        // to a consumer. A retained result may follow its historical request.
+        $resolved = [];
+        $terminal = [];
+        foreach ($this->replay as $event) {
+            if ($event instanceof AgentToolResultEvent) {
+                $resolved[$event->callId] = true;
+            }
+            if (in_array($event->envelope->type, ['turn.completed', 'turn.failed', 'turn.cancelled'], true)) {
+                $terminal[$event->envelope->turnId ?? ''] = true;
+            }
+        }
+        foreach ($this->replay as $event) {
+            if ($event instanceof AgentToolRequestEvent
+                && (isset($resolved[$event->callId]) || isset($terminal[$event->envelope->turnId ?? '']))) {
+                continue;
+            }
+            yield $event;
+        }
         $this->replay = [];
         yield from $this->stream;
     }
