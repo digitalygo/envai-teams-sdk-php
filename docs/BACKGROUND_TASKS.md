@@ -19,7 +19,9 @@ $envai = new EnvaiClient(new EnvaiConfig(
 
 This sends `X-Envai-Contract-Version: 3` and
 `X-Envai-Extensions: native-tasks-v1` consistently on capabilities, turn admission,
-SSE (including reconnects), task operations and tool results. Existing clients
+SSE (including reconnects), task operations and tool results. Successful ATP
+responses and SSE must acknowledge the extension; a missing acknowledgment after
+a mutation is an uncertain outcome and never triggers an automatic retry. Existing clients
 leave the extension disabled. Foreground `sendAndStream()` / `sendAndWait()` still
 finish on their accepted turn's terminal event. Use a separate native client if
 some chats should retain ordinary foreground behavior.

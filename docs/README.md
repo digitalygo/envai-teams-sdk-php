@@ -21,7 +21,7 @@ integration.
 ## Public contracts
 
 [`openapi.yaml`](openapi.yaml) describes the HTTP operations and request/response
-models. [`events.json`](events.json) describes ATP v2 envelopes and payloads.
+models. [`events.json`](events.json) describes ATP v3 envelopes and payloads; `events-v2.json` retains the immutable legacy schema.
 Pass both files together to contract tooling so relative references resolve.
 These files include infrastructure and provider callbacks for contract
 completeness; their presence does not mean an application should invoke them.

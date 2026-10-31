@@ -7,9 +7,11 @@ namespace Digitalygo\Envai\Tests\Background;
 use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
+use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Exceptions\NotFoundException;
 use Digitalygo\Envai\Exceptions\ServerException;
 use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
+use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
 use Digitalygo\Envai\Models\Chat\DelegationRequest;
 use Digitalygo\Envai\Models\Chat\DeliveryOutcome;
@@ -26,11 +28,24 @@ use PHPUnit\Framework\TestCase;
 
 final class BackgroundHttpTest extends TestCase
 {
+    private static function response(array $data, int $version = 3, int $status = 200): HttpResponse
+    {
+        return new HttpResponse($status, ['X-Envai-Contract-Version' => (string) $version, 'X-Envai-Extensions' => 'native-tasks-v1'], json_encode($data));
+    }
+
+    private static function connection(array $frames): FakeEventStreamConnection
+    {
+        return new FakeEventStreamConnection(
+            array_map(static fn (array $frame): string => 'data: '.json_encode($frame, JSON_THROW_ON_ERROR)."\n\n", $frames),
+            responseHeaders: ['content-type' => ['text/event-stream'], 'x-envai-contract-version' => ['3'], 'x-envai-extensions' => ['native-tasks-v1']],
+        );
+    }
+
     private function setupClient(array $features): array
     {
         $transport = new ContractTestTransport;
-        $transport->responses[] = ContractNegotiationTest::response(ContractNegotiationTest::capabilities() + []);
-        $transport->responses[0] = ContractNegotiationTest::response(array_replace(ContractNegotiationTest::capabilities(), ['families' => ['task'], 'features' => $features]));
+        $transport->responses[] = self::response(ContractNegotiationTest::capabilities() + []);
+        $transport->responses[0] = self::response(array_replace(ContractNegotiationTest::capabilities(), ['families' => ['task'], 'features' => $features]));
         $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('test'), nativeTasks: true), $transport);
 
         return [$client, $transport];
@@ -39,11 +54,11 @@ final class BackgroundHttpTest extends TestCase
     public function test_native_routes_and_fields_and_one_preflight(): void
     {
         [$client, $transport] = $this->setupClient(['native_deliveries', 'cross_team_delegation', 'detached_background', 'phase_classification', 'strict_model', 'delegation_notify_origin']);
-        $transport->responses[] = ContractNegotiationTest::response(['event_id' => 'e', 'status' => 'queued', 'duplicate' => false], status: 202);
-        $transport->responses[] = ContractNegotiationTest::response(['task_id' => 't', 'target_chat_id' => 'target', 'turn_id' => 'ack'], status: 202);
-        $transport->responses[] = ContractNegotiationTest::response(['task_id' => 't', 'origin_turn_id' => 'o', 'status' => 'running']);
-        $transport->responses[] = ContractNegotiationTest::response(['task_id' => 't', 'status' => 'cancelled', 'subtree' => true], status: 202);
-        $transport->responses[] = ContractNegotiationTest::response(['decision' => 'NOT BLOCKED', 'model' => 'configured', 'request_id' => 'r', 'invocation_id' => 'i']);
+        $transport->responses[] = self::response(['event_id' => 'e', 'status' => 'queued', 'duplicate' => false], status: 202);
+        $transport->responses[] = self::response(['task_id' => 't', 'target_chat_id' => 'target', 'turn_id' => 'ack'], status: 202);
+        $transport->responses[] = self::response(['task_id' => 't', 'origin_turn_id' => 'o', 'status' => 'running']);
+        $transport->responses[] = self::response(['task_id' => 't', 'status' => 'cancelled', 'subtree' => true], status: 202);
+        $transport->responses[] = self::response(['decision' => 'NOT BLOCKED', 'model' => 'configured', 'request_id' => 'r', 'invocation_id' => 'i']);
         $client->chats()->deliver('c/a', new DeliveryRequest('w', 'e', 'o', 't', DeliveryOutcome::Completed, 'output'));
         $client->chats()->delegate('c/a', new DelegationRequest('w', 'e2', 'o', 'target', 'prompt', notifyOrigin: false, strictModel: true));
         self::assertSame(TaskStatus::Running, $client->chats()->getTask('c/a', 't/x')->status);
@@ -62,16 +77,16 @@ final class BackgroundHttpTest extends TestCase
     public function test_delegated_helper_keeps_target_stream_through_final_job(): void
     {
         [$client, $transport] = $this->setupClient(['cross_team_delegation', 'detached_background', 'delegated_job_lifecycle']);
-        $transport->responses[] = ContractNegotiationTest::response(['task_id' => 'job', 'target_chat_id' => 'target', 'turn_id' => 'ack'], status: 202);
+        $transport->responses[] = self::response(['task_id' => 'job', 'target_chat_id' => 'target', 'turn_id' => 'ack'], status: 202);
         $running = ['task_id' => 'job', 'origin_turn_id' => 'origin', 'target_chat_id' => 'target', 'status' => 'running'];
-        $transport->responses[] = ContractNegotiationTest::response($running);
-        $transport->responses[] = ContractNegotiationTest::response($running);
-        $transport->responses[] = ContractNegotiationTest::response(array_replace($running, ['status' => 'completed', 'output' => 'FINAL', 'result_turn_id' => 'synthesis']));
+        $transport->responses[] = self::response($running);
+        $transport->responses[] = self::response($running);
+        $transport->responses[] = self::response(array_replace($running, ['status' => 'completed', 'output' => 'FINAL', 'result_turn_id' => 'synthesis']));
         $ping = Fixtures::ping();
         $ping['chat_id'] = 'target';
         $ack = Fixtures::envelope(1, 'evt_ack', '2026-10-31T00:00:00Z', 'turn.completed', array_replace(Fixtures::sample('turn.completed')['data'], ['turn_id' => 'ack']), null, 'ack');
         $ack['chat_id'] = 'target';
-        $connection = FakeEventStreamConnection::fromEnvelopes([$ping, $ack, $ping]);
+        $connection = self::connection([$ping, $ack, $ping]);
         $transport->connections[] = $connection;
         $result = $client->chat('w', 'origin-chat')->delegateAndWait(new DelegationRequest('w', 'event', 'origin', 'target', 'prompt'));
         self::assertSame('FINAL', $result->output);
@@ -85,8 +100,8 @@ final class BackgroundHttpTest extends TestCase
     {
         foreach ([false, true] as $alreadyResolved) {
             [$client, $transport] = $this->setupClient(['cross_team_delegation', 'detached_background', 'delegated_job_lifecycle']);
-            $transport->responses[] = ContractNegotiationTest::response(['task_id' => 'job', 'target_chat_id' => 'cht_test_1', 'turn_id' => 'ack'], status: 202);
-            $transport->responses[] = ContractNegotiationTest::response(['task_id' => 'job', 'origin_turn_id' => 'origin', 'status' => 'completed', 'output' => 'FINAL', 'result_turn_id' => 'synthesis']);
+            $transport->responses[] = self::response(['task_id' => 'job', 'target_chat_id' => 'cht_test_1', 'turn_id' => 'ack'], status: 202);
+            $transport->responses[] = self::response(['task_id' => 'job', 'origin_turn_id' => 'origin', 'status' => 'completed', 'output' => 'FINAL', 'result_turn_id' => 'synthesis']);
             $tool = new FlexibleTool(return: 'done');
             $harness = new RunnerHarness(['echo' => $tool::class], [$tool::class => $tool]);
             $signed = $harness->event('retained-call', 'echo', ['x' => 1]);
@@ -102,9 +117,49 @@ final class BackgroundHttpTest extends TestCase
             $ping = Fixtures::ping();
             $ping['chat_id'] = 'cht_test_1';
             $frames[] = $ping;
-            $transport->connections[] = FakeEventStreamConnection::fromEnvelopes($frames);
+            $transport->connections[] = self::connection($frames);
             $client->chat('w', 'origin-chat')->delegateAndWait(new DelegationRequest('w', 'stable-event', 'origin', 'cht_test_1', 'prompt'), $harness->runner);
             self::assertSame($alreadyResolved ? 0 : 1, $tool->invocations);
+        }
+    }
+
+    public function test_missing_native_ack_after_post_is_uncertain_and_not_retried(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background']);
+        $transport->responses[] = ContractNegotiationTest::response(['status' => 'accepted', 'turn_id' => 't'], status: 202);
+        try {
+            $client->chats()->sendMessage('c', new ChatMessageRequest('native'));
+            self::fail('Missing native acknowledgment accepted.');
+        } catch (ContractCompatibilityException $error) {
+            self::assertStringContainsString('may have executed', $error->getMessage());
+            self::assertCount(2, $transport->requests);
+        }
+    }
+
+    public function test_unacknowledged_native_stream_is_closed(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background']);
+        $connection = new FakeEventStreamConnection([]);
+        $transport->connections[] = $connection;
+        try {
+            $client->chats()->openEventStream('c');
+            self::fail('Missing native SSE acknowledgment accepted.');
+        } catch (ContractCompatibilityException) {
+            self::assertTrue($connection->isClosed());
+        }
+    }
+
+    public function test_native_ack_tokens_are_case_sensitive_and_allow_commas(): void
+    {
+        foreach (['future, native-tasks-v1 ' => true, 'NATIVE-TASKS-V1' => false] as $header => $accepted) {
+            [$client, $transport] = $this->setupClient(['detached_background']);
+            $transport->responses[] = new HttpResponse(202, ['X-Envai-Contract-Version' => '3', 'X-Envai-Extensions' => $header], '{"status":"accepted","turn_id":"t"}');
+            try {
+                $client->chats()->sendMessage('c', new ChatMessageRequest('native'));
+                self::assertTrue($accepted);
+            } catch (ContractCompatibilityException) {
+                self::assertFalse($accepted);
+            }
         }
     }
 
@@ -122,7 +177,7 @@ final class BackgroundHttpTest extends TestCase
     public function test_default_client_does_not_enable_native_extension(): void
     {
         $transport = new ContractTestTransport;
-        $transport->responses = [ContractNegotiationTest::response(ContractNegotiationTest::capabilities()), ContractNegotiationTest::response(['status' => 'accepted', 'turn_id' => 't'], status: 202)];
+        $transport->responses = [self::response(ContractNegotiationTest::capabilities()), self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202)];
         $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('test')), $transport);
         $client->chats()->sendMessage('c', new ChatMessageRequest('ordinary'));
         foreach ($transport->requests as $request) {
@@ -144,7 +199,7 @@ final class BackgroundHttpTest extends TestCase
     public function test_strict_message_is_negotiated(): void
     {
         [$client, $transport] = $this->setupClient(['strict_model' => true, 'detached_background' => true]);
-        $transport->responses[] = ContractNegotiationTest::response(['status' => 'accepted', 'turn_id' => 't'], status: 202);
+        $transport->responses[] = self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202);
         $client->chats()->sendMessage('c', new ChatMessageRequest('hi', strictModel: true));
         self::assertTrue(json_decode($transport->requests[1]->body, true)['strict_model']);
     }
@@ -152,7 +207,7 @@ final class BackgroundHttpTest extends TestCase
     public function test_unknown_task_stays_not_found_not_contract_failure(): void
     {
         [$client, $transport] = $this->setupClient(['detached_background']);
-        $transport->responses[] = ContractNegotiationTest::response(['error' => ['type' => 'not_found', 'code' => 'task_unknown', 'message' => 'unknown outcome']], status: 404);
+        $transport->responses[] = self::response(['error' => ['type' => 'not_found', 'code' => 'task_unknown', 'message' => 'unknown outcome']], status: 404);
         $this->expectException(NotFoundException::class);
         $client->chats()->getTask('c', 'lost');
     }
@@ -160,7 +215,7 @@ final class BackgroundHttpTest extends TestCase
     public function test_classifier_uncertain_result_is_never_retried(): void
     {
         [$client, $transport] = $this->setupClient(['phase_classification', 'detached_background']);
-        $transport->responses[] = ContractNegotiationTest::response(['error' => ['type' => 'server_error', 'code' => 'classification_outcome_unknown', 'message' => 'uncertain']], status: 503);
+        $transport->responses[] = self::response(['error' => ['type' => 'server_error', 'code' => 'classification_outcome_unknown', 'message' => 'uncertain']], status: 503);
         try {
             $client->chats()->classifyPhase('c', new PhaseClassificationRequest('r', true, 'phase', 1, 'output'));
             self::fail('Uncertain classification accepted.');

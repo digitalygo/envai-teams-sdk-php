@@ -111,6 +111,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             $request->requestTimeoutSeconds, $request->auth, $request->retrySafety,
         ));
         $this->validateResponse($response);
+        if ($this->nativeTasks && in_array($kind, ['atp', 'capabilities'], true) && $response->status >= 200 && $response->status < 300) {
+            $this->assertNativeAcknowledgment($response->headers);
+        }
         if ($this->version === 3 && $response->status === 404 && $nativeFeature === null && in_array($kind, ['atp', 'capabilities'], true)) {
             throw new ContractCompatibilityException('The server rejected the contract 3 route; no fallback was attempted.');
         }
@@ -159,6 +162,7 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
                 throw new ContractCompatibilityException('The negotiated event stream was rejected with HTTP '.$status.'.');
             }
             $this->assertAcknowledgment($connection->headers());
+            $this->assertNativeAcknowledgment($connection->headers());
         } catch (\Throwable $exception) {
             $connection->close();
             throw $exception;
@@ -201,6 +205,7 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($response->status !== 200) {
             throw new ContractCompatibilityException('Contract 3 capabilities preflight failed with HTTP '.$response->status.'.');
         }
+        $this->assertNativeAcknowledgment($response->headers);
         $this->validateCapabilities($response);
     }
 
@@ -273,6 +278,23 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             if ($response->status === 426 || in_array($code, ['unsupported_contract_version', 'contract_upgrade_required'], true)) {
                 throw new ContractCompatibilityException('The server cannot serve the selected contract (HTTP '.$response->status.').');
             }
+        }
+    }
+
+    /** @param array<string, list<string>> $headers */
+    private function assertNativeAcknowledgment(array $headers): void
+    {
+        if (! $this->nativeTasks) {
+            return;
+        }
+        $tokens = [];
+        foreach ($headers['x-envai-extensions'] ?? [] as $value) {
+            foreach (explode(',', $value) as $token) {
+                $tokens[] = trim($token);
+            }
+        }
+        if (! in_array('native-tasks-v1', $tokens, true)) {
+            throw new ContractCompatibilityException('Server did not acknowledge native-tasks-v1. A submitted mutation may have executed; do not retry automatically.');
         }
     }
 
