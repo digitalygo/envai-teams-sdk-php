@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Sync\State\Pdo;
 
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Sync\State\InvalidatesReadyManifest;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
@@ -80,13 +81,13 @@ use Digitalygo\Envai\Sync\State\SyncStateStore;
  * connection-level data such as a base URL may only be persisted inside
  * the manifests.metadata JSON object through markManifestReady()'s
  * optional metadata argument (ReadyManifest::metadata round-trips).
- * metadata of ManagedResourceState is not persisted (no column for it).
+ * Resource metadata persists the durable mutation journal in state_metadata.
  */
-final class PdoSyncStateStore implements SyncStateStore
+final class PdoSyncStateStore implements InvalidatesReadyManifest, SyncStateStore
 {
     private const TIME_FORMAT = 'Y-m-d\TH:i:s.uP';
 
-    private const RESOURCE_COLUMNS = 'connection, resource_type, local_key, remote_id, remote_name, desired_hash, last_applied_payload, remote_marker, status, synchronized_at';
+    private const RESOURCE_COLUMNS = 'connection, resource_type, local_key, remote_id, remote_name, desired_hash, last_applied_payload, remote_marker, status, synchronized_at, state_metadata';
 
     private readonly string $driver;
 
@@ -130,11 +131,25 @@ final class PdoSyncStateStore implements SyncStateStore
             $this->pdo->exec($sql);
         }
 
+        try {
+            $this->pdo->query('SELECT state_metadata FROM '.$this->resourcesTable().' WHERE 1 = 0');
+        } catch (\PDOException $error) {
+            throw new \RuntimeException('Explicitly migrate sync resources: add nullable TEXT state_metadata for durable mutation recovery.', previous: $error);
+        }
+        $this->assertExactMysqlIdentities();
         $this->schemaEnsured = true;
+    }
+
+    private function assertIdentityLength(string $scope, ?string $key = null): void
+    {
+        if ($this->driver === 'mysql' && (strlen($scope) > 764 || ($key !== null && strlen($key) > 764))) {
+            throw new \InvalidArgumentException('MySQL sync scope and local key must be at most 764 bytes; truncation is forbidden.');
+        }
     }
 
     public function acquireLock(string $connection): SyncLock
     {
+        $this->assertIdentityLength($connection);
         $this->schema();
 
         $owner = bin2hex(random_bytes(16));
@@ -218,6 +233,7 @@ final class PdoSyncStateStore implements SyncStateStore
 
     public function saveResource(ManagedResourceState $state): void
     {
+        $this->assertIdentityLength($state->connection, $state->localKey);
         $this->schema();
 
         $now = $this->now()->format(self::TIME_FORMAT);
@@ -239,11 +255,12 @@ final class PdoSyncStateStore implements SyncStateStore
             $synchronizedAt,
             $now,
             $now,
+            $this->encodeJson($state->metadata),
         ];
 
         if ($this->driver !== 'mysql') {
             // ON CONFLICT ... DO UPDATE placeholders repeat the update columns.
-            array_push($params, $state->remoteId, $state->remoteName, $state->desiredHash, $payload, $marker, $state->status->value, $synchronizedAt, $now);
+            array_push($params, $state->remoteId, $state->remoteName, $state->desiredHash, $payload, $marker, $state->status->value, $synchronizedAt, $now, $this->encodeJson($state->metadata));
         }
 
         $statement->execute($params);
@@ -260,6 +277,13 @@ final class PdoSyncStateStore implements SyncStateStore
         $statement->execute([$connection, $type->value, $localKey]);
     }
 
+    public function clearManifestReady(string $connection): void
+    {
+        $this->schema();
+        $statement = $this->prepare(sprintf('DELETE FROM %s WHERE connection = ?', $this->manifestsTable()));
+        $statement->execute([$connection]);
+    }
+
     /**
      * Marks the given manifest hash as the last ready manifest for the
      * connection, recording the synchronization timestamp. The optional
@@ -273,6 +297,7 @@ final class PdoSyncStateStore implements SyncStateStore
      */
     public function markManifestReady(string $connection, string $manifestHash, array $metadata = []): void
     {
+        $this->assertIdentityLength($connection);
         $this->schema();
 
         $now = $this->now()->format(self::TIME_FORMAT);
@@ -379,7 +404,7 @@ final class PdoSyncStateStore implements SyncStateStore
             remoteMarker: self::decodeMarkerColumn(self::nullableStringField($row, 'remote_marker')),
             synchronizedAt: $this->nullableTimestampField($row, 'synchronized_at'),
             status: $status,
-            metadata: [],
+            metadata: $this->decodeMetadataColumn(self::nullableStringField($row, 'state_metadata') ?? '{}'),
         );
     }
 
@@ -564,13 +589,13 @@ final class PdoSyncStateStore implements SyncStateStore
 
     private function upsertResourcesSql(): string
     {
-        $columns = 'connection, resource_type, local_key, remote_id, remote_name, desired_hash, last_applied_payload, remote_marker, status, synchronized_at, created_at, updated_at';
+        $columns = 'connection, resource_type, local_key, remote_id, remote_name, desired_hash, last_applied_payload, remote_marker, status, synchronized_at, created_at, updated_at, state_metadata';
         $update = match ($this->driver) {
-            'mysql' => 'ON DUPLICATE KEY UPDATE remote_id = VALUES(remote_id), remote_name = VALUES(remote_name), desired_hash = VALUES(desired_hash), last_applied_payload = VALUES(last_applied_payload), remote_marker = VALUES(remote_marker), status = VALUES(status), synchronized_at = VALUES(synchronized_at), updated_at = VALUES(updated_at)',
-            default => 'ON CONFLICT (connection, resource_type, local_key) DO UPDATE SET remote_id = ?, remote_name = ?, desired_hash = ?, last_applied_payload = ?, remote_marker = ?, status = ?, synchronized_at = ?, updated_at = ?',
+            'mysql' => 'ON DUPLICATE KEY UPDATE remote_id = VALUES(remote_id), remote_name = VALUES(remote_name), desired_hash = VALUES(desired_hash), last_applied_payload = VALUES(last_applied_payload), remote_marker = VALUES(remote_marker), status = VALUES(status), synchronized_at = VALUES(synchronized_at), updated_at = VALUES(updated_at), state_metadata = VALUES(state_metadata)',
+            default => 'ON CONFLICT (connection, resource_type, local_key) DO UPDATE SET remote_id = ?, remote_name = ?, desired_hash = ?, last_applied_payload = ?, remote_marker = ?, status = ?, synchronized_at = ?, updated_at = ?, state_metadata = ?',
         };
 
-        return sprintf('INSERT INTO %s (%s) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) %s', $this->resourcesTable(), $columns, $update);
+        return sprintf('INSERT INTO %s (%s) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) %s', $this->resourcesTable(), $columns, $update);
     }
 
     private function upsertManifestsSql(): string
@@ -583,25 +608,53 @@ final class PdoSyncStateStore implements SyncStateStore
         return sprintf('INSERT INTO %s (connection, manifest_hash, synchronized_at, metadata) VALUES (?, ?, ?, ?) %s', $this->manifestsTable(), $update);
     }
 
+    private function assertExactMysqlIdentities(): void
+    {
+        if ($this->driver !== 'mysql') {
+            return;
+        }
+        foreach ([$this->resourcesTable() => ['connection', 'resource_type', 'local_key'], $this->manifestsTable() => ['connection'], $this->locksTable() => ['connection', 'owner']] as $table => $columns) {
+            $query = $this->prepare('SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+            $query->execute([$table]);
+            $types = [];
+            while (($row = $this->fetchAssoc($query)) !== null) {
+                $length = $row['CHARACTER_MAXIMUM_LENGTH'] ?? null;
+                $types[self::stringField($row, 'COLUMN_NAME')] = [self::stringField($row, 'DATA_TYPE'), is_numeric($length) ? (int) $length : 0];
+            }
+            foreach ($columns as $column) {
+                if (($types[$column] ?? null) !== ['varbinary', in_array($column, ['owner', 'resource_type'], true) ? 64 : 764]) {
+                    throw new \RuntimeException('Unsafe MySQL identity collation in '.$table.'.'.$column.'; explicitly migrate identity columns to VARBINARY before using this store.');
+                }
+            }
+        }
+    }
+
+    private function exactMysqlColumns(string $columns): string
+    {
+        return $this->driver === 'mysql' ? str_replace(
+            ['connection VARCHAR(191)', 'resource_type VARCHAR(64)', 'local_key VARCHAR(191)', 'owner VARCHAR(64)'],
+            ['connection VARBINARY(764)', 'resource_type VARBINARY(64)', 'local_key VARBINARY(764)', 'owner VARBINARY(64)'], $columns) : $columns;
+    }
+
     private function resourcesTableSql(): string
     {
-        $columns = 'connection VARCHAR(191) NOT NULL, resource_type VARCHAR(64) NOT NULL, local_key VARCHAR(191) NOT NULL, remote_id VARCHAR(191) NULL, remote_name VARCHAR(191) NULL, desired_hash VARCHAR(191) NULL, last_applied_payload TEXT NULL, remote_marker TEXT NULL, status VARCHAR(32) NOT NULL, synchronized_at VARCHAR(64) NULL, created_at VARCHAR(64) NOT NULL, updated_at VARCHAR(64) NOT NULL, PRIMARY KEY (connection, resource_type, local_key)';
+        $columns = 'connection VARCHAR(191) NOT NULL, resource_type VARCHAR(64) NOT NULL, local_key VARCHAR(191) NOT NULL, remote_id VARCHAR(191) NULL, remote_name VARCHAR(191) NULL, desired_hash VARCHAR(191) NULL, last_applied_payload TEXT NULL, remote_marker TEXT NULL, status VARCHAR(32) NOT NULL, synchronized_at VARCHAR(64) NULL, created_at VARCHAR(64) NOT NULL, updated_at VARCHAR(64) NOT NULL, state_metadata TEXT NULL, PRIMARY KEY (connection, resource_type, local_key)';
 
-        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->resourcesTable(), $columns, $this->mysqlTableOptions());
+        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->resourcesTable(), $this->exactMysqlColumns($columns), $this->mysqlTableOptions());
     }
 
     private function manifestsTableSql(): string
     {
         $columns = 'connection VARCHAR(191) NOT NULL, manifest_hash VARCHAR(191) NOT NULL, synchronized_at VARCHAR(64) NOT NULL, metadata TEXT NOT NULL, PRIMARY KEY (connection)';
 
-        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->manifestsTable(), $columns, $this->mysqlTableOptions());
+        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->manifestsTable(), $this->exactMysqlColumns($columns), $this->mysqlTableOptions());
     }
 
     private function locksTableSql(): string
     {
         $columns = 'connection VARCHAR(191) NOT NULL, owner VARCHAR(64) NOT NULL, acquired_at VARCHAR(64) NOT NULL, PRIMARY KEY (connection)';
 
-        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->locksTable(), $columns, $this->mysqlTableOptions());
+        return sprintf('CREATE TABLE IF NOT EXISTS %s (%s)%s', $this->locksTable(), $this->exactMysqlColumns($columns), $this->mysqlTableOptions());
     }
 
     /**

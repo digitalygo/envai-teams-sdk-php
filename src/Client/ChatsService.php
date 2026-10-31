@@ -57,16 +57,28 @@ final readonly class ChatsService
     private TypedRequester $requests;
 
     public function __construct(
-        RequestExecutor $executor,
-        UriResolver $uris,
+        private RequestExecutor $executor,
+        private UriResolver $uris,
         private EventStreamTransport $streams,
         private SensitiveString $apiKey,
-        int $connectTimeoutSeconds = 10,
-        int $requestTimeoutSeconds = 60,
+        private int $connectTimeoutSeconds = 10,
+        private int $requestTimeoutSeconds = 60,
         private ?int $streamTimeoutSeconds = null,
         private int $contractVersion = 3,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
+    }
+
+    /** A helper-local bounded service; never mutates the client's configuration. */
+    public function withTimeout(int $seconds): self
+    {
+        if ($seconds < 1) {
+            throw new \InvalidArgumentException('Timeout must be positive.');
+        }
+
+        return new self($this->executor->withoutRetries(), $this->uris, $this->streams, $this->apiKey,
+            min($seconds, $this->connectTimeoutSeconds), min($seconds, $this->requestTimeoutSeconds),
+            min($seconds, $this->streamTimeoutSeconds ?? $seconds), $this->contractVersion);
     }
 
     public function requireCapability(string $feature): void
@@ -210,8 +222,8 @@ final readonly class ChatsService
                 'accept' => 'text/event-stream',
                 'authorization' => 'Bearer '.$this->apiKey->reveal(),
             ],
-            connectTimeoutSeconds: 10,
-            responseHeaderTimeoutSeconds: 30,
+            connectTimeoutSeconds: $this->connectTimeoutSeconds,
+            responseHeaderTimeoutSeconds: $this->requestTimeoutSeconds,
             streamTimeoutSeconds: $this->streamTimeoutSeconds,
             cancellationToken: $token,
         );

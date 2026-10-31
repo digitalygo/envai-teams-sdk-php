@@ -10,6 +10,7 @@ use Digitalygo\Envai\Contracts\EventStreamTransport;
 use Digitalygo\Envai\Contracts\HttpTransport;
 use Digitalygo\Envai\Http\Client\ContractTransport;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
+use Digitalygo\Envai\Http\Client\StrictValidationTransport;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\Curl\CurlTransport;
 use Digitalygo\Envai\Sync\DefinitionsService;
@@ -55,7 +56,10 @@ final readonly class EnvaiClient
         }
 
         $this->uris = new UriResolver($config->baseUrl, $config->jwksUrl);
-        $negotiatedTransport = new ContractTransport($this->transport, $this->uris, $config->contractVersion, $config->maxLegacyReplayBytes, $config->nativeTasks);
+        $negotiatedTransport = new ContractTransport($this->transport, $this->uris, $config->contractVersion, $config->maxLegacyReplayBytes, $config->nativeTasks, $config->headers);
+        if ($config->strictValidation) {
+            $negotiatedTransport = new StrictValidationTransport($negotiatedTransport, $this->uris, $config->contractVersion);
+        }
         $this->executor = new RequestExecutor(
             $negotiatedTransport,
             $this->uris,

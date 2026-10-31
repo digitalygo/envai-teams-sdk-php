@@ -8,10 +8,12 @@ use Digitalygo\Envai\Definitions\Agent\AgentDefinition;
 use Digitalygo\Envai\Definitions\Compiler\DefinitionCompilationResult;
 use Digitalygo\Envai\Definitions\Team\TeamDefinition;
 use Digitalygo\Envai\Definitions\Tool\ToolDefinition;
+use Digitalygo\Envai\Exceptions\DefinitionConflictException;
 use Digitalygo\Envai\Exceptions\DefinitionDriftException;
 use Digitalygo\Envai\Models\Json\CanonicalJsonSerializer;
 use Digitalygo\Envai\Sync\Diff\DefinitionDiff;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
+use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ResourceType;
 use Digitalygo\Envai\Sync\State\SyncStateStore;
 
@@ -43,9 +45,9 @@ final class SyncPlanner
 
         $toolsByName = $this->indexBy($this->remote->listTools(), 'name');
         $agentsById = $this->indexBy($this->remote->listAgents(), 'id');
-        $agentsByName = $this->indexBy($this->remote->listAgents(), 'name');
+        $agentsByName = $this->indexBy($this->remote->listAgents(), 'name', true);
         $teamsById = $this->indexBy($this->remote->listTeams(), 'id');
-        $teamsByName = $this->indexBy($this->remote->listTeams(), 'name');
+        $teamsByName = $this->indexBy($this->remote->listTeams(), 'name', true);
 
         $agentIdToLocalKey = $this->agentIdToLocalKey($connection);
 
@@ -148,6 +150,23 @@ final class SyncPlanner
         $remoteId = is_string($remoteId) ? $remoteId : $this->stringValue($rawRemote, 'id');
         $remoteName = is_string($remoteName) ? $remoteName : $this->stringValue($rawRemote, 'name');
         $remoteMarker = is_string($stateMarker) ? $stateMarker : $this->stringValue($rawRemote, 'updated_at');
+
+        if ($state?->status === ManagedResourceStatus::Ambiguous) {
+            $intended = PayloadNormalizer::normalize($type, $state->metadata['pending_payload'] ?? null, $agentIdToLocalKey);
+            if (($state->metadata['pending_action'] ?? null) !== 'delete' && $intended !== [] && $remote !== null
+                && DefinitionDiff::between($intended, $remote)->isEmpty()
+                && DefinitionDiff::between($desired, $intended)->isEmpty()) {
+                return $this->operation($type, $localKey, SyncClassification::Unchanged, SyncAction::Recover,
+                    blocking: false, reasonCode: 'recovered_outcome', remoteId: $remoteId,
+                    remoteName: $remoteName, remoteMarker: $remoteMarker, desired: $desired,
+                    applied: $applied, remote: $remote, diff: new DefinitionDiff);
+            }
+
+            return $this->operation($type, $localKey, SyncClassification::Conflict, SyncAction::None,
+                blocking: true, reasonCode: 'ambiguous_outcome', remoteId: $remoteId,
+                remoteName: $remoteName, remoteMarker: $remoteMarker, desired: $desired,
+                applied: $applied, remote: $remote, diff: DefinitionDiff::between($desired, $remote ?? []));
+        }
 
         if ($state === null) {
             if ($remote === null) {
@@ -314,9 +333,9 @@ final class SyncPlanner
 
         $toolsByName = $this->indexBy($this->remote->listTools(), 'name');
         $agentsById = $this->indexBy($this->remote->listAgents(), 'id');
-        $agentsByName = $this->indexBy($this->remote->listAgents(), 'name');
+        $agentsByName = $this->indexBy($this->remote->listAgents(), 'name', true);
         $teamsById = $this->indexBy($this->remote->listTeams(), 'id');
-        $teamsByName = $this->indexBy($this->remote->listTeams(), 'name');
+        $teamsByName = $this->indexBy($this->remote->listTeams(), 'name', true);
 
         $orphans = [];
 
@@ -339,7 +358,9 @@ final class SyncPlanner
         foreach ($orphans as $state) {
             $remote = $this->matchOrphanRemote($state, $toolsByName, $agentsById, $agentsByName, $teamsById, $teamsByName);
 
-            $prune = $options->prune;
+            $ambiguous = $state->status === ManagedResourceStatus::Ambiguous;
+            $recoveredDelete = $ambiguous && ($state->metadata['pending_action'] ?? null) === 'delete' && $remote === null;
+            $prune = $options->prune && ! $ambiguous;
 
             $applied = $state->lastAppliedPayload;
             $normalizedApplied = PayloadNormalizer::normalize($state->type, $applied, $agentIdToLocalKey);
@@ -349,9 +370,9 @@ final class SyncPlanner
                 $state->type,
                 $state->localKey,
                 SyncClassification::OrphanManaged,
-                $prune ? SyncAction::Delete : SyncAction::None,
-                blocking: false,
-                reasonCode: $prune ? null : 'prune_disabled',
+                $recoveredDelete ? SyncAction::Recover : ($prune ? SyncAction::Delete : SyncAction::None),
+                blocking: $ambiguous && ! $recoveredDelete,
+                reasonCode: $recoveredDelete ? 'recovered_outcome' : ($ambiguous ? 'ambiguous_outcome' : ($prune ? null : 'prune_disabled')),
                 remoteId: $state->remoteId,
                 remoteName: $state->remoteName,
                 remoteMarker: is_string($marker) ? $marker : null,
@@ -401,7 +422,7 @@ final class SyncPlanner
         }
 
         if ($payload === null && $state->remoteName !== null) {
-            $payload = $byName[$state->remoteName] ?? null;
+            $payload = $this->uniqueName($byName, $state->remoteName);
         }
 
         return $payload === null ? null : PayloadNormalizer::normalize($state->type, $payload, []);
@@ -425,10 +446,23 @@ final class SyncPlanner
         }
 
         if ($payload === null) {
-            $payload = $byName[$desiredName] ?? null;
+            $payload = $this->uniqueName($byName, $desiredName);
         }
 
         return $payload === null ? null : $payload;
+    }
+
+    /** @param array<string, array<string, mixed>> $byName
+     * @return array<string, mixed>|null
+     */
+    private function uniqueName(array $byName, string $name): ?array
+    {
+        $payload = $byName[$name] ?? null;
+        if (($payload['__envai_duplicate_identity'] ?? false) === true) {
+            throw new DefinitionConflictException('Remote identity name is not unique: '.$name);
+        }
+
+        return $payload;
     }
 
     /**
@@ -519,12 +553,20 @@ final class SyncPlanner
      * @param  list<array<string, mixed>>  $payloads
      * @return array<string, array<string, mixed>>
      */
-    private function indexBy(array $payloads, string $key): array
+    private function indexBy(array $payloads, string $key, bool $deferDuplicate = false): array
     {
         $indexed = [];
 
         foreach ($payloads as $payload) {
             if (isset($payload[$key]) && is_string($payload[$key])) {
+                if (isset($indexed[$payload[$key]])) {
+                    if ($deferDuplicate) {
+                        $indexed[$payload[$key]] = ['__envai_duplicate_identity' => true];
+
+                        continue;
+                    }
+                    throw new DefinitionConflictException('Remote identity '.$key.' is not unique: '.$payload[$key]);
+                }
                 $indexed[$payload[$key]] = $payload;
             }
         }

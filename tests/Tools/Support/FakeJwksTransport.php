@@ -17,6 +17,8 @@ final class FakeJwksTransport implements HttpTransport
 {
     public int $fetchCount = 0;
 
+    public ?\Closure $onFetch = null;
+
     public bool $fail = false;
 
     public int $status = 200;
@@ -33,6 +35,9 @@ final class FakeJwksTransport implements HttpTransport
     public function send(HttpRequest $request): HttpResponse
     {
         $this->fetchCount++;
+        if ($this->onFetch !== null) {
+            ($this->onFetch)();
+        }
         $this->lastRequest = $request;
 
         if ($this->fail) {

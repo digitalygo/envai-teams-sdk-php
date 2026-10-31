@@ -20,6 +20,7 @@ use Digitalygo\Envai\Sync\DefinitionsService;
  * - ENVAI_CONNECTION: connection name, default `default`;
  * - ENVAI_DEFINITIONS_PATH: local definitions directory, default `envai`;
  * - ENVAI_STATE_DRIVER: state store driver, default `file`;
+ * - ENVAI_STRICT_VALIDATION: canonical HTTP validation, default `false`;
  * - ENVAI_STATE_PATH: state store file path, default `.envai`.
  *
  * The commands receive a factory closure (see definitionsFactory()) so
@@ -44,6 +45,7 @@ final class ConsoleBootstrap
             definitionsPath: self::env('ENVAI_DEFINITIONS_PATH', 'envai'),
             stateDriver: self::env('ENVAI_STATE_DRIVER', 'file'),
             stateFilePath: self::env('ENVAI_STATE_PATH', '.envai'),
+            strictValidation: self::strictValidation(),
         );
     }
 
@@ -74,6 +76,7 @@ final class ConsoleBootstrap
                 baseUrl: $base->baseUrl,
                 apiKey: $base->apiKey,
                 jwksUrl: $base->jwksUrl,
+                strictValidation: $base->strictValidation,
                 connectionName: $connection,
                 connectTimeoutSeconds: $base->connectTimeoutSeconds,
                 requestTimeoutSeconds: $base->requestTimeoutSeconds,
@@ -86,6 +89,15 @@ final class ConsoleBootstrap
             ));
 
             return $client->definitions($definitionsPath, $connection);
+        };
+    }
+
+    private static function strictValidation(): bool
+    {
+        return match (strtolower(self::env('ENVAI_STRICT_VALIDATION', 'false'))) {
+            'true', '1' => true,
+            'false', '0' => false,
+            default => throw new \RuntimeException('ENVAI_STRICT_VALIDATION must be true, false, 1, or 0.'),
         };
     }
 

@@ -10,6 +10,7 @@ use Digitalygo\Envai\Contracts\HttpTransport;
 use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
+use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\HttpRequest;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\MultipartBody;
@@ -23,12 +24,14 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
     /** @var array<mixed> */
     private array $features = [];
 
+    /** @param array<string, string> $defaultHeaders */
     public function __construct(
         private readonly HttpTransport&EventStreamTransport $transport,
         private readonly UriResolver $uris,
         private readonly int $version = 3,
         private readonly int $maxLegacyReplayBytes = 67_108_864,
         private readonly bool $nativeTasks = false,
+        private readonly array $defaultHeaders = [],
     ) {
         if ($maxLegacyReplayBytes < 1) {
             throw new \InvalidArgumentException('maxLegacyReplayBytes must be positive.');
@@ -40,6 +43,13 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
 
     public function send(HttpRequest $request): HttpResponse
     {
+        if ($request->auth === AuthenticationMode::Bearer) {
+            foreach ($this->defaultHeaders as $name => $value) {
+                if (! isset($request->headers[strtolower($name)])) {
+                    $request = $request->withHeader($name, $value);
+                }
+            }
+        }
         if ($this->version === 2 && strtoupper($request->method) !== 'GET') {
             throw new ContractCompatibilityException('Contract 2 read-only mode permits GET requests only.');
         }
@@ -133,6 +143,15 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
 
     public function open(StreamRequest $request): EventStreamConnection
     {
+        $defaults = [];
+        foreach ($this->defaultHeaders as $name => $value) {
+            $defaults[strtolower($name)] = [$value];
+        }
+        if ($defaults !== []) {
+            $request = new StreamRequest($request->uri, $request->headers + $defaults,
+                $request->connectTimeoutSeconds, $request->responseHeaderTimeoutSeconds,
+                $request->streamTimeoutSeconds, $request->cancellationToken);
+        }
         $kind = $this->kind($request->uri);
         if ($kind !== 'atp') {
             return $this->transport->open($request);
@@ -192,7 +211,8 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($this->verifiedCapabilities) {
             return;
         }
-        $headers = $this->selectedHeaders(['accept' => ['application/json']]);
+        $headers = $this->selectedHeaders($request->headers);
+        $headers['accept'] = ['application/json'];
         if (isset($request->headers['authorization'])) {
             $headers['authorization'] = $request->headers['authorization'];
         }

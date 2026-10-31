@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Client;
 
+use Digitalygo\Envai\Client\Internal\Poller;
 use Digitalygo\Envai\Client\Internal\TypedRequester;
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\ResponseBodySink;
 use Digitalygo\Envai\Exceptions\ValidationException;
 use Digitalygo\Envai\Http\AuthenticationMode;
@@ -44,10 +46,10 @@ final readonly class ImagesService
     private TypedRequester $requests;
 
     public function __construct(
-        RequestExecutor $executor,
-        UriResolver $uris,
-        int $connectTimeoutSeconds = 10,
-        int $requestTimeoutSeconds = 60,
+        private RequestExecutor $executor,
+        private UriResolver $uris,
+        private int $connectTimeoutSeconds = 10,
+        private int $requestTimeoutSeconds = 60,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
     }
@@ -57,6 +59,16 @@ final readonly class ImagesService
      * HTTP 202). The request is validated locally first; on violations a
      * ValidationException is thrown before any network round trip.
      */
+    /** Waits for an existing resource; never submits a generation or Wiki run. */
+    public function waitForGeneration(string $record, float $timeoutSeconds = 300, int $intervalMilliseconds = 1000, ?CancellationToken $token = null): ImageGenerationStatusRecord
+    {
+        return Poller::wait(
+            fn (int $remaining): ImageGenerationStatusRecord => (new self($this->executor->withoutRetries(), $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining)))->getGeneration($record),
+            static fn (ImageGenerationStatusRecord $value): bool => in_array($value->status->value, ['succeeded', 'failed', 'cancelled'], true),
+            $timeoutSeconds, $intervalMilliseconds, $token,
+        );
+    }
+
     public function generate(ImageGenerationRequest $request): ImageGenerationAcceptedRecord
     {
         $violations = $request->validate();

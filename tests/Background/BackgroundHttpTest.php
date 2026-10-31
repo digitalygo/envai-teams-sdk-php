@@ -51,6 +51,26 @@ final class BackgroundHttpTest extends TestCase
         return [$client, $transport];
     }
 
+    public function test_native_reconnect_preserves_extension_auth_and_cursor(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background']);
+        $transport->connections[] = self::connection([]);
+        $ping = Fixtures::ping();
+        $ping['chat_id'] = 'c';
+        $transport->connections[] = self::connection([$ping]);
+        $stream = $client->chat('w', 'c')->events(after: 5, maxReconnectAttempts: 1);
+        foreach ($stream as $event) {
+            self::assertSame('ping', $event->envelope->type);
+            $stream->close();
+        }
+        self::assertCount(2, $transport->streamRequests);
+        foreach ($transport->streamRequests as $request) {
+            self::assertSame(['native-tasks-v1'], $request->headers['x-envai-extensions']);
+            self::assertSame(['Bearer test'], $request->headers['authorization']);
+            self::assertStringEndsWith('?after=5', $request->uri);
+        }
+    }
+
     public function test_native_routes_and_fields_and_one_preflight(): void
     {
         [$client, $transport] = $this->setupClient(['native_deliveries', 'cross_team_delegation', 'detached_background', 'phase_classification', 'strict_model', 'delegation_notify_origin']);
@@ -98,9 +118,10 @@ final class BackgroundHttpTest extends TestCase
 
     public function test_delegation_retry_replays_pending_tools_after_terminal_barriers(): void
     {
-        foreach ([false, true] as $alreadyResolved) {
+        foreach ([[false, false], [true, false], [false, true]] as [$alreadyResolved, $jobTerminal]) {
             [$client, $transport] = $this->setupClient(['cross_team_delegation', 'detached_background', 'delegated_job_lifecycle']);
             $transport->responses[] = self::response(['task_id' => 'job', 'target_chat_id' => 'cht_test_1', 'turn_id' => 'ack'], status: 202);
+            $transport->responses[] = self::response(['task_id' => 'job', 'origin_turn_id' => 'origin', 'status' => $jobTerminal ? 'completed' : 'running', 'output' => $jobTerminal ? 'FINAL' : null, 'result_turn_id' => $jobTerminal ? 'synthesis' : null]);
             $transport->responses[] = self::response(['task_id' => 'job', 'origin_turn_id' => 'origin', 'status' => 'completed', 'output' => 'FINAL', 'result_turn_id' => 'synthesis']);
             $tool = new FlexibleTool(return: 'done');
             $harness = new RunnerHarness(['echo' => $tool::class], [$tool::class => $tool]);
@@ -117,9 +138,10 @@ final class BackgroundHttpTest extends TestCase
             $ping = Fixtures::ping();
             $ping['chat_id'] = 'cht_test_1';
             $frames[] = $ping;
+            $frames[] = $ping;
             $transport->connections[] = self::connection($frames);
             $client->chat('w', 'origin-chat')->delegateAndWait(new DelegationRequest('w', 'stable-event', 'origin', 'cht_test_1', 'prompt'), $harness->runner);
-            self::assertSame($alreadyResolved ? 0 : 1, $tool->invocations);
+            self::assertSame($alreadyResolved || $jobTerminal ? 0 : 1, $tool->invocations);
         }
     }
 

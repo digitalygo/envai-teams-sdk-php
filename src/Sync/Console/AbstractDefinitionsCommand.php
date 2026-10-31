@@ -293,7 +293,7 @@ abstract class AbstractDefinitionsCommand extends Command
             SyncAction::Create, SyncAction::Recreate, SyncAction::Adopt => '+',
             SyncAction::Update => '~',
             SyncAction::Delete => '-',
-            SyncAction::None => '=',
+            SyncAction::None, SyncAction::Recover => '=',
         };
     }
 

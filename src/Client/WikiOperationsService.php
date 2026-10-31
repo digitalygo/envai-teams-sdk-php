@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Client;
 
+use Digitalygo\Envai\Client\Internal\Poller;
 use Digitalygo\Envai\Client\Internal\TypedRequester;
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
@@ -20,9 +22,19 @@ final readonly class WikiOperationsService
 {
     private TypedRequester $requests;
 
-    public function __construct(RequestExecutor $executor, UriResolver $uris, int $connectTimeoutSeconds = 10, int $requestTimeoutSeconds = 60)
+    public function __construct(private RequestExecutor $executor, private UriResolver $uris, private int $connectTimeoutSeconds = 10, private int $requestTimeoutSeconds = 60)
     {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
+    }
+
+    /** Waits for an existing resource; never submits a generation or Wiki run. */
+    public function waitForOperation(string $workspaceId, string $operationId, float $timeoutSeconds = 300, int $intervalMilliseconds = 1000, ?CancellationToken $token = null): WikiOperation
+    {
+        return Poller::wait(
+            fn (int $remaining): WikiOperation => (new self($this->executor->withoutRetries(), $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining)))->operation($workspaceId, $operationId),
+            static fn (WikiOperation $value): bool => in_array($value->status, ['completed', 'failed'], true),
+            $timeoutSeconds, $intervalMilliseconds, $token,
+        );
     }
 
     public function inbox(string $workspaceId, WikiRunRequest $request, string $idempotencyKey): WikiOperation

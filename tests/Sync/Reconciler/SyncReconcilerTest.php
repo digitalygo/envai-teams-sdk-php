@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Tests\Sync\Reconciler;
 
+use Digitalygo\Envai\Client\EnvaiClient;
+use Digitalygo\Envai\Configuration\EnvaiConfig;
+use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Definitions\Compiler\DefinitionCompilationResult;
 use Digitalygo\Envai\Definitions\Manifest\CanonicalManifestHasher;
 use Digitalygo\Envai\Definitions\Tool\ToolDefinition;
+use Digitalygo\Envai\Http\HttpResponse;
+use Digitalygo\Envai\Sync\Client\ClientRemoteWriter;
+use Digitalygo\Envai\Sync\Planner\SyncAction;
 use Digitalygo\Envai\Sync\Planner\SyncOptions;
 use Digitalygo\Envai\Sync\Planner\SyncPlanner;
 use Digitalygo\Envai\Sync\Planner\SyncScope;
@@ -14,11 +20,13 @@ use Digitalygo\Envai\Sync\Reconciler\SyncOperationOutcome;
 use Digitalygo\Envai\Sync\Reconciler\SyncReconciler;
 use Digitalygo\Envai\Sync\Reconciler\SyncReport;
 use Digitalygo\Envai\Sync\Reconciler\SyncReportStatus;
+use Digitalygo\Envai\Sync\State\File\FileSyncStateStore;
 use Digitalygo\Envai\Sync\State\InMemorySyncStateStore;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ResourceType;
 use Digitalygo\Envai\Sync\State\SyncLock;
+use Digitalygo\Envai\Tests\Client\FakeTransport;
 use Digitalygo\Envai\Tests\Sync\Fakes\FakeRemoteReader;
 use Digitalygo\Envai\Tests\Sync\Fakes\FakeRemoteWriter;
 use Digitalygo\Envai\Tests\Sync\SyncTestCase;
@@ -128,7 +136,8 @@ final class SyncReconcilerTest extends SyncTestCase
 
         $this->assertSame([], $writer->calls);
         $this->assertSame(SyncReportStatus::Succeeded, $report->status);
-        $this->assertTrue($report->manifestReady);
+        $this->assertFalse($report->manifestReady);
+        $this->assertNull($store->readyManifest(self::C));
 
         $state = $store->getResource(self::C, ResourceType::Tool, 'query_db');
 
@@ -382,6 +391,132 @@ final class SyncReconcilerTest extends SyncTestCase
         $this->assertSame(SyncOperationOutcome::Ambiguous, $report->results[0]->outcome);
         $this->assertSame(SyncReportStatus::Blocked, $report->status);
         $this->assertFalse($report->manifestReady);
+    }
+
+    public function test_lost_agent_and_team_create_responses_use_unique_name_http_readback(): void
+    {
+        foreach (['agent', 'team', 'server-agent', 'server-team'] as $variant) {
+            foreach (['equal', 'different', 'absent', 'duplicate'] as $outcome) {
+                $serverError = str_starts_with($variant, 'server-');
+                $kind = str_replace('server-', '', $variant);
+                $agent = $this->agent('orchestrator');
+                $compiled = $kind === 'agent'
+                    ? $this->compiled(agents: ['orchestrator' => $agent])
+                    : $this->compiled(agents: ['orchestrator' => $agent], teams: ['group' => $this->team('group', 'orchestrator')]);
+                $store = new InMemorySyncStateStore;
+                $remoteAgent = $this->remoteAgent('orchestrator');
+                if ($kind === 'team') {
+                    $store->saveResource(new ManagedResourceState(self::C, ResourceType::Agent, 'orchestrator', remoteId: $remoteAgent['id'], remoteName: 'orchestrator', lastAppliedPayload: $agent->toRemotePayload(), status: ManagedResourceStatus::Applied));
+                }
+                $reader = new FakeRemoteReader(agents: $kind === 'team' ? [$remoteAgent] : []);
+                $plan = (new SyncPlanner($reader, $store))->plan($compiled, new SyncOptions, self::C);
+                $transport = new FakeTransport;
+                if ($serverError) {
+                    $transport->queueResponse(new HttpResponse(503, [], '{"error":{"type":"server_error","message":"uncertain"}}'));
+                } else {
+                    $transport->queueException(FakeRemoteWriter::transportError('Lost create response.'));
+                }
+                $remote = $kind === 'agent' ? $remoteAgent : $this->remoteTeam('group', $remoteAgent['id']);
+                if ($outcome === 'different') {
+                    $remote['description'] = 'different';
+                }
+                $matches = $outcome === 'absent' ? [] : ($outcome === 'duplicate' ? [$remote, array_replace($remote, ['id' => 'duplicate-id'])] : [$remote]);
+                $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => $matches])));
+                $client = new EnvaiClient(new EnvaiConfig('https://example.test', new SensitiveString('synthetic')), $transport);
+                $writer = new ClientRemoteWriter($client->tools(), $client->agents(), $client->teams());
+                $report = (new SyncReconciler($writer, $store))->apply($plan, $compiled->manifest);
+                self::assertSame($outcome === 'equal', $report->manifestReady, $kind.' '.$outcome);
+                self::assertCount(2, $transport->requests);
+                self::assertSame(['POST', 'GET'], array_column($transport->requests, 'method'));
+                self::assertSame('/api/v1/'.$kind.'s', parse_url($transport->requests[1]->uri, PHP_URL_PATH));
+            }
+        }
+    }
+
+    public function test_recovered_agent_identity_is_substituted_into_following_team_http_create(): void
+    {
+        $compiled = $this->compiled(agents: ['orchestrator' => $this->agent('orchestrator')], teams: ['group' => $this->team('group', 'orchestrator')]);
+        $store = new InMemorySyncStateStore;
+        $plan = (new SyncPlanner(new FakeRemoteReader, $store))->plan($compiled, new SyncOptions, self::C);
+        $agent = $this->remoteAgent('orchestrator', ['id' => 'actual-returned-agent-id']);
+        $transport = new FakeTransport;
+        $transport->queueException(FakeRemoteWriter::transportError('Lost response.'));
+        $transport->queueResponse(new HttpResponse(200, [], json_encode(['data' => [$agent]])));
+        $transport->queueResponse(new HttpResponse(201, [], json_encode(['data' => $this->remoteTeam('group', $agent['id'])])));
+        $client = new EnvaiClient(new EnvaiConfig('https://example.test', new SensitiveString('synthetic')), $transport);
+        $writer = new ClientRemoteWriter($client->tools(), $client->agents(), $client->teams());
+        $report = (new SyncReconciler($writer, $store))->apply($plan, $compiled->manifest);
+        self::assertTrue($report->manifestReady);
+        self::assertCount(3, $transport->requests);
+        self::assertSame($agent['id'], json_decode($transport->requests[2]->body, true)['orchestrator_id']);
+    }
+
+    public function test_durable_intent_precedes_remote_mutation_and_survives_unexpected_crash(): void
+    {
+        $compiled = $this->compiled(tools: ['query_db' => $this->tool('query_db')]);
+        $path = sys_get_temp_dir().'/envai-sync-intent-'.bin2hex(random_bytes(8));
+        try {
+            $store = new FileSyncStateStore($path);
+            $writer = new FakeRemoteWriter;
+            $writer->beforeMutation = static function () use ($path): void {
+                $reopened = new FileSyncStateStore($path);
+                self::assertSame(ManagedResourceStatus::Ambiguous, $reopened->getResource(self::C, ResourceType::Tool, 'query_db')->status);
+                throw new \RuntimeException('Synthetic process interruption before response persistence.');
+            };
+            $plan = (new SyncPlanner(new FakeRemoteReader, $store))->plan($compiled, new SyncOptions, self::C);
+            $report = (new SyncReconciler($writer, $store))->apply($plan, $compiled->manifest);
+            self::assertFalse($report->manifestReady);
+            $reopened = new FileSyncStateStore($path);
+            $retry = (new SyncPlanner(new FakeRemoteReader, $reopened))->plan($compiled, new SyncOptions(recreateMissing: true, overwriteDrift: true), self::C);
+            self::assertSame('ambiguous_outcome', $retry->operations[0]->reasonCode);
+            self::assertSame([], $retry->executable());
+            self::assertNull($reopened->readyManifest(self::C));
+            $confirmed = (new SyncPlanner(new FakeRemoteReader(tools: [$this->remoteTool('query_db')]), $reopened))->plan($compiled, new SyncOptions, self::C);
+            self::assertSame(SyncAction::Recover, $confirmed->operations[0]->action);
+            $recovery = (new SyncReconciler($writer, $reopened))->apply($confirmed, $compiled->manifest);
+            self::assertTrue($recovery->manifestReady);
+            self::assertSame(ManagedResourceStatus::Applied, $reopened->getResource(self::C, ResourceType::Tool, 'query_db')->status);
+            self::assertSame([], $writer->calls);
+        } finally {
+            foreach (glob($path.'*') ?: [] as $file) {
+                unlink($file);
+            }
+        }
+    }
+
+    public function test_confirmed_delete_recovers_durable_intent_without_another_delete(): void
+    {
+        $compiled = $this->compiled();
+        $store = $this->storeWithOrphan('tool', 'old_tool', 'old_id');
+        $writer = new FakeRemoteWriter;
+        $writer->seed('tool:old_tool', $this->remoteTool('old_tool'));
+        $writer->scriptFailure('deleteTool:old_tool', FakeRemoteWriter::transportError());
+        $first = $this->apply($compiled, new FakeRemoteReader(tools: [$this->remoteTool('old_tool')]), $writer, $store, new SyncOptions(prune: true));
+        self::assertFalse($first->manifestReady);
+        self::assertSame(ManagedResourceStatus::Ambiguous, $store->getResource(self::C, ResourceType::Tool, 'old_tool')->status);
+        $confirmed = $this->apply($compiled, new FakeRemoteReader, $writer, $store, new SyncOptions(prune: true));
+        self::assertTrue($confirmed->manifestReady);
+        self::assertCount(1, $writer->calls);
+        self::assertNull($store->getResource(self::C, ResourceType::Tool, 'old_tool'));
+    }
+
+    public function test_ambiguous_state_blocks_future_mutation_and_clears_prior_readiness(): void
+    {
+        $compiled = $this->compiled(tools: ['query_db' => $this->tool('query_db')]);
+        $store = new InMemorySyncStateStore;
+        $store->markManifestReady(self::C, $compiled->manifest->hash);
+        $writer = new FakeRemoteWriter;
+        $writer->scriptFailure('createTool:query_db', FakeRemoteWriter::transportError());
+        $first = $this->apply($compiled, new FakeRemoteReader, $writer, $store);
+        self::assertFalse($first->manifestReady);
+        self::assertNull($store->readyManifest(self::C));
+        self::assertCount(1, $writer->calls);
+        $second = $this->apply($compiled, new FakeRemoteReader, $writer, $store, new SyncOptions(adopt: true, overwriteDrift: true, recreateMissing: true, prune: true));
+        self::assertSame(SyncReportStatus::Blocked, $second->status);
+        self::assertFalse($second->manifestReady);
+        self::assertNull($store->readyManifest(self::C));
+        self::assertCount(1, $writer->calls);
+        self::assertSame(ManagedResourceStatus::Ambiguous, $store->getResource(self::C, ResourceType::Tool, 'query_db')->status);
     }
 
     public function test_ambiguous_transport_on_delete_with_remote_gone_is_succeeded(): void

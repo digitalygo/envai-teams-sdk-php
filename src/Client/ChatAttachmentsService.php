@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Client;
 
+use Digitalygo\Envai\Client\Internal\Poller;
 use Digitalygo\Envai\Client\Internal\TypedRequester;
 use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\ResponseBodySink;
@@ -84,30 +85,14 @@ final readonly class ChatAttachmentsService
 
     public function wait(string $workspaceId, string $chatId, string $attachmentId, float $timeoutSeconds = 600, int $intervalMilliseconds = 1000, ?CancellationToken $token = null): ChatAttachment
     {
-        if (! is_finite($timeoutSeconds) || $timeoutSeconds <= 0 || $intervalMilliseconds < 1) {
-            throw new \InvalidArgumentException('Polling bounds must be positive.');
-        }
-        $deadline = microtime(true) + $timeoutSeconds;
-        do {
-            $token?->throwIfCancelled();
-            $remaining = max(1, (int) ceil($deadline - microtime(true)));
-            $requests = new TypedRequester($this->executor, $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining));
-            $value = $this->resource('GET', $workspaceId, $chatId, $attachmentId, requests: $requests);
-            if (
-                in_array($value->lifecycle, ['deleting', 'deleted'], true)
+        return Poller::wait(
+            fn (int $remaining): ChatAttachment => $this->resource('GET', $workspaceId, $chatId, $attachmentId, requests: new TypedRequester($this->executor->withoutRetries(), $this->uris, min($this->connectTimeoutSeconds, $remaining), min($this->requestTimeoutSeconds, $remaining))),
+            static fn (ChatAttachment $value): bool => in_array($value->lifecycle, ['deleting', 'deleted'], true)
                 || $value->conversion->status === 'completed'
                 || ($value->conversion->status === 'failed' && ! $value->conversion->recoverable)
-                || ($value->conversion->status === 'not_required' && $value->lifecycle === 'ready')
-            ) {
-                return $value;
-            }
-            $until = min($deadline, microtime(true) + $intervalMilliseconds / 1000);
-            while (microtime(true) < $until) {
-                $token?->throwIfCancelled();
-                usleep((int) min(100_000, max(1, ($until - microtime(true)) * 1_000_000)));
-            }
-        } while (microtime(true) < $deadline);
-        throw new \RuntimeException('Attachment polling timed out.');
+                || ($value->conversion->status === 'not_required' && $value->lifecycle === 'ready'),
+            $timeoutSeconds, $intervalMilliseconds, $token,
+        );
     }
 
     private function resource(string $method, string $workspaceId, string $chatId, string $attachmentId, string $suffix = '', ?string $key = null, ?TypedRequester $requests = null): ChatAttachment

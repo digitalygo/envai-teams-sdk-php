@@ -15,12 +15,25 @@ namespace Digitalygo\Envai\Tools\State;
  *
  * records() is a test/observation helper returning the current snapshot.
  */
-final class InMemoryClientToolCallStore implements ClientToolCallStore
+final class InMemoryClientToolCallStore implements ClientToolCallStore, ToolReplayBarrierStore
 {
     /**
      * @var array<string, ToolCallRecord>
      */
     private array $records = [];
+
+    /** @var array<string, true> */
+    private array $barriers = [];
+
+    public function markTerminal(string $chatId, string $kind, string $id): void
+    {
+        $this->barriers[json_encode([$chatId, $kind, $id], JSON_THROW_ON_ERROR)] = true;
+    }
+
+    public function isTerminal(string $chatId, string $kind, string $id): bool
+    {
+        return isset($this->barriers[json_encode([$chatId, $kind, $id], JSON_THROW_ON_ERROR)]);
+    }
 
     public function begin(ToolCallIdentity $identity): BeginResult
     {
@@ -74,6 +87,9 @@ final class InMemoryClientToolCallStore implements ClientToolCallStore
             throw new \LogicException('Cannot mark a tool call that was never begun.');
         }
 
+        if ($existing->status === ClientToolCallStatus::Resolved || ($existing->status === ClientToolCallStatus::Ambiguous && $status === ClientToolCallStatus::Submitted)) {
+            return;
+        }
         $this->records[$key] = new ToolCallRecord(
             $identity,
             $status,

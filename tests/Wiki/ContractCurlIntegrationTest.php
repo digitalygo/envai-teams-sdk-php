@@ -11,7 +11,6 @@ use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
 use Digitalygo\Envai\Tests\Http\Curl\CurlFunctionalTestCase;
 use Digitalygo\Envai\Tests\Http\Curl\TestHttpServer;
-use Digitalygo\Envai\Tests\Streaming\Fixtures;
 
 final class ContractCurlIntegrationTest extends CurlFunctionalTestCase
 {
@@ -78,7 +77,7 @@ final class ContractCurlIntegrationTest extends CurlFunctionalTestCase
             },
             function (string $base) use ($wire, $new): void {
                 $client = new EnvaiClient(new EnvaiConfig($base.'/api/v1', new SensitiveString('synthetic')));
-                $events = iterator_to_array($client->chat('w', Fixtures::CHAT_ID)->events());
+                $events = iterator_to_array($client->chat('w', 'cht_01ARZ3NDEKTSV4RRFFQ69G5FAV')->events(reconnect: false));
                 self::assertCount(2, $events);
                 self::assertSame($wire, $events[0]->raw());
                 self::assertSame($new, $events[1]->raw());

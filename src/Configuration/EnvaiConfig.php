@@ -35,7 +35,17 @@ final readonly class EnvaiConfig
         public int $contractVersion = 3,
         public int $maxLegacyReplayBytes = 67_108_864,
         public bool $nativeTasks = false,
+        public bool $strictValidation = false,
     ) {
+        foreach ($headers as $name => $value) {
+            if (preg_match('/^[!#$%&\'*+.^_`|~0-9A-Za-z-]+$/D', $name) !== 1
+                || str_contains($value, "\r") || str_contains($value, "\n")) {
+                throw new \InvalidArgumentException('Additional headers must have valid names and single-line string values.');
+            }
+            if (in_array(strtolower($name), ['authorization', 'proxy-authorization', 'cookie', 'host', 'content-length', 'content-type', 'accept', 'transfer-encoding', 'connection', 'x-envai-contract-version', 'x-envai-extensions', 'idempotency-key', 'last-event-id'], true)) {
+                throw new \InvalidArgumentException('Additional header '.$name.' is controlled by the SDK.');
+            }
+        }
         if ($nativeTasks && $contractVersion !== 3) {
             throw new \InvalidArgumentException('nativeTasks requires contract 3.');
         }

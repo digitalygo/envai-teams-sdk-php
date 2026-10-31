@@ -13,6 +13,9 @@ enum SyncAction: string
 {
     case None = 'none';
 
+    /** Confirm a journaled outcome from authoritative readback without mutation. */
+    case Recover = 'recover';
+
     case Create = 'create';
 
     case Update = 'update';

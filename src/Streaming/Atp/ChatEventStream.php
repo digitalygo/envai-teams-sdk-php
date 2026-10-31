@@ -7,6 +7,7 @@ namespace Digitalygo\Envai\Streaming\Atp;
 use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\EventStreamConnection;
 use Digitalygo\Envai\Exceptions\OperationCancelledException;
+use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\ReplayGapException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
@@ -70,11 +71,13 @@ final class ChatEventStream implements \IteratorAggregate
 
     private bool $closed = false;
 
+    private int $disconnectAttempts = 0;
+
     private ?string $learnedChatId = null;
 
     /**
      * @param  (\Closure(int): EventStreamConnection)|null  $connectionFactory  Rebuilds the connection for replay; receives the `after` cursor.
-     * @param  positive-int  $maxReconnectAttempts  Reconnect budget per detected gap.
+     * @param  int  $maxReconnectAttempts  Reconnect budget per detected gap.
      */
     public function __construct(
         EventStreamConnection $connection,
@@ -88,7 +91,11 @@ final class ChatEventStream implements \IteratorAggregate
         private readonly int $reconnectBaseDelayMs = 250,
         private readonly int $jitterMs = 50,
         private readonly int $readChunkSize = 8192,
+        private readonly bool $reconnectOnDisconnect = false,
     ) {
+        if ($maxReconnectAttempts < 0 || $reconnectBaseDelayMs < 0 || $jitterMs < 0 || $readChunkSize < 1 || $initialCursor < 0) {
+            throw new \InvalidArgumentException('Stream cursor and reconnect bounds must be nonnegative; readChunkSize must be positive.');
+        }
         $this->connection = $connection;
         $this->cursor = max(0, $initialCursor);
         $this->parser = new SseParser;
@@ -159,7 +166,16 @@ final class ChatEventStream implements \IteratorAggregate
                     yield $event;
                 }
 
-                $bytes = $this->connection->read($this->readChunkSize);
+                try {
+                    $bytes = $this->connection->read($this->readChunkSize);
+                } catch (TransportException $exception) {
+                    if (! $this->reconnectDisconnected($exception)) {
+                        throw $exception;
+                    }
+                    $inputFinished = false;
+
+                    continue;
+                }
 
                 if ($bytes === null) {
                     if (! $inputFinished) {
@@ -184,6 +200,12 @@ final class ChatEventStream implements \IteratorAggregate
 
                         $this->backoff();
                         $this->openReconnectConnection();
+
+                        continue;
+                    }
+
+                    if ($this->reconnectDisconnected()) {
+                        $inputFinished = false;
 
                         continue;
                     }
@@ -248,9 +270,21 @@ final class ChatEventStream implements \IteratorAggregate
                 return false;
             }
 
-            $bytes = $this->connection->read($this->readChunkSize);
+            try {
+                $bytes = $this->connection->read($this->readChunkSize);
+            } catch (TransportException $exception) {
+                if (! $this->reconnectDisconnected($exception)) {
+                    throw $exception;
+                }
+
+                continue;
+            }
 
             if ($bytes === null) {
+                if ($this->reconnectDisconnected()) {
+                    continue;
+                }
+
                 return false;
             }
 
@@ -348,11 +382,36 @@ final class ChatEventStream implements \IteratorAggregate
 
         try {
             $this->connection = ($this->connectionFactory)($this->cursor);
-        } catch (\Throwable $e) {
+        } catch (TransportException $e) {
             throw new TransportException(sprintf('Reconnect factory failed while replaying after seq %d: %s', $this->cursor, $e->getMessage()), previous: $e);
         }
 
         $this->parser = new SseParser;
+    }
+
+    private function reconnectDisconnected(?TransportException $previous = null): bool
+    {
+        if (! $this->reconnectOnDisconnect || $this->connectionFactory === null) {
+            return false;
+        }
+        $this->connection->close();
+        while (true) {
+            $this->token?->throwIfCancelled();
+            if ($this->disconnectAttempts >= $this->maxReconnectAttempts) {
+                throw new TransportException('Event stream reconnect budget exhausted.', previous: $previous);
+            }
+            $this->disconnectAttempts++;
+            $this->liveConfirmed = false;
+            $this->backoff();
+            $this->token?->throwIfCancelled();
+            try {
+                $this->openReconnectConnection();
+
+                return true;
+            } catch (TransportException $exception) {
+                $previous = $exception;
+            }
+        }
     }
 
     private function backoff(): void
@@ -400,6 +459,11 @@ final class ChatEventStream implements \IteratorAggregate
 
     private function learnChatId(AtpEvent $event): void
     {
+        $expected = $this->chatId();
+        if ($expected !== null && $event->envelope->chatId !== $expected) {
+            $this->close();
+            throw new ProtocolViolationException('Event belongs to a different chat.');
+        }
         if ($this->learnedChatId === null) {
             $this->learnedChatId = $event->envelope->chatId;
         }

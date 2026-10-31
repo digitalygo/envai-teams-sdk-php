@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Digitalygo\Envai\Tools\Execution;
 
+use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Exceptions\ApiException;
+use Digitalygo\Envai\Exceptions\OperationCancelledException;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Json\JsonArray;
@@ -32,6 +34,7 @@ use Digitalygo\Envai\Tools\State\ClientToolCallStatus;
 use Digitalygo\Envai\Tools\State\ClientToolCallStore;
 use Digitalygo\Envai\Tools\State\ToolCallIdentity;
 use Digitalygo\Envai\Tools\State\ToolCallStatus;
+use Digitalygo\Envai\Tools\State\ToolReplayBarrierStore;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -134,8 +137,9 @@ final readonly class ClientToolRunner
      *                                    verified; the handler is never
      *                                    invoked and nothing is submitted.
      */
-    public function handle(AgentToolRequestEvent $event, string $chatId): ToolRunResult
+    public function handle(AgentToolRequestEvent $event, string $chatId, ?string $taskId = null): ToolRunResult
     {
+        $this->options->cancellationToken?->throwIfCancelled();
         if ($chatId !== $event->envelope->chatId) {
             throw new ProtocolViolationException('Client tool request chat does not match the execution chat.');
         }
@@ -151,14 +155,18 @@ final readonly class ClientToolRunner
             turnId: $event->envelope->turnId,
         );
 
-        if ($event->envelope->turnId !== null && isset($this->terminalTurns[$chatId."\0".$event->envelope->turnId])) {
+        if ($event->envelope->turnId !== null && $this->isTerminal($chatId, 'turn', $event->envelope->turnId)) {
             return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
         }
 
-        if (isset($this->resolvedCalls[$chatId."\0".$verified->callId])) {
+        if ($this->isTerminal($chatId, 'call', $verified->callId)) {
             return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
         }
 
+        if ($taskId !== null && $this->isTerminal($chatId, 'task', $taskId)) {
+            return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
+        }
+        $this->options->cancellationToken?->throwIfCancelled();
         $registered = $this->registry->lookup($verified->toolName);
 
         if ($registered === null) {
@@ -175,25 +183,47 @@ final readonly class ClientToolRunner
             return $this->skippedByStore($verified->callId, $begin);
         }
 
-        return $this->runRegistered($event, $identity, $registered, $verified);
+        return $this->runRegistered($event, $identity, $registered, $verified, $taskId);
+    }
+
+    /** @param 'call'|'turn'|'task' $kind */
+    private function markTerminal(string $chatId, string $kind, string $id): void
+    {
+        if ($this->callStore instanceof ToolReplayBarrierStore) {
+            $this->callStore->markTerminal($chatId, $kind, $id);
+        }
+        $map = match ($kind) {
+            'call' => $this->resolvedCalls, 'turn' => $this->terminalTurns, 'task' => $this->terminalTasks
+        };
+        $map[$chatId."\0".$id] = true;
+    }
+
+    /** @param 'call'|'turn'|'task' $kind */
+    private function isTerminal(string $chatId, string $kind, string $id): bool
+    {
+        $map = match ($kind) {
+            'call' => $this->resolvedCalls, 'turn' => $this->terminalTurns, 'task' => $this->terminalTasks
+        };
+
+        return isset($map[$chatId."\0".$id]) || ($this->callStore instanceof ToolReplayBarrierStore && $this->callStore->isTerminal($chatId, $kind, $id));
     }
 
     public function observe(AtpEvent $event): void
     {
         if ($event instanceof AgentToolResultEvent) {
-            $this->resolvedCalls[$event->envelope->chatId."\0".$event->callId] = true;
+            $this->markTerminal($event->envelope->chatId, 'call', $event->callId);
         }
         if ($event instanceof TaskEvent && $event->eventType === 'agent.tool.result') {
             $callId = $event->eventPayload->get('call_id');
             if (is_string($callId)) {
-                $this->resolvedCalls[$event->envelope->chatId."\0".$callId] = true;
+                $this->markTerminal($event->envelope->chatId, 'call', $callId);
             }
         }
         if ($event instanceof TaskCompletedEvent || $event instanceof TaskFailedEvent || $event instanceof TaskCancelledEvent) {
-            $this->terminalTasks[$event->envelope->chatId."\0".$event->task->taskId] = true;
+            $this->markTerminal($event->envelope->chatId, 'task', $event->task->taskId);
         }
         if (($event instanceof TurnCompletedEvent || $event instanceof TurnCancelledEvent || $event instanceof TurnFailedEvent) && $event->envelope->turnId !== null) {
-            $this->terminalTurns[$event->envelope->chatId."\0".$event->envelope->turnId] = true;
+            $this->markTerminal($event->envelope->chatId, 'turn', $event->envelope->turnId);
         }
     }
 
@@ -234,13 +264,13 @@ final readonly class ClientToolRunner
         }
         $this->observe($event);
         if ($event instanceof TaskEvent && $event->toolRequest !== null) {
-            if (isset($this->terminalTasks[$chatId."\0".$event->taskId])) {
+            if ($this->isTerminal($chatId, 'task', $event->taskId)) {
                 $verified = $this->verifier->verify($event->toolRequest);
 
                 return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
             }
 
-            return $this->handle($event->toolRequest, $chatId);
+            return $this->handle($event->toolRequest, $chatId, $event->taskId);
         }
         if ($event instanceof AgentToolRequestEvent) {
             return $this->handle($event, $chatId);
@@ -348,6 +378,7 @@ final readonly class ClientToolRunner
         ToolCallIdentity $identity,
         RegisteredTool $registered,
         VerifiedToolRequest $verified,
+        ?string $taskId = null,
     ): ToolRunResult {
         try {
             $tool = $this->factory->create($registered->class);
@@ -384,8 +415,34 @@ final readonly class ClientToolRunner
             turnId: $event->envelope->turnId ?? '',
             callId: $verified->callId,
             arguments: $arguments,
+            cancellationToken: new class(fn (): bool => ($this->options->cancellationToken?->isCancelled() ?? false) || ($taskId !== null && $this->isTerminal($identity->chatId, 'task', $taskId)) || ($identity->turnId !== null && $this->isTerminal($identity->chatId, 'turn', $identity->turnId)) || $this->isTerminal($identity->chatId, 'call', $identity->callId)) implements CancellationToken
+            {
+                /** @param \Closure(): bool $cancelled */
+                public function __construct(private readonly \Closure $cancelled) {}
+
+                public function isCancelled(): bool
+                {
+                    return ($this->cancelled)();
+                }
+
+                public function throwIfCancelled(): void
+                {
+                    if ($this->isCancelled()) {
+                        throw new OperationCancelledException('Tool invocation was cancelled or resolved.');
+                    }
+                }
+            },
         );
 
+        if ($this->options->cancellationToken?->isCancelled()) {
+            $this->callStore->markAmbiguous($identity);
+            $this->options->cancellationToken->throwIfCancelled();
+        }
+        if ($invocation->cancellationToken?->isCancelled()) {
+            $this->callStore->markAmbiguous($identity);
+
+            return new ToolRunResult($verified->callId, ToolRunOutcome::Cancelled, false, ClientToolCallStatus::Ambiguous);
+        }
         $this->inFlight->add($verified->callId);
         $started = hrtime(true);
         $thrown = null;
@@ -399,6 +456,17 @@ final readonly class ClientToolRunner
             $this->inFlight->remove($verified->callId);
         }
 
+        if ($this->options->cancellationToken?->isCancelled()) {
+            $this->callStore->markAmbiguous($identity);
+            $this->options->cancellationToken->throwIfCancelled();
+        }
+        if (($taskId !== null && $this->isTerminal($identity->chatId, 'task', $taskId))
+            || ($identity->turnId !== null && $this->isTerminal($identity->chatId, 'turn', $identity->turnId))
+            || $this->isTerminal($identity->chatId, 'call', $verified->callId)) {
+            $this->callStore->markAmbiguous($identity);
+
+            return new ToolRunResult($verified->callId, ToolRunOutcome::Cancelled, false, ClientToolCallStatus::Ambiguous);
+        }
         $elapsedSeconds = (hrtime(true) - $started) / 1_000_000_000;
 
         if ($elapsedSeconds > $this->deadline($registered) && ! $this->options->allowSubmissionPastDeadline) {

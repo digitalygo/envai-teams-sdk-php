@@ -29,6 +29,7 @@ final class DelegatedJobAwait
         $read = static function () use ($lookup, $accepted, $token): TaskSnapshot {
             $token?->throwIfCancelled();
             $task = $lookup();
+            $token?->throwIfCancelled();
             if ($task->taskId !== $accepted->taskId || ($task->targetChatId !== null && $task->targetChatId !== $accepted->targetChatId)) {
                 throw new ProtocolViolationException('Delegated task identity does not match the receipt.');
             }

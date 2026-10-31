@@ -42,6 +42,31 @@ final class EnvaiServiceProviderTest extends IntegrationTestCase
         $this->app = $this->buildApp();
     }
 
+    public function test_all_core_connection_options_are_mapped(): void
+    {
+        $options = ['native_tasks' => true, 'strict_validation' => true, 'jwks_url' => 'https://keys.example/jwks', 'headers' => ['X-Tenant' => 'tenant'],
+            'connect_timeout_seconds' => 2, 'request_timeout_seconds' => 3, 'stream_timeout_seconds' => 4,
+            'retry_policy' => ['max_attempts' => 5, 'base_delay_ms' => 6, 'max_delay_ms' => 7, 'jitter' => false, 'respect_retry_after' => false, 'retryable_statuses' => [503]]];
+        foreach ($options as $key => $value) {
+            $this->app->make('config')->set('envai.connections.production.'.$key, $value);
+        }
+        $this->provider()->register();
+        $config = $this->app->make('envai.client.production')->config();
+        self::assertTrue($config->nativeTasks);
+        self::assertTrue($config->strictValidation);
+        self::assertSame($options['jwks_url'], $config->jwksUrl);
+        self::assertSame($options['headers'], $config->headers);
+        self::assertSame(2, $config->connectTimeoutSeconds);
+        self::assertSame(3, $config->requestTimeoutSeconds);
+        self::assertSame(4, $config->streamTimeoutSeconds);
+        self::assertSame(5, $config->retryPolicy->maxAttempts);
+        self::assertSame(6, $config->retryPolicy->baseDelayMs);
+        self::assertSame(7, $config->retryPolicy->maxDelayMs);
+        self::assertFalse($config->retryPolicy->jitter);
+        self::assertFalse($config->retryPolicy->respectRetryAfter);
+        self::assertSame([503], $config->retryPolicy->retryableStatuses);
+    }
+
     public function test_negotiated_contract_and_replay_limit_configuration(): void
     {
         $this->app->make('config')->set('envai.connections.production.contract_version', 2);
@@ -252,6 +277,7 @@ final class EnvaiServiceProviderTest extends IntegrationTestCase
             $table->string('desired_hash', 191)->nullable();
             $table->text('last_applied_payload')->nullable();
             $table->text('remote_marker')->nullable();
+            $table->text('state_metadata')->nullable();
             $table->string('status', 32);
             $table->string('synchronized_at', 64)->nullable();
             $table->string('created_at', 64);

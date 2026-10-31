@@ -16,6 +16,7 @@ use Digitalygo\Envai\Sync\Planner\SyncPlanner;
 use Digitalygo\Envai\Sync\Reconciler\RemoteWriter;
 use Digitalygo\Envai\Sync\Reconciler\SyncReconciler;
 use Digitalygo\Envai\Sync\Reconciler\SyncReport;
+use Digitalygo\Envai\Sync\State\InvalidatesReadyManifest;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
 use Digitalygo\Envai\Sync\State\ResourceType;
@@ -228,6 +229,13 @@ final class DefinitionsService
 
     private function applyLocked(SyncOptions $options, SyncLock $lock): SyncReport
     {
+        if (! $options->dryRun) {
+            if ($this->store instanceof InvalidatesReadyManifest) {
+                $this->store->clearManifestReady($this->connection);
+            } elseif ($this->store->readyManifest($this->connection) !== null) {
+                throw new \LogicException('Custom sync store must implement InvalidatesReadyManifest.');
+            }
+        }
         $compiled = $this->compile($this->catalogModels());
 
         $this->logger?->info(sprintf(

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Client;
 
 use Digitalygo\Envai\Client\Internal\TypedRequester;
+use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
@@ -40,7 +41,21 @@ final readonly class CompletionsService
      */
     public function list(string $workspaceId, string $chatId, ?CompletionFilters $filters = null): Page
     {
+        return $this->listPage($workspaceId, $chatId, $filters->page ?? 1, $filters);
+    }
+
+    /** Canonical Laravel pagination selector.
+     * @return Page<Completion>
+     */
+    public function listPage(string $workspaceId, string $chatId, int $page = 1, ?CompletionFilters $filters = null): Page
+    {
+        if ($page < 1) {
+            throw new \InvalidArgumentException('page must be positive.');
+        }
         $query = $filters?->toArray() ?? [];
+        if ($page > 1 || isset($query['page'])) {
+            $query['page'] = $page;
+        }
 
         $payload = $this->requests->payload(
             'GET',
@@ -54,6 +69,20 @@ final readonly class CompletionsService
 
         /** @var Page<Completion> */
         return Page::fromArray($payload, Completion::class);
+    }
+
+    /** @return \Generator<int, Completion, mixed, void> */
+    public function iterate(string $workspaceId, string $chatId, ?CompletionFilters $filters = null, int $startPage = 1): \Generator
+    {
+        $number = $startPage;
+        do {
+            $page = $this->listPage($workspaceId, $chatId, $number, $filters);
+            if ($page->meta->currentPage !== $number || $page->meta->lastPage < $number) {
+                throw new ProtocolViolationException('Completion pagination did not advance as requested.');
+            }
+            yield from $page->items;
+            $number++;
+        } while ($number <= $page->meta->lastPage);
     }
 
     /**

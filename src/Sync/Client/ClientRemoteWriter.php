@@ -18,6 +18,7 @@ use Digitalygo\Envai\Models\Team\TeamMemberCreateRequest;
 use Digitalygo\Envai\Models\Team\TeamUpdateRequest;
 use Digitalygo\Envai\Models\Tool\UserToolCreateRequest;
 use Digitalygo\Envai\Models\Tool\UserToolUpdateRequest;
+use Digitalygo\Envai\Sync\Reconciler\RemoteNameReader;
 use Digitalygo\Envai\Sync\Reconciler\RemoteWriter;
 
 /**
@@ -34,7 +35,7 @@ use Digitalygo\Envai\Sync\Reconciler\RemoteWriter;
  * Request DTOs are dumb constructors: only their own known fields are
  * serialized, unknown keys in the normalized payload are dropped.
  */
-final class ClientRemoteWriter implements RemoteWriter
+final class ClientRemoteWriter implements RemoteNameReader, RemoteWriter
 {
     public function __construct(
         private readonly ToolsService $tools,
@@ -141,9 +142,27 @@ final class ClientRemoteWriter implements RemoteWriter
      * transport failures may still throw.
      *
      * @param  string  $type  `tool`, `agent` or `team`.
-     * @param  string  $nameOrId  Tool name, or agent/team remote id.
+     * @param  string  $name  Exact desired agent/team name.
      * @return array<string, mixed>|null
      */
+    public function readRemoteByName(string $type, string $name): ?array
+    {
+        $collection = match ($type) {
+            'agent' => $this->agents->list(),
+            'team' => $this->teams->list(),
+            default => throw new \InvalidArgumentException('Unique-name recovery supports agents and teams.'),
+        };
+        $matches = [];
+        foreach ($collection->items as $resource) {
+            if ($resource->name === $name) {
+                $matches[] = $resource->toArray();
+            }
+        }
+
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    /** @return array<string, mixed>|null */
     public function readRemote(string $type, string $nameOrId): ?array
     {
         try {
