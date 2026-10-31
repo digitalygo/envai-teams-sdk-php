@@ -10,7 +10,14 @@ use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
+use Digitalygo\Envai\Streaming\Events\AgentToolResultEvent;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\PingEvent;
+use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
+use Digitalygo\Envai\Streaming\Events\TaskCancelledEvent;
+use Digitalygo\Envai\Streaming\Events\TaskCompletedEvent;
+use Digitalygo\Envai\Streaming\Events\TaskEvent;
+use Digitalygo\Envai\Streaming\Events\TaskFailedEvent;
 use Digitalygo\Envai\Streaming\Events\TurnCancelledEvent;
 use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
 use Digitalygo\Envai\Streaming\Events\TurnFailedEvent;
@@ -93,6 +100,12 @@ final readonly class ClientToolRunner
     /** @var \ArrayObject<string, true> */
     private \ArrayObject $terminalTurns;
 
+    /** @var \ArrayObject<string, true> */
+    private \ArrayObject $terminalTasks;
+
+    /** @var \ArrayObject<string, true> */
+    private \ArrayObject $resolvedCalls;
+
     public function __construct(
         private readonly ClientToolRegistry $registry,
         private readonly ClientToolFactory $factory,
@@ -106,6 +119,12 @@ final readonly class ClientToolRunner
         /** @var \ArrayObject<string, true> $terminalTurns */
         $terminalTurns = new \ArrayObject;
         $this->terminalTurns = $terminalTurns;
+        /** @var \ArrayObject<string, true> $terminalTasks */
+        $terminalTasks = new \ArrayObject;
+        $this->terminalTasks = $terminalTasks;
+        /** @var \ArrayObject<string, true> $resolvedCalls */
+        $resolvedCalls = new \ArrayObject;
+        $this->resolvedCalls = $resolvedCalls;
     }
 
     /**
@@ -136,6 +155,10 @@ final readonly class ClientToolRunner
             return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
         }
 
+        if (isset($this->resolvedCalls[$chatId."\0".$verified->callId])) {
+            return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
+        }
+
         $registered = $this->registry->lookup($verified->toolName);
 
         if ($registered === null) {
@@ -157,6 +180,18 @@ final readonly class ClientToolRunner
 
     public function observe(AtpEvent $event): void
     {
+        if ($event instanceof AgentToolResultEvent) {
+            $this->resolvedCalls[$event->envelope->chatId."\0".$event->callId] = true;
+        }
+        if ($event instanceof TaskEvent && $event->eventType === 'agent.tool.result') {
+            $callId = $event->eventPayload->get('call_id');
+            if (is_string($callId)) {
+                $this->resolvedCalls[$event->envelope->chatId."\0".$callId] = true;
+            }
+        }
+        if ($event instanceof TaskCompletedEvent || $event instanceof TaskFailedEvent || $event instanceof TaskCancelledEvent) {
+            $this->terminalTasks[$event->envelope->chatId."\0".$event->task->taskId] = true;
+        }
         if (($event instanceof TurnCompletedEvent || $event instanceof TurnCancelledEvent || $event instanceof TurnFailedEvent) && $event->envelope->turnId !== null) {
             $this->terminalTurns[$event->envelope->chatId."\0".$event->envelope->turnId] = true;
         }
@@ -179,6 +214,78 @@ final readonly class ClientToolRunner
             }
             if ($event instanceof AgentToolRequestEvent) {
                 $results[] = $this->handle($event, $chatId);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Explicit chat-scoped dispatch for detached activity after the origin turn.
+     * Foreground handleEvents() and terminal turn filtering remain unchanged.
+     */
+    public function handleBackgroundEvent(AtpEvent $event, string $chatId): ?ToolRunResult
+    {
+        if ($event->envelope->chatId !== $chatId) {
+            throw new ProtocolViolationException('Background event chat does not match the execution chat.');
+        }
+        if ($event instanceof ProtocolViolationEvent) {
+            throw new ProtocolViolationException('Malformed background event.', ['violations' => $event->violations]);
+        }
+        $this->observe($event);
+        if ($event instanceof TaskEvent && $event->toolRequest !== null) {
+            if (isset($this->terminalTasks[$chatId."\0".$event->taskId])) {
+                $verified = $this->verifier->verify($event->toolRequest);
+
+                return new ToolRunResult($verified->callId, ToolRunOutcome::SkippedByStore, false, null);
+            }
+
+            return $this->handle($event->toolRequest, $chatId);
+        }
+        if ($event instanceof AgentToolRequestEvent) {
+            return $this->handle($event, $chatId);
+        }
+
+        return null;
+    }
+
+    /** @param iterable<AtpEvent> $events
+     * @return list<ToolRunResult>
+     */
+    public function handleBackgroundEvents(iterable $events, string $chatId, bool $liveConfirmed = false): array
+    {
+        $results = [];
+        $pending = [];
+        foreach ($events as $event) {
+            if ($event->envelope->chatId !== $chatId) {
+                throw new ProtocolViolationException('Background event chat does not match the execution chat.');
+            }
+            if ($event instanceof ProtocolViolationEvent) {
+                throw new ProtocolViolationException('Malformed background replay event.', ['violations' => $event->violations]);
+            }
+            $this->observe($event);
+            if (! $liveConfirmed) {
+                if ($event instanceof PingEvent) {
+                    $liveConfirmed = true;
+                    foreach ($pending as $request) {
+                        $result = $this->handleBackgroundEvent($request, $chatId);
+                        if ($result !== null) {
+                            $results[] = $result;
+                        }
+                    }
+                    $pending = [];
+                } elseif ($event instanceof AgentToolRequestEvent || ($event instanceof TaskEvent && $event->toolRequest !== null)) {
+                    if (count($pending) >= 10000) {
+                        throw new ProtocolViolationException('Background replay exceeds the pending tool buffer limit.');
+                    }
+                    $pending[] = $event;
+                }
+
+                continue;
+            }
+            $result = $this->handleBackgroundEvent($event, $chatId);
+            if ($result !== null) {
+                $results[] = $result;
             }
         }
 

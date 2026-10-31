@@ -20,6 +20,8 @@ final readonly class AgentDoneEvent extends AtpEvent
         public Usage $usage,
         public int $durationMs,
         array $extra = [],
+        public ?string $requestedModel = null,
+        public ?string $model = null,
     ) {
         parent::__construct($envelope, $extra);
     }

@@ -34,7 +34,11 @@ final readonly class EnvaiConfig
         public ?string $stateFilePath = null,
         public int $contractVersion = 3,
         public int $maxLegacyReplayBytes = 67_108_864,
+        public bool $nativeTasks = false,
     ) {
+        if ($nativeTasks && $contractVersion !== 3) {
+            throw new \InvalidArgumentException('nativeTasks requires contract 3.');
+        }
         if ($maxLegacyReplayBytes < 1) {
             throw new \InvalidArgumentException('maxLegacyReplayBytes must be positive.');
         }

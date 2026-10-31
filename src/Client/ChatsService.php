@@ -10,6 +10,7 @@ use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\EventStreamConnection;
 use Digitalygo\Envai\Contracts\EventStreamTransport;
 use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
+use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
 use Digitalygo\Envai\Http\AuthenticationMode;
 use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
@@ -22,13 +23,22 @@ use Digitalygo\Envai\Models\Chat\ChatCreateRequest;
 use Digitalygo\Envai\Models\Chat\ChatForked;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Chat\DelegationAccepted;
+use Digitalygo\Envai\Models\Chat\DelegationRequest;
+use Digitalygo\Envai\Models\Chat\DeliveryAccepted;
+use Digitalygo\Envai\Models\Chat\DeliveryRequest;
 use Digitalygo\Envai\Models\Chat\ForkChatRequest;
+use Digitalygo\Envai\Models\Chat\PhaseClassificationRequest;
+use Digitalygo\Envai\Models\Chat\PhaseClassificationResult;
 use Digitalygo\Envai\Models\Chat\RestoreChatAccepted;
 use Digitalygo\Envai\Models\Chat\RestoreChatRequest;
 use Digitalygo\Envai\Models\Chat\SteerRequest;
+use Digitalygo\Envai\Models\Chat\TaskCancelled;
+use Digitalygo\Envai\Models\Chat\TaskSnapshot;
 use Digitalygo\Envai\Models\Chat\ToolOutputRequest;
 use Digitalygo\Envai\Models\Chat\TurnAccepted;
 use Digitalygo\Envai\Models\Common\ResourceCollection;
+use Digitalygo\Envai\Models\System\Capabilities;
 
 /**
  * Execution plane chat operations plus the chat control plane surface.
@@ -57,6 +67,100 @@ final readonly class ChatsService
         private int $contractVersion = 3,
     ) {
         $this->requests = new TypedRequester($executor, $uris, $connectTimeoutSeconds, $requestTimeoutSeconds);
+    }
+
+    public function requireCapability(string $feature): void
+    {
+        $capabilities = $this->requests->request('GET', '/atp/v3/capabilities', [], null, Capabilities::class, EnvelopeMode::TopLevel);
+        assert($capabilities instanceof Capabilities);
+        if ($this->contractVersion !== 3 || ! $capabilities->supports($feature)) {
+            throw new UnsupportedCapabilityException('Server does not advertise '.$feature.'.');
+        }
+    }
+
+    public function deliver(string $chatId, DeliveryRequest $request): DeliveryAccepted
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/deliveries', ['chat_id' => $chatId]),
+            [],
+            $request->toArray(),
+            DeliveryAccepted::class,
+            EnvelopeMode::TopLevel,
+            AuthenticationMode::Bearer,
+            RetrySafety::NeverRetry,
+        );
+
+        /** @var DeliveryAccepted $result */
+        return $result;
+    }
+
+    public function delegate(string $chatId, DelegationRequest $request): DelegationAccepted
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/delegations', ['chat_id' => $chatId]),
+            [],
+            $request->toArray(),
+            DelegationAccepted::class,
+            EnvelopeMode::TopLevel,
+            AuthenticationMode::Bearer,
+            RetrySafety::NeverRetry,
+        );
+
+        /** @var DelegationAccepted $result */
+        return $result;
+    }
+
+    public function getTask(string $chatId, string $taskId): TaskSnapshot
+    {
+        $result = $this->requests->request(
+            'GET',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/tasks/{task_id}', ['chat_id' => $chatId, 'task_id' => $taskId]),
+            [],
+            null,
+            TaskSnapshot::class,
+            EnvelopeMode::TopLevel,
+            AuthenticationMode::Bearer,
+            RetrySafety::NeverRetry,
+        );
+
+        /** @var TaskSnapshot $result */
+        return $result;
+    }
+
+    public function cancelTask(string $chatId, string $taskId, bool $subtree = false): TaskCancelled
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/tasks/{task_id}/cancel', ['chat_id' => $chatId, 'task_id' => $taskId]),
+            [],
+            ['subtree' => $subtree],
+            TaskCancelled::class,
+            EnvelopeMode::TopLevel,
+            AuthenticationMode::Bearer,
+            RetrySafety::NeverRetry,
+        );
+
+        /** @var TaskCancelled $result */
+        return $result;
+    }
+
+    public function classifyPhase(string $chatId, PhaseClassificationRequest $request): PhaseClassificationResult
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/classify-phase', ['chat_id' => $chatId]),
+            [],
+            $request->toArray(),
+            PhaseClassificationResult::class,
+            EnvelopeMode::TopLevel,
+            AuthenticationMode::Bearer,
+            RetrySafety::NeverRetry,
+        );
+
+        /** @var PhaseClassificationResult $result */
+        return $result;
     }
 
     /**

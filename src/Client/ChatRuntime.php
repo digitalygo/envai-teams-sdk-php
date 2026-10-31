@@ -7,13 +7,20 @@ namespace Digitalygo\Envai\Client;
 use Digitalygo\Envai\Client\Internal\ChatsMessageSender;
 use Digitalygo\Envai\Contracts\CancellationToken;
 use Digitalygo\Envai\Contracts\EventStreamConnection;
+use Digitalygo\Envai\Exceptions\ProtocolViolationException;
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Chat\DelegationRequest;
+use Digitalygo\Envai\Models\Chat\TaskSnapshot;
 use Digitalygo\Envai\Streaming\Atp\AtpEventDecoder;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
 use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
+use Digitalygo\Envai\Streaming\Atp\DelegatedJobAwait;
 use Digitalygo\Envai\Streaming\Atp\TurnResult;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
+use Digitalygo\Envai\Tools\Execution\ClientToolRunner;
 
 /**
  * High level facade over one chat: the typed ATP event stream plus the
@@ -37,6 +44,60 @@ final class ChatRuntime
         private readonly ChatsService $chats,
         private readonly int $contractVersion = 3,
     ) {}
+
+    /**
+     * Submit a job only after its target SSE is live, and retain that SSE through
+     * the final origin task outcome. Cancellation closes observation only; use
+     * cancelTask() to cancel execution explicitly. Configure a finite stream
+     * timeout or supply a cancellation token for bounded waiting.
+     */
+    public function delegateAndWait(
+        DelegationRequest $request,
+        ?ClientToolRunner $runner = null,
+        ?CancellationToken $token = null,
+    ): TaskSnapshot {
+        if ($request->workspaceId !== $this->workspaceId || $request->targetChatId === $this->chatId) {
+            throw new \InvalidArgumentException('Delegation must target another chat in this workspace.');
+        }
+        $this->chats->requireCapability('delegated_job_lifecycle');
+        $target = new self($this->workspaceId, $request->targetChatId, $this->chats, $this->contractVersion);
+        $stream = $target->events(token: $token);
+        try {
+            $replay = [];
+            $collect = static function (AtpEvent $event) use (&$replay): void {
+                if (count($replay) >= 10000) {
+                    throw new ProtocolViolationException('Target replay exceeds the event buffer limit.');
+                }
+                $replay[] = $event;
+            };
+            if (! $stream->waitLiveConfirmation(onReplay: $collect)) {
+                throw new TransportException('Target stream did not confirm a live subscription; delegation was not submitted.');
+            }
+            $token?->throwIfCancelled();
+            $accepted = $this->chats->delegate($this->chatId, $request);
+            // Exact event-ID retries may resume an existing job. Establish all
+            // replay barriers before admitting any retained pending tool call.
+            if ($runner !== null) {
+                foreach ($replay as $event) {
+                    if ($event instanceof ProtocolViolationEvent) {
+                        throw new ProtocolViolationException('Malformed target replay.');
+                    }
+                    $runner->observe($event);
+                }
+                $runner->handleBackgroundEvents($replay, $request->targetChatId, liveConfirmed: true);
+            }
+
+            return DelegatedJobAwait::terminal(
+                $accepted,
+                $stream,
+                fn (): TaskSnapshot => $this->chats->getTask($this->chatId, $accepted->taskId),
+                $runner,
+                $token,
+            );
+        } finally {
+            $stream->close();
+        }
+    }
 
     /**
      * The workspace this runtime is bound to.
@@ -67,9 +128,9 @@ final class ChatRuntime
      * acknowledgment (POST /chats/{chat_id}/messages, HTTP 202).
      */
     /** @param list<string> $attachmentIds */
-    public function sendMessage(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): ChatMessageAccepted
+    public function sendMessage(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): ChatMessageAccepted
     {
-        return $this->chats->sendMessage($this->chatId, new ChatMessageRequest($message, $attachmentIds), $idempotencyKey);
+        return $this->chats->sendMessage($this->chatId, new ChatMessageRequest($message, $attachmentIds, $strictModel), $idempotencyKey);
     }
 
     /**
@@ -79,9 +140,9 @@ final class ChatRuntime
      * @param  list<string>  $attachmentIds
      * @return \Generator<int, AtpEvent, mixed, void>
      */
-    public function sendAndStream(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): \Generator
+    public function sendAndStream(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): \Generator
     {
-        return $this->runtime($attachmentIds, $idempotencyKey)->sendAndStream($message);
+        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel)->sendAndStream($message);
     }
 
     /**
@@ -89,17 +150,17 @@ final class ChatRuntime
      * turn.
      */
     /** @param list<string> $attachmentIds */
-    public function sendAndWait(string $message, array $attachmentIds = [], ?string $idempotencyKey = null): TurnResult
+    public function sendAndWait(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): TurnResult
     {
-        return $this->runtime($attachmentIds, $idempotencyKey)->sendAndWait($message);
+        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel)->sendAndWait($message);
     }
 
     /** @param list<string> $attachmentIds */
-    private function runtime(array $attachmentIds, ?string $idempotencyKey): ChatTurnRuntime
+    private function runtime(array $attachmentIds, ?string $idempotencyKey, ?bool $strictModel): ChatTurnRuntime
     {
         return new ChatTurnRuntime(
             $this->events(),
-            new ChatsMessageSender($this->chats, $attachmentIds, $idempotencyKey),
+            new ChatsMessageSender($this->chats, $attachmentIds, $idempotencyKey, $strictModel),
             $this->chatId,
             retainReplay: $idempotencyKey !== null,
         );

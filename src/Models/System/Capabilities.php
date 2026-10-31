@@ -36,6 +36,13 @@ final readonly class Capabilities implements ArrayHydratable
         public ?string $legacyV2Mode = null,
     ) {}
 
+    public function supports(string $feature): bool
+    {
+        return array_is_list($this->features)
+            ? in_array($feature, $this->features, true)
+            : ($this->features[$feature] ?? false) === true;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */

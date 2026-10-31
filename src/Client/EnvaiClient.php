@@ -55,7 +55,7 @@ final readonly class EnvaiClient
         }
 
         $this->uris = new UriResolver($config->baseUrl, $config->jwksUrl);
-        $negotiatedTransport = new ContractTransport($this->transport, $this->uris, $config->contractVersion, $config->maxLegacyReplayBytes);
+        $negotiatedTransport = new ContractTransport($this->transport, $this->uris, $config->contractVersion, $config->maxLegacyReplayBytes, $config->nativeTasks);
         $this->executor = new RequestExecutor(
             $negotiatedTransport,
             $this->uris,
