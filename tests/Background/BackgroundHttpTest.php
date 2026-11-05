@@ -13,9 +13,13 @@ use Digitalygo\Envai\Exceptions\ServerException;
 use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Chat\ChoiceClassificationRequest;
+use Digitalygo\Envai\Models\Chat\ChoiceClassificationResult;
 use Digitalygo\Envai\Models\Chat\DelegationRequest;
 use Digitalygo\Envai\Models\Chat\DeliveryOutcome;
 use Digitalygo\Envai\Models\Chat\DeliveryRequest;
+use Digitalygo\Envai\Models\Chat\IndependentJobReceipt;
+use Digitalygo\Envai\Models\Chat\IndependentJobRequest;
 use Digitalygo\Envai\Models\Chat\PhaseClassificationRequest;
 use Digitalygo\Envai\Models\Chat\TaskStatus;
 use Digitalygo\Envai\Tests\Streaming\Atp\FakeEventStreamConnection;
@@ -49,6 +53,122 @@ final class BackgroundHttpTest extends TestCase
         $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('test'), nativeTasks: true), $transport);
 
         return [$client, $transport];
+    }
+
+    public function test_independent_job_choice_and_originless_delivery(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background', 'independent_jobs', 'finite_choice_classification', 'native_deliveries', 'originless_deliveries', 'strict_model']);
+        $transport->responses[] = self::response(['task_id' => 'job', 'turn_id' => 'initial'], status: 202);
+        $transport->responses[] = self::response(['choice' => 'yes', 'model' => 'fixture', 'request_id' => 'r', 'invocation_id' => 'i']);
+        $transport->responses[] = self::response(['task_id' => 'job', 'origin_turn_id' => '', 'status' => 'completed', 'output' => 'full', 'result_turn_id' => 'final']);
+        $transport->responses[] = self::response(['event_id' => 'e', 'status' => 'queued', 'duplicate' => false], status: 202);
+        $job = $client->chats()->startJob('c/a', new IndependentJobRequest('w', 'j', 'work', true));
+        self::assertSame('initial', $job->turnId);
+        $choice = $client->chats()->classifyChoice('c/a', new ChoiceClassificationRequest('r', ['input'], 'ready?', [['label' => 'yes', 'description' => 'ready'], ['label' => 'no', 'description' => 'wait']]));
+        self::assertSame('yes', $choice->choice);
+        $task = $client->chats()->getTask('c/a', 'job');
+        self::assertSame('', $task->originTurnId);
+        self::assertSame('full', $task->output);
+        self::assertSame('final', $task->resultTurnId);
+        $client->chats()->deliver('c/a', new DeliveryRequest('w', 'e', '', 'job', DeliveryOutcome::Completed, 'full', true));
+        self::assertCount(5, $transport->requests);
+        self::assertStringEndsWith('/chats/c%2Fa/jobs', $transport->requests[1]->uri);
+        $body = json_decode($transport->requests[4]->body, true);
+        self::assertArrayNotHasKey('origin_turn_id', $body);
+        self::assertTrue($body['strict_model']);
+    }
+
+    public function test_choice_request_constraints_and_model_roundtrip(): void
+    {
+        foreach ([null, []] as $context) {
+            try {
+                new ChoiceClassificationRequest('r', $context, 'question', [['label' => 'same', 'description' => 'a'], ['label' => 'same', 'description' => 'b']]);
+                self::fail('Invalid request accepted.');
+            } catch (\InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+        $receipt = ['task_id' => 'job', 'turn_id' => 'initial', 'future' => 'value'];
+        self::assertSame($receipt, IndependentJobReceipt::fromArray($receipt)->toArray());
+        $result = ['choice' => 'yes', 'model' => 'fixture', 'request_id' => 'r', 'invocation_id' => 'i', 'future' => 'value'];
+        self::assertSame($result, ChoiceClassificationResult::fromArray($result)->toArray());
+        [$client, $transport] = $this->setupClient(['detached_background', 'native_deliveries']);
+        try {
+            $client->chats()->deliver('c', new DeliveryRequest('w', 'e', '', 'job', DeliveryOutcome::Completed, 'full'));
+            self::fail('Originless delivery accepted without capability.');
+        } catch (UnsupportedCapabilityException) {
+            self::assertCount(1, $transport->requests);
+        }
+    }
+
+    public function test_independent_receipts_require_nonempty_identity(): void
+    {
+        foreach ([['task_id' => '', 'turn_id' => 'initial'], ['task_id' => 'job', 'turn_id' => '']] as $receipt) {
+            [$client, $transport] = $this->setupClient(['detached_background', 'independent_jobs']);
+            $transport->responses[] = self::response($receipt, status: 202);
+            try {
+                $client->chats()->startJob('c', new IndependentJobRequest('w', 'j', 'work'));
+                self::fail('Empty identity accepted.');
+            } catch (ContractCompatibilityException) {
+                self::assertCount(2, $transport->requests);
+            }
+        }
+        foreach (['model', 'invocation_id'] as $field) {
+            [$client, $transport] = $this->setupClient(['detached_background', 'finite_choice_classification']);
+            $transport->responses[] = self::response(array_replace(['choice' => 'yes', 'model' => 'fixture', 'request_id' => 'r', 'invocation_id' => 'i'], [$field => '']));
+            try {
+                $client->chats()->classifyChoice('c', new ChoiceClassificationRequest('r', [], 'ready?', [['label' => 'yes', 'description' => 'ready'], ['label' => 'no', 'description' => 'wait']]));
+                self::fail('Empty classifier metadata accepted.');
+            } catch (ContractCompatibilityException) {
+                self::assertCount(2, $transport->requests);
+            }
+        }
+    }
+
+    public function test_choice_rejects_unknown_label_and_wrong_identity(): void
+    {
+        foreach ([['other', 'r'], ['yes', 'other']] as [$label, $id]) {
+            [$client, $transport] = $this->setupClient(['detached_background', 'finite_choice_classification']);
+            $transport->responses[] = self::response(['choice' => $label, 'model' => 'fixture', 'request_id' => $id, 'invocation_id' => 'i']);
+            try {
+                $client->chats()->classifyChoice('c', new ChoiceClassificationRequest('r', [], 'ready?', [['label' => 'yes', 'description' => 'ready'], ['label' => 'no', 'description' => 'wait']]));
+                self::fail('Invalid classifier response accepted.');
+            } catch (ContractCompatibilityException) {
+                self::assertCount(2, $transport->requests);
+            }
+        }
+    }
+
+    public function test_independent_operations_require_capabilities_before_post(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background']);
+        try {
+            $client->chats()->startJob('c', new IndependentJobRequest('w', 'j', 'work'));
+            self::fail('Missing capability accepted.');
+        } catch (UnsupportedCapabilityException) {
+            self::assertCount(1, $transport->requests);
+        }
+        $transport->responses[] = self::response(['task_id' => 'job', 'origin_turn_id' => '', 'status' => 'completed']);
+        $this->expectException(UnsupportedCapabilityException::class);
+        $client->chats()->getTask('c', 'job');
+    }
+
+    public function test_choice_and_job_failures_are_not_retried(): void
+    {
+        foreach (['job', 'choice'] as $operation) {
+            [$client, $transport] = $this->setupClient(['detached_background', 'independent_jobs', 'finite_choice_classification']);
+            $transport->responses[] = self::response(['error' => ['code' => 'unavailable', 'message' => 'fixture']], status: 503);
+            try {
+                if ($operation === 'job') {
+                    $client->chats()->startJob('c', new IndependentJobRequest('w', 'j', 'work'));
+                } else {
+                    $client->chats()->classifyChoice('c', new ChoiceClassificationRequest('r', [], 'ready?', [['label' => 'yes', 'description' => 'ready'], ['label' => 'no', 'description' => 'wait']]));
+                }
+                self::fail('Expected server error.');
+            } catch (ServerException) {
+                self::assertCount(2, $transport->requests);
+            }
+        }
     }
 
     public function test_native_reconnect_preserves_extension_auth_and_cursor(): void

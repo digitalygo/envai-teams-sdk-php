@@ -23,11 +23,15 @@ use Digitalygo\Envai\Models\Chat\ChatCreateRequest;
 use Digitalygo\Envai\Models\Chat\ChatForked;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Chat\ChoiceClassificationRequest;
+use Digitalygo\Envai\Models\Chat\ChoiceClassificationResult;
 use Digitalygo\Envai\Models\Chat\DelegationAccepted;
 use Digitalygo\Envai\Models\Chat\DelegationRequest;
 use Digitalygo\Envai\Models\Chat\DeliveryAccepted;
 use Digitalygo\Envai\Models\Chat\DeliveryRequest;
 use Digitalygo\Envai\Models\Chat\ForkChatRequest;
+use Digitalygo\Envai\Models\Chat\IndependentJobReceipt;
+use Digitalygo\Envai\Models\Chat\IndependentJobRequest;
 use Digitalygo\Envai\Models\Chat\PhaseClassificationRequest;
 use Digitalygo\Envai\Models\Chat\PhaseClassificationResult;
 use Digitalygo\Envai\Models\Chat\RestoreChatAccepted;
@@ -88,6 +92,39 @@ final readonly class ChatsService
         if ($this->contractVersion !== 3 || ! $capabilities->supports($feature)) {
             throw new UnsupportedCapabilityException('Server does not advertise '.$feature.'.');
         }
+    }
+
+    public function startJob(string $chatId, IndependentJobRequest $request): IndependentJobReceipt
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/jobs', ['chat_id' => $chatId]),
+            [], $request->toArray(), IndependentJobReceipt::class,
+            EnvelopeMode::TopLevel, AuthenticationMode::Bearer, RetrySafety::NeverRetry,
+        );
+        assert($result instanceof IndependentJobReceipt);
+        if ($result->taskId === '' || $result->turnId === '') {
+            throw new ContractCompatibilityException('Job acceptance omitted task or turn identity.');
+        }
+
+        return $result;
+    }
+
+    public function classifyChoice(string $chatId, ChoiceClassificationRequest $request): ChoiceClassificationResult
+    {
+        $result = $this->requests->request(
+            'POST',
+            $this->requests->resolve('/atp/v3/chats/{chat_id}/classify-choice', ['chat_id' => $chatId]),
+            [], $request->toArray(), ChoiceClassificationResult::class,
+            EnvelopeMode::TopLevel, AuthenticationMode::Bearer, RetrySafety::NeverRetry,
+        );
+        assert($result instanceof ChoiceClassificationResult);
+
+        if ($result->model === '' || $result->invocationId === '' || $result->requestId !== $request->requestId || ! in_array($result->choice, array_column($request->choices, 'label'), true)) {
+            throw new ContractCompatibilityException('Choice result does not match the submitted request.');
+        }
+
+        return $result;
     }
 
     public function deliver(string $chatId, DeliveryRequest $request): DeliveryAccepted

@@ -1,0 +1,11 @@
+# Independent jobs and finite choices
+
+The canonical contract is pinned to Envai `18ce9124604874d8d4bac784b521171d2ff9e064`. Enable the existing native task option explicitly; its default remains false. The client sends and verifies `X-Envai-Extensions: native-tasks-v1`.
+
+Independent jobs require `independent_jobs`. Start a job with workspace ID, stable request ID, prompt and optional strict model policy. The receipt turn ID identifies the initial coordinator only. Keep the execution chat event stream open for signed client tools until the task becomes terminal; read the full task output and final `result_turn_id`. Independent root tasks retain the required `origin_turn_id` field with an empty string. Task lookup rejects that representation unless the server advertises `independent_jobs`. Missing resident tasks after a restart do not prove that paid work did not run.
+
+Finite choice classification requires `finite_choice_classification`. Supply a stable request ID, non-null JSON context, question and 2 to 32 unique labeled choices with descriptions. The response includes the exact selected label, model and invocation ID. The SDK rejects a label outside the submitted set or a mismatched request ID. Classification and job POSTs are never automatically retried, including ambiguous server failures. Classifier request IDs have durable duplicate rejection (HTTP 409), including after restart; independent job and delivery deduplication instead retains the same-ID receipt only while the resident chat state survives. A lost receipt or restart never authorizes a blind replay.
+
+Deliveries with an omitted or empty origin require `originless_deliveries`. The delivery request supports optional `strict_model`; a referenced strict origin cannot be downgraded by false. Existing callers with an origin remain compatible. Exact capability checks occur before mutations. Strict resolution does not imply provider alias equality or attest to live model availability.
+
+PHP entry points are `chats()->startJob`, `classifyChoice`, `getTask` and `deliver`, with typed request and response models. Existing `DeliveryRequest` positional arguments remain valid; use an empty origin string for an originless delivery and the optional final `strictModel` argument for explicit model policy.

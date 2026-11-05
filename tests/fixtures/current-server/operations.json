@@ -30,6 +30,18 @@
     "authenticated": true
   },
   {
+    "id": "classifyChoice",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/classify-choice",
+    "authenticated": true
+  },
+  {
+    "id": "startIndependentJob",
+    "method": "POST",
+    "path": "/atp/v3/chats/{chat_id}/jobs",
+    "authenticated": true
+  },
+  {
     "id": "sendChatMessage",
     "method": "POST",
     "path": "/atp/v3/chats/{chat_id}/messages",

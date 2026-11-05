@@ -81,6 +81,11 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         } elseif (preg_match('#/chats/[^/]+/classify-phase$#', $uri)) {
             $nativeFeature = 'phase_classification';
         }
+        if (preg_match('#/chats/[^/]+/jobs$#', $uri)) {
+            $nativeFeature = 'independent_jobs';
+        } elseif (preg_match('#/chats/[^/]+/classify-choice$#', $uri)) {
+            $nativeFeature = 'finite_choice_classification';
+        }
         if ($nativeFeature !== null && (! $this->nativeTasks || $this->version !== 3)) {
             throw new ContractCompatibilityException('Native background operations require contract 3 with nativeTasks enabled.');
         }
@@ -94,6 +99,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
             }
             $nativeBody = is_string($request->body) ? json_decode($request->body, true) : null;
             if (is_array($nativeBody)) {
+                if ($nativeFeature === 'native_deliveries' && ($nativeBody['origin_turn_id'] ?? '') === '' && ! $this->hasFeature('originless_deliveries')) {
+                    throw new UnsupportedCapabilityException('Server does not advertise originless_deliveries.');
+                }
                 foreach (['strict_model' => 'strict_model', 'notify_origin' => 'delegation_notify_origin'] as $field => $feature) {
                     if (array_key_exists($field, $nativeBody) && (! $this->nativeTasks || ! $this->hasFeature($feature))) {
                         throw new UnsupportedCapabilityException('Server does not advertise '.$feature.'.');
@@ -130,6 +138,9 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
         if ($response->status >= 200 && $response->status < 300) {
             if ($attachmentIds !== [] && ($this->json($response)['attachment_ids'] ?? null) !== $attachmentIds) {
                 throw new ContractCompatibilityException('Message acceptance omitted or changed attachment IDs.');
+            }
+            if ($nativeFeature === 'detached_background' && strtoupper($request->method) === 'GET' && ($this->json($response)['origin_turn_id'] ?? null) === '' && ! $this->hasFeature('independent_jobs')) {
+                throw new UnsupportedCapabilityException('Server does not advertise independent_jobs.');
             }
             if ($kind === 'capabilities') {
                 $this->validateCapabilities($response);

@@ -52,7 +52,7 @@ final class StrictValidationTransportTest extends TestCase
     {
         $fake = new FakeTransport;
         $strict = new StrictValidationTransport($fake, new UriResolver('https://example.test'));
-        self::assertCount(76, $strict->operationIds());
+        self::assertCount(78, $strict->operationIds());
         try {
             $strict->send(new HttpRequest('POST', 'https://example.test/api/v1/agents', body: '{}'));
             self::fail('Invalid request accepted');
@@ -144,7 +144,7 @@ final class StrictValidationTransportTest extends TestCase
                 }
             }
         }
-        self::assertSame(62, $count);
+        self::assertSame(64, $count);
     }
 
     public function test_runtime_schema_is_exact_canonical_mirror_and_included_in_distribution(): void

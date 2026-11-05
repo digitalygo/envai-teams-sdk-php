@@ -1,15 +1,15 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "3a9ecf3a4ccd3291474848d3dc9d0100170b9e54",
+  "commit": "18ce9124604874d8d4bac784b521171d2ff9e064",
   "protocol_version": 3,
-  "operations": 76,
+  "operations": 78,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
       "snapshot_path": "docs/openapi.yaml",
-      "bytes": 257785,
-      "sha256": "d7c256774b00d2149b4ab5fbfc6388787cb46d4a41e2795622880372ec343668",
-      "git_blob_sha": "7bf1bb0cf218e9c8765da15e8ddfd9f090e2fa93"
+      "bytes": 266248,
+      "sha256": "a3fae2bc6faef4c9132ad792a4a13d1aa4c426d5db8e7619cf98f10ebe6a57e7",
+      "git_blob_sha": "e835fc0d406a78cdc9a203bc9f13090a671fbc55"
     },
     "events.json": {
       "repository_path": "packages/contracts/events.json",
@@ -42,9 +42,9 @@
     "smidja-native.json": {
       "repository_path": "packages/contracts/smidja-native.json",
       "snapshot_path": "docs/smidja-native.json",
-      "bytes": 11008,
-      "sha256": "daebc8ee18fe74ac6c536bef2f2a7b520260c9f7d80cf5a814d99ba8659efe7d",
-      "git_blob_sha": "22719db4614c5bdfc054bad1a31113061ca0a68b"
+      "bytes": 13630,
+      "sha256": "8393b2522f854b68c1c536c6913e8719f85f15a7b1c2128fc55a30e9d4685bc4",
+      "git_blob_sha": "7577f17a4beaaaf821d653fd355b18fb1e1765ca"
     }
   },
   "generated_fixtures": {
@@ -60,7 +60,7 @@
     },
     "operations.json": {
       "snapshot_path": "tests/fixtures/current-server/operations.json",
-      "sha256": "e75ffe9532f1794275208064ce0178d60cf7bc81702836e450f6eb81d44685f2",
+      "sha256": "c96b490d8b79171ee7788347a68bab778a7d8bdb1295bbb283f41e7c1d59bf66",
       "origin": "Derived operation and authentication inventory from the pinned OpenAPI snapshot."
     },
     "signatures.json": {

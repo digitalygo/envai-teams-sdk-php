@@ -13,12 +13,13 @@ final readonly class DeliveryRequest
         public string $taskId,
         public DeliveryOutcome $status,
         public string $output,
+        public ?bool $strictModel = null,
     ) {}
 
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return [
+        $data = [
             'workspace_id' => $this->workspaceId,
             'event_id' => $this->eventId,
             'origin_turn_id' => $this->originTurnId,
@@ -26,5 +27,13 @@ final readonly class DeliveryRequest
             'status' => $this->status->value,
             'output' => $this->output,
         ];
+        if ($this->originTurnId === '') {
+            unset($data['origin_turn_id']);
+        }
+        if ($this->strictModel !== null) {
+            $data['strict_model'] = $this->strictModel;
+        }
+
+        return $data;
     }
 }
