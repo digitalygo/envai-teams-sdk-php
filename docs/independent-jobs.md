@@ -1,6 +1,6 @@
 # Independent jobs and finite choices
 
-The canonical contract is pinned to Envai `6fc8463470396faba4aeb6acc29c91f8c529a582`. Enable the existing native task option explicitly; its default remains false. The client sends and verifies `X-Envai-Extensions: native-tasks-v1`.
+The canonical contract is pinned to Envai `964c11fe72887329e8d06c2afb483442d643b290`. Enable the existing native task option explicitly; its default remains false. The client sends and verifies `X-Envai-Extensions: native-tasks-v1`.
 
 Independent jobs require `independent_jobs`. Start a job with workspace ID, stable request ID, prompt and optional strict model policy. The receipt turn ID identifies the initial coordinator only. Keep the execution chat event stream open for signed client tools until the task becomes terminal; read the full task output and final `result_turn_id`. Independent root tasks retain the required `origin_turn_id` field with an empty string. Task lookup rejects that representation unless the server advertises `independent_jobs`. Missing resident tasks after a restart do not prove that paid work did not run.
 
