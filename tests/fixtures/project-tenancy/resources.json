@@ -1,0 +1,71 @@
+{
+  "workspace": {
+    "id": "wsp_01j5abcdefghjkmnpqrstvwxyz",
+    "project_id": "prj_01j5abcdefghjkmnpqrstvwxyz",
+    "created_by_user_id": null,
+    "created_at": "2026-11-10T09:00:00+00:00",
+    "updated_at": "2026-11-10T09:00:00+00:00",
+    "name": "Project workspace",
+    "metadata": []
+  },
+  "chat": {
+    "id": "cht_01j5abcdefghjkmnpqrstvwxyz",
+    "project_id": "prj_01j5abcdefghjkmnpqrstvwxyz",
+    "created_by_user_id": null,
+    "created_at": "2026-11-10T09:00:00+00:00",
+    "updated_at": "2026-11-10T09:00:00+00:00",
+    "workspace_id": "wsp_01j5abcdefghjkmnpqrstvwxyz",
+    "team_id": "team_01j5abcdefghjkmnpqrstvwxyz",
+    "title": null
+  },
+  "agent": {
+    "id": "agt_01j5abcdefghjkmnpqrstvwxyz",
+    "project_id": "prj_01j5abcdefghjkmnpqrstvwxyz",
+    "created_by_user_id": null,
+    "created_at": "2026-11-10T09:00:00+00:00",
+    "updated_at": "2026-11-10T09:00:00+00:00",
+    "name": "Planner",
+    "description": null,
+    "system_prompt": "Plan carefully.",
+    "model": null,
+    "mode": "primary",
+    "tools_enabled": [],
+    "external_tools_enabled": [],
+    "permissions": {},
+    "can_write_knowledge": false,
+    "can_write_skills": false,
+    "config": {}
+  },
+  "team": {
+    "id": "team_01j5abcdefghjkmnpqrstvwxyz",
+    "project_id": "prj_01j5abcdefghjkmnpqrstvwxyz",
+    "created_by_user_id": null,
+    "created_at": "2026-11-10T09:00:00+00:00",
+    "updated_at": "2026-11-10T09:00:00+00:00",
+    "name": "Project team",
+    "description": null,
+    "orchestrator_id": "agt_01j5abcdefghjkmnpqrstvwxyz",
+    "members": []
+  },
+  "completion": {
+    "id": "cmpl_01j5abcdefghjkmnpqrstvwxyz",
+    "workspace_id": "wsp_01j5abcdefghjkmnpqrstvwxyz",
+    "chat_id": "cht_01j5abcdefghjkmnpqrstvwxyz",
+    "team_id": "team_01j5abcdefghjkmnpqrstvwxyz",
+    "project_id": "prj_01j5abcdefghjkmnpqrstvwxyz",
+    "api_key_id": "key_01j5abcdefghjkmnpqrstvwxyz",
+    "user_id": null,
+    "model_orchestrator": null,
+    "models_subagents": [],
+    "started_at": "2026-11-10T09:00:00+00:00",
+    "usage": {},
+    "cost_usd": null,
+    "status": "running",
+    "finish_reason": null,
+    "finished_at": null,
+    "duration_ms": null,
+    "content_hash": null,
+    "created_at": "2026-11-10T09:00:00+00:00",
+    "updated_at": "2026-11-10T09:00:00+00:00"
+  }
+}

@@ -1,0 +1,1 @@
+Synthetic response resources derived from the current project-tenancy OpenAPI schemas; not captured server traffic. Tests exercise default and strict clients with null and human creator audit provenance.

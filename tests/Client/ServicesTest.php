@@ -300,7 +300,7 @@ final class ServicesTest extends TestCase
                     self::assertInstanceOf(Workspace::class, $result);
                 },
             ],
-            'createUserTool' => [
+            'createProjectTool' => [
                 'method' => 'POST',
                 'path' => '/api/v1/tools',
                 'auth' => true,
@@ -317,7 +317,7 @@ final class ServicesTest extends TestCase
                     self::assertInstanceOf(UserTool::class, $result);
                 },
             ],
-            'listUserTools' => [
+            'listProjectTools' => [
                 'method' => 'GET',
                 'path' => '/api/v1/tools',
                 'auth' => true,
@@ -328,7 +328,7 @@ final class ServicesTest extends TestCase
                     self::assertSame(UserTool::class, $result->itemClass);
                 },
             ],
-            'getUserTool' => [
+            'getProjectTool' => [
                 'method' => 'GET',
                 'path' => '/api/v1/tools/'.self::TOOL,
                 'auth' => true,
@@ -339,7 +339,7 @@ final class ServicesTest extends TestCase
                     self::assertSame(self::TOOL, $result->name);
                 },
             ],
-            'updateUserTool' => [
+            'updateProjectTool' => [
                 'method' => 'PUT',
                 'path' => '/api/v1/tools/'.self::TOOL,
                 'auth' => true,
@@ -350,7 +350,7 @@ final class ServicesTest extends TestCase
                     self::assertInstanceOf(UserTool::class, $result);
                 },
             ],
-            'deleteUserTool' => [
+            'deleteProjectTool' => [
                 'method' => 'DELETE',
                 'path' => '/api/v1/tools/'.self::TOOL,
                 'auth' => true,
@@ -824,6 +824,16 @@ final class ServicesTest extends TestCase
             $thrown = $e;
         }
 
+        if (in_array($operationId, ['createApiKey', 'listApiKeys', 'deleteApiKey'], true)) {
+            $this->assertInstanceOf(\LogicException::class, $thrown);
+            $this->assertStringContainsString('human session and CSRF', $thrown->getMessage());
+            $this->assertSame([], $transport->requests);
+            $this->assertSame([], $transport->preflightRequests);
+            $this->assertSame([], $transport->streamRequests);
+
+            return;
+        }
+
         if ($operationId === 'streamChatEvents') {
             $this->assertCount(1, $transport->streamRequests, 'openEventStream must open exactly one stream.');
         } else {
@@ -872,9 +882,9 @@ final class ServicesTest extends TestCase
             'createWorkspace' => self::json(201, self::workspacePayload()),
             'listWorkspaces' => self::collection(200, [self::workspacePayload()]),
             'getWorkspace', 'updateWorkspace' => self::json(200, self::workspacePayload()),
-            'createUserTool' => self::json(201, self::userToolPayload()),
-            'listUserTools' => self::collection(200, [self::userToolPayload()]),
-            'getUserTool', 'updateUserTool' => self::json(200, self::userToolPayload()),
+            'createProjectTool' => self::json(201, self::userToolPayload()),
+            'listProjectTools' => self::collection(200, [self::userToolPayload()]),
+            'getProjectTool', 'updateProjectTool' => self::json(200, self::userToolPayload()),
             'createChat' => self::json(201, self::chatPayload()),
             'listChats' => self::collection(200, [self::chatPayload()]),
             'getChat' => self::json(200, self::chatPayload()),
@@ -913,7 +923,7 @@ final class ServicesTest extends TestCase
                 'content-disposition' => ['attachment; filename="01ARZ3NDEK_0.jpeg"'],
             ]),
             'handleProviderWebhook' => self::topLevel(200, ['status' => 'ok']),
-            'resolveChatTool', 'deleteUserTool', 'deleteWorkspaceFile', 'deleteAgent', 'deleteTeam', 'deleteApiKey' => new HttpResponse(204),
+            'resolveChatTool', 'deleteProjectTool', 'deleteWorkspaceFile', 'deleteAgent', 'deleteTeam', 'deleteApiKey' => new HttpResponse(204),
             'streamChatEvents' => new HttpResponse(200, ['content-type' => ['text/event-stream']]),
             default => throw new \LogicException('No scripted response for operation '.$operationId.'.'),
         };
@@ -952,7 +962,8 @@ final class ServicesTest extends TestCase
     {
         return [
             'id' => self::WORKSPACE,
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Product analytics',
             'metadata' => [],
             'created_at' => '2026-08-01T09:00:00+00:00',
@@ -985,8 +996,10 @@ final class ServicesTest extends TestCase
         return [
             'id' => self::CHAT,
             'workspace_id' => self::WORKSPACE,
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'team_id' => self::TEAM,
+            'title' => null,
             'created_at' => '2026-08-01T09:00:00+00:00',
             'updated_at' => '2026-08-01T09:00:00+00:00',
         ];
@@ -1002,7 +1015,9 @@ final class ServicesTest extends TestCase
             'workspace_id' => self::WORKSPACE,
             'chat_id' => self::CHAT,
             'team_id' => self::TEAM,
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'api_key_id' => self::KEY,
+            'user_id' => null,
             'model_orchestrator' => 'claude-sonnet-4',
             'models_subagents' => [],
             'started_at' => '2026-08-01T09:00:00+00:00',
@@ -1041,7 +1056,8 @@ final class ServicesTest extends TestCase
     {
         return [
             'id' => self::AGENT,
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Planner',
             'description' => null,
             'system_prompt' => 'You plan carefully.',
@@ -1065,7 +1081,8 @@ final class ServicesTest extends TestCase
     {
         return [
             'id' => self::TEAM,
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Research',
             'description' => null,
             'orchestrator_id' => self::AGENT,

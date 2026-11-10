@@ -18,7 +18,8 @@ final class AgentTest extends TestCase
     {
         $agent = Agent::fromArray([
             'id' => 'agt_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'researcher',
             'description' => 'Research specialist',
             'system_prompt' => 'You are a research specialist.',
@@ -69,7 +70,8 @@ final class AgentTest extends TestCase
     {
         $agent = Agent::fromArray([
             'id' => 'agt_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'researcher',
             'description' => null,
             'system_prompt' => 'You are a research specialist.',

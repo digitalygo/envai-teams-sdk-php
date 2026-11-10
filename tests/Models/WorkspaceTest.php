@@ -17,7 +17,8 @@ final class WorkspaceTest extends TestCase
     {
         $workspace = Workspace::fromArray([
             'id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Product analytics',
             'metadata' => ['source' => 'onboarding', 'plan' => 'pro'],
             'created_at' => '2026-08-17T14:00:00+00:00',
@@ -37,7 +38,8 @@ final class WorkspaceTest extends TestCase
     {
         $workspace = Workspace::fromArray([
             'id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Research',
             'metadata' => ['alpha', 'beta'],
             'created_at' => '2026-08-17T14:00:00+00:00',
@@ -52,7 +54,8 @@ final class WorkspaceTest extends TestCase
     {
         $workspace = Workspace::fromArray([
             'id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Empty metadata',
             'metadata' => [],
             'created_at' => '2026-08-17T14:00:00+00:00',
@@ -70,7 +73,8 @@ final class WorkspaceTest extends TestCase
 
         Workspace::fromArray([
             'id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Product analytics',
             'created_at' => '2026-08-17T14:00:00+00:00',
             'updated_at' => '2026-08-17T14:00:00+00:00',
@@ -81,7 +85,8 @@ final class WorkspaceTest extends TestCase
     {
         $payload = [
             'id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Product analytics',
             'metadata' => ['source' => 'onboarding'],
             'created_at' => '2026-08-17T14:00:00+00:00',

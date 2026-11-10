@@ -18,7 +18,9 @@ use Digitalygo\Envai\Models\Tool\UserToolUpdateRequest;
 /**
  * Control plane operations over the caller's client tool registry.
  *
- * Tools are user-scoped and shared across all the caller's workspaces.
+ * Tools are project-scoped and shared across the API key's project workspaces.
+ * The legacy UserTool type names are retained for source compatibility;
+ * they no longer imply user-wide ownership.
  * Mutations are ambiguous and are never retried automatically; reads are
  * retry-safe.
  */

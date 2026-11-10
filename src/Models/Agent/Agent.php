@@ -8,8 +8,8 @@ use Digitalygo\Envai\Models\Common\ArrayHydratable;
 use Digitalygo\Envai\Models\Internal\Wire;
 
 /**
- * An agent definition with id `agt_<ulid>` owned by a user with id
- * `usr_<ulid>`. `config` must not contain `max_tokens` at any nesting depth
+ * An agent definition with id `agt_<ulid>` owned by a project with id
+ * `prj_<ulid>`. `config` must not contain `max_tokens` at any nesting depth
  * (server enforced) and is preserved as a wire-faithful object.
  *
  * Timestamps stay ISO 8601 strings (wire-faithful), never parsed into
@@ -26,7 +26,8 @@ final readonly class Agent implements ArrayHydratable
      */
     public function __construct(
         public string $id,
-        public string $userId,
+        public string $projectId,
+        public ?string $createdByUserId,
         public string $name,
         public ?string $description,
         public string $systemPrompt,
@@ -52,7 +53,8 @@ final readonly class Agent implements ArrayHydratable
 
         return new self(
             id: Wire::string($data, 'id', $context),
-            userId: Wire::string($data, 'user_id', $context),
+            projectId: Wire::string($data, 'project_id', $context),
+            createdByUserId: Wire::nullableString($data, 'created_by_user_id', $context),
             name: Wire::string($data, 'name', $context),
             description: Wire::nullableString($data, 'description', $context),
             systemPrompt: Wire::string($data, 'system_prompt', $context),
@@ -68,7 +70,7 @@ final readonly class Agent implements ArrayHydratable
             updatedAt: Wire::string($data, 'updated_at', $context),
             extra: Wire::extra($data, [
                 'id',
-                'user_id',
+                'project_id', 'created_by_user_id',
                 'name',
                 'description',
                 'system_prompt',
@@ -127,7 +129,8 @@ final readonly class Agent implements ArrayHydratable
     {
         return array_merge([
             'id' => $this->id,
-            'user_id' => $this->userId,
+            'project_id' => $this->projectId,
+            'created_by_user_id' => $this->createdByUserId,
             'name' => $this->name,
             'description' => $this->description,
             'system_prompt' => $this->systemPrompt,

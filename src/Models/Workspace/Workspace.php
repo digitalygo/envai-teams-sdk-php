@@ -25,7 +25,8 @@ final readonly class Workspace implements ArrayHydratable
      */
     public function __construct(
         public string $id,
-        public string $userId,
+        public string $projectId,
+        public ?string $createdByUserId,
         public string $name,
         public JsonObject|JsonArray $metadata,
         public string $createdAt,
@@ -42,12 +43,13 @@ final readonly class Workspace implements ArrayHydratable
 
         return new self(
             id: Wire::string($data, 'id', $context),
-            userId: Wire::string($data, 'user_id', $context),
+            projectId: Wire::string($data, 'project_id', $context),
+            createdByUserId: Wire::nullableString($data, 'created_by_user_id', $context),
             name: Wire::string($data, 'name', $context),
             metadata: Wire::jsonObjectOrArray($data, 'metadata', $context),
             createdAt: Wire::string($data, 'created_at', $context),
             updatedAt: Wire::string($data, 'updated_at', $context),
-            extra: Wire::extra($data, ['id', 'user_id', 'name', 'metadata', 'created_at', 'updated_at']),
+            extra: Wire::extra($data, ['id', 'project_id', 'created_by_user_id', 'name', 'metadata', 'created_at', 'updated_at']),
         );
     }
 
@@ -58,7 +60,8 @@ final readonly class Workspace implements ArrayHydratable
     {
         return array_merge([
             'id' => $this->id,
-            'user_id' => $this->userId,
+            'project_id' => $this->projectId,
+            'created_by_user_id' => $this->createdByUserId,
             'name' => $this->name,
             'metadata' => $this->metadata->toArray(),
             'created_at' => $this->createdAt,

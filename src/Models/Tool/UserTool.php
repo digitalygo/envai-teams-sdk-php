@@ -8,7 +8,7 @@ use Digitalygo\Envai\Models\Common\ArrayHydratable;
 use Digitalygo\Envai\Models\Internal\Wire;
 
 /**
- * A user-scoped client tool with id `twl_<ulid>`. `kind` is always `client`
+ * A project-scoped client tool (legacy class name) with id `twl_<ulid>`. `kind` is always `client`
  * and is kept as a plain string for forward compatibility. `parameters` is
  * the JSON Schema shown to the LLM and is preserved as-is, unknown nested
  * keys included. Timestamps stay ISO 8601 strings (wire-faithful).

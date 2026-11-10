@@ -132,31 +132,37 @@
     "authenticated": true
   },
   {
-    "id": "createUserTool",
+    "id": "deleteWorkspace",
+    "method": "DELETE",
+    "path": "/workspaces/{workspace_id}",
+    "authenticated": true
+  },
+  {
+    "id": "createProjectTool",
     "method": "POST",
     "path": "/tools",
     "authenticated": true
   },
   {
-    "id": "listUserTools",
+    "id": "listProjectTools",
     "method": "GET",
     "path": "/tools",
     "authenticated": true
   },
   {
-    "id": "getUserTool",
+    "id": "getProjectTool",
     "method": "GET",
     "path": "/tools/{name}",
     "authenticated": true
   },
   {
-    "id": "updateUserTool",
+    "id": "updateProjectTool",
     "method": "PUT",
     "path": "/tools/{name}",
     "authenticated": true
   },
   {
-    "id": "deleteUserTool",
+    "id": "deleteProjectTool",
     "method": "DELETE",
     "path": "/tools/{name}",
     "authenticated": true
@@ -180,6 +186,18 @@
     "authenticated": true
   },
   {
+    "id": "updateChat",
+    "method": "PUT",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteChat",
+    "method": "DELETE",
+    "path": "/workspaces/{workspace_id}/chats/{chat_id}",
+    "authenticated": true
+  },
+  {
     "id": "listCompletions",
     "method": "GET",
     "path": "/workspaces/{workspace_id}/chats/{chat_id}/completions",
@@ -189,6 +207,30 @@
     "id": "getCompletion",
     "method": "GET",
     "path": "/workspaces/{workspace_id}/chats/{chat_id}/completions/{completion_id}",
+    "authenticated": true
+  },
+  {
+    "id": "listChatCrons",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/crons",
+    "authenticated": true
+  },
+  {
+    "id": "getChatCron",
+    "method": "GET",
+    "path": "/workspaces/{workspace_id}/crons/{cron_id}",
+    "authenticated": true
+  },
+  {
+    "id": "updateChatCron",
+    "method": "PATCH",
+    "path": "/workspaces/{workspace_id}/crons/{cron_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteChatCron",
+    "method": "DELETE",
+    "path": "/workspaces/{workspace_id}/crons/{cron_id}",
     "authenticated": true
   },
   {
@@ -465,6 +507,372 @@
     "id": "getCapabilitiesLegacy",
     "method": "GET",
     "path": "/capabilities",
+    "authenticated": true
+  },
+  {
+    "id": "getAuthCsrf",
+    "method": "GET",
+    "path": "/auth/csrf",
+    "authenticated": false
+  },
+  {
+    "id": "registerUser",
+    "method": "POST",
+    "path": "/auth/register",
+    "authenticated": false
+  },
+  {
+    "id": "registerFromInvitation",
+    "method": "POST",
+    "path": "/auth/register-from-invitation",
+    "authenticated": false
+  },
+  {
+    "id": "login",
+    "method": "POST",
+    "path": "/auth/login",
+    "authenticated": false
+  },
+  {
+    "id": "forgotPassword",
+    "method": "POST",
+    "path": "/auth/password/forgot",
+    "authenticated": false
+  },
+  {
+    "id": "resetPassword",
+    "method": "POST",
+    "path": "/auth/password/reset",
+    "authenticated": false
+  },
+  {
+    "id": "logout",
+    "method": "DELETE",
+    "path": "/auth/session",
+    "authenticated": true
+  },
+  {
+    "id": "getAuthenticatedUser",
+    "method": "GET",
+    "path": "/auth/me",
+    "authenticated": true
+  },
+  {
+    "id": "sendEmailVerification",
+    "method": "POST",
+    "path": "/auth/email/verification-notification",
+    "authenticated": true
+  },
+  {
+    "id": "verifyEmail",
+    "method": "GET",
+    "path": "/auth/email/verify/{id}/{hash}",
+    "authenticated": false
+  },
+  {
+    "id": "resolveInvitation",
+    "method": "POST",
+    "path": "/invitations/resolve",
+    "authenticated": false
+  },
+  {
+    "id": "acceptInvitation",
+    "method": "POST",
+    "path": "/invitations/accept",
+    "authenticated": true
+  },
+  {
+    "id": "listCompanies",
+    "method": "GET",
+    "path": "/companies",
+    "authenticated": true
+  },
+  {
+    "id": "createCompany",
+    "method": "POST",
+    "path": "/companies",
+    "authenticated": true
+  },
+  {
+    "id": "getCompany",
+    "method": "GET",
+    "path": "/companies/{company_id}",
+    "authenticated": true
+  },
+  {
+    "id": "updateCompany",
+    "method": "PUT",
+    "path": "/companies/{company_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteCompany",
+    "method": "DELETE",
+    "path": "/companies/{company_id}",
+    "authenticated": true
+  },
+  {
+    "id": "getCompanyUsage",
+    "method": "GET",
+    "path": "/companies/{company_id}/usage",
+    "authenticated": true
+  },
+  {
+    "id": "listCompanyMembers",
+    "method": "GET",
+    "path": "/companies/{company_id}/members",
+    "authenticated": true
+  },
+  {
+    "id": "updateCompanyMember",
+    "method": "PUT",
+    "path": "/companies/{company_id}/members/{user_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteCompanyMember",
+    "method": "DELETE",
+    "path": "/companies/{company_id}/members/{user_id}",
+    "authenticated": true
+  },
+  {
+    "id": "listCompanyInvitations",
+    "method": "GET",
+    "path": "/companies/{company_id}/invitations",
+    "authenticated": true
+  },
+  {
+    "id": "inviteCompanyMember",
+    "method": "POST",
+    "path": "/companies/{company_id}/invitations",
+    "authenticated": true
+  },
+  {
+    "id": "deleteCompanyInvitation",
+    "method": "DELETE",
+    "path": "/companies/{company_id}/invitations/{invitation_id}",
+    "authenticated": true
+  },
+  {
+    "id": "resendCompanyInvitation",
+    "method": "POST",
+    "path": "/companies/{company_id}/invitations/{invitation_id}/resend",
+    "authenticated": true
+  },
+  {
+    "id": "listCompanyProjects",
+    "method": "GET",
+    "path": "/companies/{company_id}/projects",
+    "authenticated": true
+  },
+  {
+    "id": "createProject",
+    "method": "POST",
+    "path": "/companies/{company_id}/projects",
+    "authenticated": true
+  },
+  {
+    "id": "getCompanyBillingWallet",
+    "method": "GET",
+    "path": "/companies/{company_id}/billing/wallet",
+    "authenticated": true
+  },
+  {
+    "id": "listCompanyBillingTransactions",
+    "method": "GET",
+    "path": "/companies/{company_id}/billing/transactions",
+    "authenticated": true
+  },
+  {
+    "id": "quoteCompanyBillingTopup",
+    "method": "POST",
+    "path": "/companies/{company_id}/billing/top-up-quotes",
+    "authenticated": true
+  },
+  {
+    "id": "createCompanyBillingTopup",
+    "method": "POST",
+    "path": "/companies/{company_id}/billing/top-ups",
+    "authenticated": true
+  },
+  {
+    "id": "setupCompanyBillingPaymentMethod",
+    "method": "POST",
+    "path": "/companies/{company_id}/billing/payment-methods/setup",
+    "authenticated": true
+  },
+  {
+    "id": "updateCompanyAutoRecharge",
+    "method": "PUT",
+    "path": "/companies/{company_id}/billing/auto-recharge",
+    "authenticated": true
+  },
+  {
+    "id": "receiveStripeBillingWebhook",
+    "method": "POST",
+    "path": "/billing/webhooks/stripe",
+    "authenticated": false
+  },
+  {
+    "id": "getProjectSpendLimit",
+    "method": "GET",
+    "path": "/projects/{project_id}/spend-limit",
+    "authenticated": true
+  },
+  {
+    "id": "updateProjectSpendLimit",
+    "method": "PUT",
+    "path": "/projects/{project_id}/spend-limit",
+    "authenticated": true
+  },
+  {
+    "id": "getApiKeySpendLimit",
+    "method": "GET",
+    "path": "/api-keys/{key_id}/spend-limit",
+    "authenticated": true
+  },
+  {
+    "id": "updateApiKeySpendLimit",
+    "method": "PUT",
+    "path": "/api-keys/{key_id}/spend-limit",
+    "authenticated": true
+  },
+  {
+    "id": "getProject",
+    "method": "GET",
+    "path": "/projects/{project_id}",
+    "authenticated": true
+  },
+  {
+    "id": "updateProject",
+    "method": "PUT",
+    "path": "/projects/{project_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteProject",
+    "method": "DELETE",
+    "path": "/projects/{project_id}",
+    "authenticated": true
+  },
+  {
+    "id": "listProjectSkills",
+    "method": "GET",
+    "path": "/projects/{project_id}/skills",
+    "authenticated": true
+  },
+  {
+    "id": "createProjectSkill",
+    "method": "POST",
+    "path": "/projects/{project_id}/skills",
+    "authenticated": true
+  },
+  {
+    "id": "getProjectSkill",
+    "method": "GET",
+    "path": "/projects/{project_id}/skills/{skill_id}",
+    "authenticated": true
+  },
+  {
+    "id": "updateProjectSkill",
+    "method": "PUT",
+    "path": "/projects/{project_id}/skills/{skill_id}",
+    "authenticated": true
+  },
+  {
+    "id": "deleteProjectSkill",
+    "method": "DELETE",
+    "path": "/projects/{project_id}/skills/{skill_id}",
+    "authenticated": true
+  },
+  {
+    "id": "listProjectMembers",
+    "method": "GET",
+    "path": "/projects/{project_id}/members",
+    "authenticated": true
+  },
+  {
+    "id": "assignProjectMember",
+    "method": "PUT",
+    "path": "/projects/{project_id}/members/{user_id}",
+    "authenticated": true
+  },
+  {
+    "id": "unassignProjectMember",
+    "method": "DELETE",
+    "path": "/projects/{project_id}/members/{user_id}",
+    "authenticated": true
+  },
+  {
+    "id": "getProjectUsage",
+    "method": "GET",
+    "path": "/projects/{project_id}/usage",
+    "authenticated": true
+  },
+  {
+    "id": "getProjectLogs",
+    "method": "GET",
+    "path": "/projects/{project_id}/logs",
+    "authenticated": true
+  },
+  {
+    "id": "listUsers",
+    "method": "GET",
+    "path": "/users",
+    "authenticated": true
+  },
+  {
+    "id": "getUser",
+    "method": "GET",
+    "path": "/users/{user_id}",
+    "authenticated": true
+  },
+  {
+    "id": "updateUserPlatformRole",
+    "method": "PUT",
+    "path": "/users/{user_id}/platform-role",
+    "authenticated": true
+  },
+  {
+    "id": "receiveElevenLabsCallback",
+    "method": "POST",
+    "path": "/wiki/providers/elevenlabs/callback",
+    "authenticated": false
+  },
+  {
+    "id": "internalWikiDispatch",
+    "method": "POST",
+    "path": "/internal/wiki/dispatch",
+    "authenticated": true
+  },
+  {
+    "id": "internalChatAttachmentResolve",
+    "method": "POST",
+    "path": "/internal/chat-attachments/resolve",
+    "authenticated": true
+  },
+  {
+    "id": "checkAdmissionBilling",
+    "method": "POST",
+    "path": "/internal/v1/billing/admissions/check",
+    "authenticated": true
+  },
+  {
+    "id": "reserveBilling",
+    "method": "POST",
+    "path": "/internal/v1/billing/reservations",
+    "authenticated": true
+  },
+  {
+    "id": "settleBilling",
+    "method": "POST",
+    "path": "/internal/v1/billing/reservations/{reservation_id}/settle",
+    "authenticated": true
+  },
+  {
+    "id": "releaseBilling",
+    "method": "POST",
+    "path": "/internal/v1/billing/reservations/{reservation_id}/release",
     "authenticated": true
   }
 ]

@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace Digitalygo\Envai\Client;
 
 /**
- * Machine readable inventory of every operation in the Envai OpenAPI
- * contract, keyed by operationId.
- *
- * This table is the single source of truth used by the quality gate to
- * verify that the SDK covers the whole API surface: the inventory test
- * parses docs/openapi.yaml and asserts that this constant matches the
- * parsed set exactly, with no missing and no extra entries. Paths keep the
- * OpenAPI `{placeholder}` syntax; services resolve them with concrete ids
- * before calling the executor.
+ * Explicit SDK operation subset of the full server OpenAPI contract.
+ * Session-only API key methods remain discoverable but fail locally.
+ * Human administration and internal operations are not SDK capabilities.
  */
 final class OperationInventory
 {
@@ -45,11 +39,11 @@ final class OperationInventory
         'listWorkspaces' => ['method' => 'GET', 'path' => '/workspaces'],
         'getWorkspace' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}'],
         'updateWorkspace' => ['method' => 'PUT', 'path' => '/workspaces/{workspace_id}'],
-        'createUserTool' => ['method' => 'POST', 'path' => '/tools'],
-        'listUserTools' => ['method' => 'GET', 'path' => '/tools'],
-        'getUserTool' => ['method' => 'GET', 'path' => '/tools/{name}'],
-        'updateUserTool' => ['method' => 'PUT', 'path' => '/tools/{name}'],
-        'deleteUserTool' => ['method' => 'DELETE', 'path' => '/tools/{name}'],
+        'createProjectTool' => ['method' => 'POST', 'path' => '/tools'],
+        'listProjectTools' => ['method' => 'GET', 'path' => '/tools'],
+        'getProjectTool' => ['method' => 'GET', 'path' => '/tools/{name}'],
+        'updateProjectTool' => ['method' => 'PUT', 'path' => '/tools/{name}'],
+        'deleteProjectTool' => ['method' => 'DELETE', 'path' => '/tools/{name}'],
         'createChat' => ['method' => 'POST', 'path' => '/workspaces/{workspace_id}/chats'],
         'listChats' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/chats'],
         'getChat' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/chats/{chat_id}'],
