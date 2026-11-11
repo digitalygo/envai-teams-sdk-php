@@ -16,7 +16,7 @@ use Digitalygo\Envai\Tools\Schema\ToolSchemaNormalizer;
  *
  * Rules:
  *
- * - server-only bookkeeping keys (id, user_id, created_at, updated_at)
+ * - server-only bookkeeping keys (id, project_id, created_by_user_id, created_at, updated_at)
  *   are stripped;
  * - JsonObject/JsonArray wrappers are unwrapped recursively, except tool schema
  *   subtrees, where ambiguous JSON object shapes remain explicit;
@@ -231,7 +231,7 @@ final class PayloadNormalizer
      */
     private static function stripServerKeys(array $payload): array
     {
-        foreach (['id', 'user_id', 'created_at', 'updated_at'] as $key) {
+        foreach (['id', 'user_id', 'project_id', 'created_by_user_id', 'created_at', 'updated_at'] as $key) {
             unset($payload[$key]);
         }
 

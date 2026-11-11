@@ -210,6 +210,11 @@ For local development, set `ENVAI_SYNC_MODE=lazy` (or the config key). `LazySync
 
 `EnvaiClient` exposes one typed service per API family: `workspaces()`, `tools()`, `workspaceFiles()`, `chats()`, `completions()`, `agents()`, `teams()`, `models()`, `apiKeys()`, `images()` and `capabilities()`.
 
+API key management is session-only on the server: `/api/v1/api-keys` requires a human browser session and CSRF protection and rejects bearer credentials. This SDK uses bearer/project keys, so `apiKeys()->create()`, `list()` and `delete()` throw `LogicException` before any network request. Manage keys in the Envai web application instead.
+
+Workspace, chat, agent and team responses expose `projectId` and nullable `createdByUserId` (wire fields `project_id` and `created_by_user_id`) instead of `userId`. Completion `userId` is nullable for project-key execution. Update callers of the previous response properties and constructors accordingly.
+
+
 Common calls:
 
 ```php
@@ -220,7 +225,7 @@ $workspace = $envai->workspaces()->create(new WorkspaceCreateRequest(name: 'Fore
 $workspaces = $envai->workspaces()->list();                    // ResourceCollection
 $chat = $envai->chats()->getChat($workspaceId, $chatId);
 $accepted = $envai->chats()->sendMessage($chatId, new ChatMessageRequest('Hello'));
-$tools = $envai->tools()->list();                              // user-scoped registry
+$tools = $envai->tools()->list();                              // project-scoped registry
 $tool = $envai->tools()->get('query_forecasting_database');
 $agents = $envai->agents()->list();
 $teams = $envai->teams()->list();
@@ -359,7 +364,7 @@ return [
 
 Entries without a timeout default to 120 seconds. The same shape is accepted by `ClientToolRegistry::fromArray()`.
 
-Client tools are user-scoped: a registered tool is shared across all workspaces of the same Envai user. An agent only sees a tool when the tool is registered and its name appears in the agent's `tools.client` list.
+Client tools are project-scoped: a registered tool is shared across workspaces in the API key's project. An agent only sees a tool when the tool is registered and its name appears in the agent's `tools.client` list.
 
 ## PHP teams
 
@@ -779,3 +784,13 @@ MIT. See [LICENSE](LICENSE). Bundled JSON Schema metaschemas retain their
 The wiki V1 client supports durable source upload/status/download, explicit inbox/outbox/sync operations, immediate withdrawal and revisioned catalog reads. It includes Ed25519 webhook verification and transactional PDO receipt + application outbox persistence. See [the integration guide](docs/WIKI.md). Provider usage is tracked with inactive billing; legacy cost fields are nullable when unknown.
 
 See [chat attachments](docs/CHAT_ATTACHMENTS.md) for upload, conversion, retry and streaming with files. This surface is unreleased until the matching backend is deployed.
+
+## Native background tasks
+
+Opt in with `EnvaiConfig(nativeTasks: true)` for typed deliveries, delegations, task lookup/cancellation and phase classification. See [background task usage and lifecycle guarantees](docs/BACKGROUND_TASKS.md). Existing foreground helpers retain their terminal behavior.
+
+### Project tenancy and supported API surface
+
+The embedded contract describes all 146 server operations. `OperationInventory` deliberately tracks the existing 78 SDK operations, including three API-key management methods that fail locally as unsupported (75 callable operations). The current ATP contract declares 39 event types. Human administration and internal APIs are not supported merely because they appear in the source contract.
+
+The five `/tools` operations are now named `createProjectTool`, `listProjectTools`, `getProjectTool`, `updateProjectTool` and `deleteProjectTool` in the canonical inventory. The existing `tools()` methods and legacy `UserTool` model/request names remain compatible aliases for these same routes and payloads. **Their scope has changed:** tools belong to the API key's project, not all workspaces owned by a person. Do not use the old names to infer user-wide access or ownership.

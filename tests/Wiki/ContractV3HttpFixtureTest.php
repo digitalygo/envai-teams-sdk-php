@@ -32,7 +32,7 @@ final class ContractV3HttpFixtureTest extends TestCase
                 self::assertSame(['3'], $headers['x-envai-contract-version']);
             }
             $wire = json_decode($body);
-            $schema = json_decode(json_encode(Yaml::parseFile(dirname(__DIR__, 2).'/docs/openapi.yaml')));
+            $schema = json_decode(json_encode(Yaml::parseFile(dirname(__DIR__, 2).'/tests/fixtures/historical-contract/openapi.yaml')));
             $schema->{'$ref'} = '#/components/schemas/'.($source ? 'WikiSource' : 'Completion');
             self::assertTrue((new Validator)->validate($wire->data, $schema)->isValid(), $file);
             $transport = new ContractTestTransport;

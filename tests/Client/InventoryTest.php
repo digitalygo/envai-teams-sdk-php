@@ -10,8 +10,8 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * Automated inventory verification required by the project quality gate: the
- * operation table in OperationInventory must match the OpenAPI contract
- * exactly, with no missing and no extra entries.
+ * SDK subset must match the corresponding full OpenAPI definitions;
+ * unsupported human/internal operations do not become SDK capabilities.
  */
 final class InventoryTest extends TestCase
 {
@@ -52,25 +52,20 @@ final class InventoryTest extends TestCase
         return $operations;
     }
 
-    public function test_openapi_defines_exactly_71_operations(): void
+    public function test_full_server_contract_and_sdk_subset_sizes_are_explicit(): void
     {
-        $this->assertCount(71, self::openApiOperations());
+        $this->assertCount(146, self::openApiOperations());
+        $this->assertCount(78, OperationInventory::OPERATIONS);
     }
 
-    public function test_inventory_matches_openapi_exactly(): void
+    public function test_every_sdk_operation_matches_the_full_server_contract(): void
     {
         $expected = self::openApiOperations();
         $actual = OperationInventory::OPERATIONS;
 
-        $this->assertSame(
-            array_keys($expected),
-            array_keys($actual),
-            'OperationInventory must declare exactly the operationIds present in docs/openapi.yaml (no missing, no extra).',
-        );
-
-        foreach ($expected as $operationId => $definition) {
-            $this->assertArrayHasKey($operationId, $actual, sprintf('Missing operationId "%s".', $operationId));
-            $this->assertSame($definition, $actual[$operationId], sprintf('Method or path mismatch for operationId "%s".', $operationId));
+        foreach ($actual as $operationId => $definition) {
+            $this->assertArrayHasKey($operationId, $expected, sprintf('Missing operationId "%s".', $operationId));
+            $this->assertSame($expected[$operationId], $definition, sprintf('Method or path mismatch for operationId "%s".', $operationId));
         }
     }
 }

@@ -15,6 +15,8 @@ final class ContractTestTransport implements EventStreamTransport, HttpTransport
 {
     public array $requests = [];
 
+    public ?\Closure $onSend = null;
+
     public array $streamRequests = [];
 
     public array $responses = [];
@@ -24,6 +26,9 @@ final class ContractTestTransport implements EventStreamTransport, HttpTransport
     public function send(HttpRequest $request): HttpResponse
     {
         $this->requests[] = $request;
+        if ($this->onSend !== null) {
+            ($this->onSend)($request);
+        }
         $next = array_shift($this->responses);
         if ($next instanceof \Throwable) {
             throw $next;

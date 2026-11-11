@@ -110,7 +110,8 @@ final class ClientRemoteWriterTest extends SyncClientTestCase
         $transport = new FakeTransport;
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'agt_researcher',
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => 'researcher',
             'description' => null,
             'system_prompt' => 'You research.',
@@ -161,7 +162,8 @@ final class ClientRemoteWriterTest extends SyncClientTestCase
         $transport = new FakeTransport;
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'agt_researcher',
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => 'researcher',
             'description' => null,
             'system_prompt' => 'You research harder.',
@@ -203,7 +205,8 @@ final class ClientRemoteWriterTest extends SyncClientTestCase
         $transport = new FakeTransport;
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'team_forecasting',
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => 'forecasting',
             'description' => null,
             'orchestrator_id' => 'agt_orchestrator',
@@ -238,7 +241,8 @@ final class ClientRemoteWriterTest extends SyncClientTestCase
         $transport = new FakeTransport;
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'team_forecasting',
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => 'forecasting',
             'description' => null,
             'orchestrator_id' => 'agt_orchestrator',
@@ -289,7 +293,8 @@ final class ClientRemoteWriterTest extends SyncClientTestCase
 
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'agt_researcher',
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => 'researcher',
             'description' => null,
             'system_prompt' => 'You research.',

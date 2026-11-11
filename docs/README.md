@@ -21,7 +21,7 @@ integration.
 ## Public contracts
 
 [`openapi.yaml`](openapi.yaml) describes the HTTP operations and request/response
-models. [`events.json`](events.json) describes ATP v2 envelopes and payloads.
+models. [`events.json`](events.json) describes ATP v3 envelopes and payloads; `events-v2.json` retains the immutable legacy schema.
 Pass both files together to contract tooling so relative references resolve.
 These files include infrastructure and provider callbacks for contract
 completeness; their presence does not mean an application should invoke them.
@@ -50,3 +50,32 @@ Run `composer check` and `composer audit` in a source checkout. Follow the
 [development instructions](../README.md#development) for database contract-test
 configuration. Preserve the root MIT license and the attribution/licenses of
 bundled JSON Schema metaschemas.
+
+Definition sync adoption records the actual remote definition. If it differs from the
+manifest and overwrite was not requested, adoption succeeds without writes but does
+not mark the manifest ready. Every real apply clears stale readiness before work;
+dry runs remain read-only. An ambiguous resource blocks subsequent mutations until
+its outcome is explicitly reconciled. Custom sync stores retaining a ready marker
+must implement `InvalidatesReadyManifest` to allow another apply.
+
+Before each remote definition mutation, sync durably writes an ambiguous intent.
+Successful read-back/application replaces it with confirmed state. A process crash
+or unknown response therefore cannot silently cause another mutation on restart.
+The planner also blocks pruning ambiguous orphan resources. Definitive application
+rejections restore the previous state; server/transport uncertainty keeps the intent.
+
+Existing database sync installations require an explicit migration before adopting
+mutation journaling: add nullable `TEXT state_metadata` to the resources table. On
+MySQL, use `VARBINARY(764)` for `connection` and resource `local_key`, and
+`VARBINARY(64)` for `resource_type` and lock `owner`. Apply the connection change to
+resources, manifests and locks. The SDK rejects older case-insensitive identity
+schemas instead of reading another account's state; it never alters existing columns
+automatically. New explicit migrations/schema creation use exact byte identities,
+including case, accents and trailing spaces. Preserve and inspect existing ambiguous
+rows before migration; do not reset state to force retry.
+
+A journaled operation can recover locally from authoritative readback matching both
+its intended payload and the current desired definition, or confirmed absence for a
+journaled deletion. Recovery issues no mutation. Differing/missing/duplicate reads
+stay blocked. Lost agent/team create replies are reconciled by a unique exact-name
+lookup, and recovered remote IDs feed subsequent team operations.

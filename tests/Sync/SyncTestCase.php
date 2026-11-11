@@ -109,7 +109,8 @@ abstract class SyncTestCase extends TestCase
     {
         return array_merge([
             'id' => 'twl_'.$name,
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => $name,
             'kind' => 'client',
             'description' => 'Tool '.$name,
@@ -128,7 +129,8 @@ abstract class SyncTestCase extends TestCase
     {
         return array_merge([
             'id' => 'agt_'.$name,
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => $name,
             'description' => null,
             'system_prompt' => 'You are an agent.',
@@ -154,7 +156,8 @@ abstract class SyncTestCase extends TestCase
     {
         return array_merge([
             'id' => 'team_'.$name,
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'name' => $name,
             'description' => null,
             'orchestrator_id' => $orchestratorId,

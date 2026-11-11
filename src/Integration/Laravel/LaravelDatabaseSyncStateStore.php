@@ -6,6 +6,7 @@ namespace Digitalygo\Envai\Integration\Laravel;
 
 use Digitalygo\Envai\Models\Json\JsonArray;
 use Digitalygo\Envai\Models\Json\JsonObject;
+use Digitalygo\Envai\Sync\State\InvalidatesReadyManifest;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ReadyManifest;
@@ -77,11 +78,70 @@ use Illuminate\Database\Schema\Builder;
  * The store never stores credentials; connection-level data may only be
  * persisted inside the manifests.metadata JSON object.
  */
-final class LaravelDatabaseSyncStateStore implements SyncStateStore
+final class LaravelDatabaseSyncStateStore implements InvalidatesReadyManifest, SyncStateStore
 {
     private const TIME_FORMAT = 'Y-m-d\TH:i:s.uP';
 
     private bool $lockSchemaEnsured = false;
+
+    private bool $identitySchemaChecked = false;
+
+    private function driver(): string
+    {
+        if (! method_exists($this->connection, 'getPdo')) {
+            throw new \RuntimeException('State connection must expose its PDO driver for identity validation.');
+        }
+        $pdo = $this->connection->getPdo();
+        if (! $pdo instanceof \PDO) {
+            throw new \RuntimeException('State connection must expose PDO.');
+        }
+        $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if (! is_string($driver)) {
+            throw new \RuntimeException('Invalid state database driver.');
+        }
+
+        return $driver;
+    }
+
+    private function ensureStateIdentitySchema(): void
+    {
+        if ($this->identitySchemaChecked) {
+            return;
+        }
+        $this->connection->select('SELECT * FROM '.$this->resourcesTable().' WHERE 1 = 0');
+        try {
+            $this->connection->select('SELECT state_metadata FROM '.$this->resourcesTable().' WHERE 1 = 0');
+        } catch (\Throwable $error) {
+            throw new \RuntimeException('Explicitly migrate sync resources: add nullable TEXT state_metadata for durable mutation recovery.', previous: $error);
+        }
+        $this->assertExactMysqlTable($this->resourcesTable(), ['connection', 'resource_type', 'local_key']);
+        $this->assertExactMysqlTable($this->manifestsTable(), ['connection']);
+        $this->identitySchemaChecked = true;
+    }
+
+    /** @param list<string> $columns */
+    private function assertExactMysqlTable(string $table, array $columns): void
+    {
+        if ($this->driver() !== 'mysql') {
+            return;
+        }
+        $rows = $this->connection->select('SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [$table]);
+        $types = [];
+        foreach ($rows as $row) {
+            $values = (array) $row;
+            $name = $values['COLUMN_NAME'] ?? null;
+            $type = $values['DATA_TYPE'] ?? null;
+            if (is_string($name) && is_string($type)) {
+                $length = $values['CHARACTER_MAXIMUM_LENGTH'] ?? null;
+                $types[$name] = [$type, is_numeric($length) ? (int) $length : 0];
+            }
+        }
+        foreach ($columns as $column) {
+            if (($types[$column] ?? null) !== ['varbinary', in_array($column, ['owner', 'resource_type'], true) ? 64 : 764]) {
+                throw new \RuntimeException('Unsafe MySQL identity collation in '.$table.'.'.$column.'; explicitly migrate identity columns to VARBINARY before using this store.');
+            }
+        }
+    }
 
     public function __construct(
         private readonly ConnectionInterface $connection,
@@ -130,18 +190,31 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
         }
 
         if (! $schema->hasTable($this->locksTable())) {
-            $schema->create($this->locksTable(), static function (Blueprint $table): void {
-                $table->string('connection', 191)->primary();
-                $table->string('owner', 64);
-                $table->string('acquired_at', 64);
-            });
+            if ($this->driver() === 'mysql') {
+                $this->connection->statement('CREATE TABLE '.$this->locksTable().' (connection VARBINARY(764) PRIMARY KEY, owner VARBINARY(64) NOT NULL, acquired_at VARCHAR(64) NOT NULL) ENGINE=InnoDB');
+            } else {
+                $schema->create($this->locksTable(), static function (Blueprint $table): void {
+                    $table->string('connection', 191)->primary();
+                    $table->string('owner', 64);
+                    $table->string('acquired_at', 64);
+                });
+            }
         }
 
+        $this->assertExactMysqlTable($this->locksTable(), ['connection', 'owner']);
         $this->lockSchemaEnsured = true;
+    }
+
+    private function assertIdentityLength(string $scope, ?string $key = null): void
+    {
+        if ($this->driver() === 'mysql' && (strlen($scope) > 764 || ($key !== null && strlen($key) > 764))) {
+            throw new \InvalidArgumentException('MySQL sync scope and local key must be at most 764 bytes; truncation is forbidden.');
+        }
     }
 
     public function acquireLock(string $connection): SyncLock
     {
+        $this->assertIdentityLength($connection);
         $this->ensureLocksSchema();
 
         $owner = bin2hex(random_bytes(16));
@@ -191,6 +264,7 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
 
     public function getResource(string $connection, ResourceType $type, string $localKey): ?ManagedResourceState
     {
+        $this->ensureStateIdentitySchema();
         $row = $this->connection->table($this->resourcesTable())
             ->where('connection', $connection)
             ->where('resource_type', $type->value)
@@ -206,6 +280,7 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
 
     public function resources(string $connection): iterable
     {
+        $this->ensureStateIdentitySchema();
         $rows = $this->connection->table($this->resourcesTable())
             ->where('connection', $connection)
             ->orderBy('resource_type')
@@ -219,6 +294,8 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
 
     public function saveResource(ManagedResourceState $state): void
     {
+        $this->assertIdentityLength($state->connection, $state->localKey);
+        $this->ensureStateIdentitySchema();
         $now = $this->now()->format(self::TIME_FORMAT);
         $payload = $state->lastAppliedPayload === null ? null : $this->encodeJson(self::payloadToJsonValue($state->lastAppliedPayload));
         $marker = $state->remoteMarker === null ? null : $this->encodeJson(self::payloadToJsonValue($state->remoteMarker));
@@ -238,19 +315,27 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
                 'synchronized_at' => $synchronizedAt,
                 'created_at' => $now,
                 'updated_at' => $now,
+                'state_metadata' => $this->encodeJson($state->metadata),
             ]],
             ['connection', 'resource_type', 'local_key'],
-            ['remote_id', 'remote_name', 'desired_hash', 'last_applied_payload', 'remote_marker', 'status', 'synchronized_at', 'updated_at'],
+            ['remote_id', 'remote_name', 'desired_hash', 'last_applied_payload', 'remote_marker', 'status', 'synchronized_at', 'updated_at', 'state_metadata'],
         );
     }
 
     public function deleteResource(string $connection, ResourceType $type, string $localKey): void
     {
+        $this->ensureStateIdentitySchema();
         $this->connection->table($this->resourcesTable())
             ->where('connection', $connection)
             ->where('resource_type', $type->value)
             ->where('local_key', $localKey)
             ->delete();
+    }
+
+    public function clearManifestReady(string $connection): void
+    {
+        $this->ensureStateIdentitySchema();
+        $this->connection->table($this->manifestsTable())->where('connection', $connection)->delete();
     }
 
     /**
@@ -265,6 +350,8 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
      */
     public function markManifestReady(string $connection, string $manifestHash, array $metadata = []): void
     {
+        $this->assertIdentityLength($connection);
+        $this->ensureStateIdentitySchema();
         $this->connection->table($this->manifestsTable())->upsert(
             [[
                 'connection' => $connection,
@@ -279,6 +366,7 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
 
     public function readyManifest(string $connection): ?ReadyManifest
     {
+        $this->ensureStateIdentitySchema();
         $row = $this->connection->table($this->manifestsTable())
             ->where('connection', $connection)
             ->first();
@@ -349,7 +437,7 @@ final class LaravelDatabaseSyncStateStore implements SyncStateStore
             remoteMarker: self::decodeMarkerColumn(self::nullableStringField($row, 'remote_marker')),
             synchronizedAt: $this->nullableTimestampField($row, 'synchronized_at'),
             status: $status,
-            metadata: [],
+            metadata: $this->decodeMetadataColumn(self::nullableStringField($row, 'state_metadata') ?? '{}'),
         );
     }
 

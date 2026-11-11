@@ -18,7 +18,8 @@ final class TeamTest extends TestCase
     {
         $team = Team::fromArray([
             'id' => 'team_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'name' => 'Research team',
             'description' => 'Cross functional research',
             'orchestrator_id' => 'agt_01j5abcdefghjkmnpqrstvwxyz',

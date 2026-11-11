@@ -19,7 +19,7 @@ final class ControlPlaneHttpFixtureTest extends TestCase
         $bytes = file_get_contents($folder.$name.'.json');
         self::assertSame($provenance['files'][$name.'.json']['bytes'], strlen($bytes));
         self::assertSame($provenance['files'][$name.'.json']['sha256'], hash('sha256', $bytes));
-        $contract = Yaml::parseFile(dirname(__DIR__, 2).'/docs/openapi.yaml');
+        $contract = Yaml::parseFile(dirname(__DIR__, 2).'/tests/fixtures/historical-contract/openapi.yaml');
         $contract['$ref'] = '#/components/schemas/'.$schema;
         self::assertTrue((new Validator)->validate(json_decode($bytes)->data, json_decode(json_encode($contract)))->isValid());
 

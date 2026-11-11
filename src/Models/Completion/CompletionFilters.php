@@ -20,7 +20,12 @@ final readonly class CompletionFilters
         public ?string $startedAtFrom = null,
         public ?string $startedAtTo = null,
         public ?int $perPage = null,
-    ) {}
+        public ?int $page = null,
+    ) {
+        if ($page !== null && $page < 1) {
+            throw new \InvalidArgumentException('page must be positive.');
+        }
+    }
 
     /**
      * @return array<string, mixed>
@@ -47,6 +52,10 @@ final readonly class CompletionFilters
 
         if ($this->perPage !== null) {
             $payload['per_page'] = $this->perPage;
+        }
+
+        if ($this->page !== null) {
+            $payload['page'] = $this->page;
         }
 
         return $payload;

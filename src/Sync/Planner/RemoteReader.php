@@ -7,7 +7,7 @@ namespace Digitalygo\Envai\Sync\Planner;
 /**
  * Read-only view over the remote Envai resources of the caller. Each
  * payload is normalized like the SDK DTO toArray() shape: object keys in
- * snake_case, id/user_id/created_at/updated_at present, name present for
+ * snake_case, id/project_id/created_by_user_id/created_at/updated_at present, name present for
  * every kind. The planner matches tools by name and agents/teams by
  * stored remote id first, then by name for bootstrap.
  */

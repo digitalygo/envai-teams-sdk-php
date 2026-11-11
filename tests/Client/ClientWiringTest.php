@@ -93,8 +93,10 @@ final class ClientWiringTest extends TestCase
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'cht_01',
             'workspace_id' => 'wsp_01',
-            'user_id' => 'usr_01',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01',
             'team_id' => 'team_forecasting',
+            'title' => null,
             'created_at' => '2026-08-28T10:00:00Z',
             'updated_at' => '2026-08-28T10:00:00Z',
         ]));
@@ -120,8 +122,10 @@ final class ClientWiringTest extends TestCase
         $transport->queueResponse($this->envelopeResponse([
             'id' => 'cht_02',
             'workspace_id' => 'wsp_01',
-            'user_id' => 'usr_01',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01',
             'team_id' => 'team_forecasting',
+            'title' => null,
             'created_at' => '2026-08-28T10:00:00Z',
             'updated_at' => '2026-08-28T10:00:00Z',
         ]));

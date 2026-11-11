@@ -17,7 +17,7 @@ use Digitalygo\Envai\Sync\Planner\RemoteReader;
  * RemoteReader over the real Envai HTTP client: lists the caller's user
  * tools, agent definitions and teams by hydrating the service DTOs and
  * serializing them with their toArray() shape (snake_case object keys,
- * id/user_id/created_at/updated_at present, name present for every kind),
+ * id/project_id/created_by_user_id/created_at/updated_at present, name present for every kind),
  * which is exactly the payload shape the planner matches on.
  *
  * Every list call returns the complete collection the service exposes.

@@ -65,6 +65,7 @@ final readonly class EnvaiWebhookReceived implements \JsonSerializable
         return $data;
     }
 
+    /** @return object|array<array-key, mixed>|string|int|float|bool|null */
     private static function jsonValue(mixed $value): object|array|string|int|float|bool|null
     {
         if ($value instanceof JsonObject) {

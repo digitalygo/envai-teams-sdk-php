@@ -114,7 +114,8 @@ abstract class ConsoleTestCase extends SyncTestCase
     {
         return array_merge($this->desiredToolPayload($name, $description), [
             'id' => 'twl_'.$name,
-            'user_id' => 'usr_test',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_test',
             'created_at' => '2026-01-01T00:00:00Z',
             'updated_at' => '2026-01-01T00:00:00Z',
         ]);

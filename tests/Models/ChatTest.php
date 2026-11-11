@@ -27,8 +27,10 @@ final class ChatTest extends TestCase
         $chat = Chat::fromArray([
             'id' => 'cht_01j5abcdefghjkmnpqrstvwxyz',
             'workspace_id' => 'wsp_01j5abcdefghjkmnpqrstvwxyz',
-            'user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
+            'project_id' => 'prj_01j5abcdefghjkmnpqrstvwxyz',
+            'created_by_user_id' => 'usr_01j5abcdefghjkmnpqrstvwxyz',
             'team_id' => 'team_01j5abcdefghjkmnpqrstvwxyz',
+            'title' => null,
             'created_at' => '2026-08-17T14:00:00+00:00',
             'updated_at' => '2026-08-17T14:05:00+00:00',
             'pinned' => true,

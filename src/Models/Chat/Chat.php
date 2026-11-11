@@ -10,7 +10,7 @@ use Digitalygo\Envai\Models\Internal\Wire;
 /**
  * A chat inside a workspace with id `cht_<ulid>`. `team_id` selects the team
  * for the chat and is validated at creation to exist and belong to the chat
- * owner. Timestamps stay ISO 8601 strings (wire-faithful).
+ * project. Timestamps stay ISO 8601 strings (wire-faithful).
  */
 final readonly class Chat implements ArrayHydratable
 {
@@ -20,11 +20,13 @@ final readonly class Chat implements ArrayHydratable
     public function __construct(
         public string $id,
         public string $workspaceId,
-        public string $userId,
+        public string $projectId,
+        public ?string $createdByUserId,
         public string $teamId,
         public string $createdAt,
         public string $updatedAt,
         public array $extra = [],
+        public ?string $title = null,
     ) {}
 
     /**
@@ -37,11 +39,13 @@ final readonly class Chat implements ArrayHydratable
         return new self(
             id: Wire::string($data, 'id', $context),
             workspaceId: Wire::string($data, 'workspace_id', $context),
-            userId: Wire::string($data, 'user_id', $context),
+            projectId: Wire::string($data, 'project_id', $context),
+            createdByUserId: Wire::nullableString($data, 'created_by_user_id', $context),
             teamId: Wire::string($data, 'team_id', $context),
+            title: Wire::nullableString($data, 'title', $context),
             createdAt: Wire::string($data, 'created_at', $context),
             updatedAt: Wire::string($data, 'updated_at', $context),
-            extra: Wire::extra($data, ['id', 'workspace_id', 'user_id', 'team_id', 'created_at', 'updated_at']),
+            extra: Wire::extra($data, ['id', 'workspace_id', 'project_id', 'created_by_user_id', 'team_id', 'title', 'created_at', 'updated_at']),
         );
     }
 
@@ -53,8 +57,10 @@ final readonly class Chat implements ArrayHydratable
         return array_merge([
             'id' => $this->id,
             'workspace_id' => $this->workspaceId,
-            'user_id' => $this->userId,
+            'project_id' => $this->projectId,
+            'created_by_user_id' => $this->createdByUserId,
             'team_id' => $this->teamId,
+            'title' => $this->title,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
         ], $this->extra);

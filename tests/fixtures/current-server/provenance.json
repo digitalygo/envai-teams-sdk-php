@@ -1,43 +1,50 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "6a4e45bafe6f5856ef92a57b37db08769738b412",
+  "commit": "964c11fe72887329e8d06c2afb483442d643b290",
   "protocol_version": 3,
-  "operations": 71,
+  "operations": 146,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
-      "bytes": 233072,
-      "sha256": "af736ba76d9673f34eac453e725fe57acb4517f6faf660bb8aed43465c7a0245",
-      "git_blob_sha": "347a58fa0ce76dc43a9f2c4ff94661ff0fe3cbf8",
-      "snapshot_path": "docs/openapi.yaml"
+      "snapshot_path": "docs/openapi.yaml",
+      "bytes": 493110,
+      "sha256": "382c85424131410826df59935948b4a9f1aaf6ee8137bec14ebdce26574eec24",
+      "git_blob_sha": "1d2d7b67677b79e830c05b443f9fb07af0ef65a5"
     },
     "events.json": {
       "repository_path": "packages/contracts/events.json",
-      "bytes": 52694,
-      "sha256": "609628f9a9eb59b9169f20ec7f1edf167a27d449d23b9c2697a17f50811db1e9",
-      "git_blob_sha": "5f971112cb99535bff366bcfa36def7f8dfa7e7d",
-      "snapshot_path": "docs/events.json"
+      "snapshot_path": "docs/events.json",
+      "bytes": 67983,
+      "sha256": "3e21302b1e2cbef0269aa293d75d6cd8d8cc82b8832a5dbba409530ed876a460",
+      "git_blob_sha": "13f60940fbf107e6ee5b1c6e02b051f9403843e5"
     },
     "wiki.json": {
       "repository_path": "packages/contracts/wiki.json",
-      "bytes": 18844,
-      "sha256": "94d25f2f2d7bfacee9544cd614cb86baaf1d952be1b714badb38b7a98a8e636f",
-      "git_blob_sha": "2a2b1af96c99db7d072a3c766426fa493e881cb0",
-      "snapshot_path": "docs/wiki.json"
+      "snapshot_path": "docs/wiki.json",
+      "bytes": 19558,
+      "sha256": "e360060a42c1d69a6cd15de3ea33745567d23166785efcb08f161c7acb38d30c",
+      "git_blob_sha": "3d495bbe3b4cf53af3cab29d86d3a032a7fa8b8c"
     },
     "terminal-snapshot.json": {
       "repository_path": "packages/contracts/terminal-snapshot.json",
+      "snapshot_path": "docs/terminal-snapshot.json",
       "bytes": 8578,
       "sha256": "c132b27031595c94a8b05eaf008545ccc3ac21d4dd170dd800c5e15b7f93e9bf",
-      "git_blob_sha": "77d885bda661800972ed56837e69a57ab613da82",
-      "snapshot_path": "docs/terminal-snapshot.json"
+      "git_blob_sha": "77d885bda661800972ed56837e69a57ab613da82"
     },
     "events-v2.json": {
       "repository_path": "packages/contracts/events-v2.json",
+      "snapshot_path": "docs/events-v2.json",
       "bytes": 47787,
       "sha256": "88d41835f88c0cc4ad071b06ed4623882c6b64144baf312c4a095504c98cd7d6",
-      "git_blob_sha": "02b13b23cd06eacd81059d1ed99e0027769d75e4",
-      "snapshot_path": "docs/events-v2.json"
+      "git_blob_sha": "02b13b23cd06eacd81059d1ed99e0027769d75e4"
+    },
+    "smidja-native.json": {
+      "repository_path": "packages/contracts/smidja-native.json",
+      "snapshot_path": "docs/smidja-native.json",
+      "bytes": 13825,
+      "sha256": "035065640fa4946a2e54297b1a22c69ea736827d38765b0cdaa80a28c3058f8b",
+      "git_blob_sha": "6fd7074e23381d8875fc6e0b3aef4df99ab6297d"
     }
   },
   "generated_fixtures": {
@@ -53,7 +60,7 @@
     },
     "operations.json": {
       "snapshot_path": "tests/fixtures/current-server/operations.json",
-      "sha256": "77dbe9139a7d05efaaec467b1598ae35e4de72c32507dc9163f3dfef6a2b5770",
+      "sha256": "34c9edc5ff077ee2807976a9f259a645b8906fdb5013985bc1e353a89a569553",
       "origin": "Derived operation and authentication inventory from the pinned OpenAPI snapshot."
     },
     "signatures.json": {
@@ -77,7 +84,7 @@
       "origin": "Locally generated schema object/list fidelity cases for compile, sync, persistence, transport and execution; not server traffic."
     }
   },
-  "base_commit": "64ef890be069b406ecd21a14ad7ae6041b8783b6",
+  "base_commit": "c907371b252244cf7a2475d6326e90a28da82880",
   "snapshot_status": "pinned backend commit",
   "shared_fixtures": {
     "failed.json": {

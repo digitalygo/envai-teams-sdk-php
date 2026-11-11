@@ -30,10 +30,10 @@ final class CurrentServerContractTest extends TestCase
     {
         $provenance = self::fixture('provenance.json');
         $this->assertSame('digitalygo/envai-teams', $provenance->repository);
-        $this->assertSame('6a4e45bafe6f5856ef92a57b37db08769738b412', $provenance->commit);
-        $this->assertSame('64ef890be069b406ecd21a14ad7ae6041b8783b6', $provenance->base_commit);
+        $this->assertSame('964c11fe72887329e8d06c2afb483442d643b290', $provenance->commit);
+        $this->assertSame('c907371b252244cf7a2475d6326e90a28da82880', $provenance->base_commit);
         $this->assertSame('pinned backend commit', $provenance->snapshot_status);
-        $this->assertSame(['openapi.yaml', 'events.json', 'wiki.json', 'terminal-snapshot.json', 'events-v2.json'], array_keys(get_object_vars($provenance->sources)));
+        $this->assertSame(['openapi.yaml', 'events.json', 'wiki.json', 'terminal-snapshot.json', 'events-v2.json', 'smidja-native.json'], array_keys(get_object_vars($provenance->sources)));
         foreach ($provenance->sources as $name => $source) {
             $bytes = file_get_contents(dirname(__DIR__, 3).'/'.$source->snapshot_path);
             $this->assertSame($source->bytes, strlen($bytes), $name.' byte count');
@@ -41,6 +41,16 @@ final class CurrentServerContractTest extends TestCase
             $this->assertSame($source->git_blob_sha, sha1('blob '.strlen($bytes)."\0".$bytes), $name.' pinned Git blob');
             $this->assertStringEndsWith('/'.$name, $source->repository_path);
         }
+    }
+
+    public function test_historical_http_contract_snapshot_is_attributed_and_byte_exact(): void
+    {
+        $directory = dirname(__DIR__, 2).'/fixtures/historical-contract/';
+        $provenance = json_decode(file_get_contents($directory.'provenance.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('digitalygo/envai-teams', $provenance['repository']);
+        $this->assertSame('18ce9124604874d8d4bac784b521171d2ff9e064', $provenance['commit']);
+        $this->assertSame('packages/contracts/openapi.yaml', $provenance['repository_path']);
+        $this->assertSame($provenance['sha256'], hash_file('sha256', $directory.'openapi.yaml'));
     }
 
     public function test_generated_fixtures_are_separate_and_all_hashes_are_checked(): void

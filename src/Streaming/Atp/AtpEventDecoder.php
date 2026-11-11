@@ -6,6 +6,9 @@ namespace Digitalygo\Envai\Streaming\Atp;
 
 use Digitalygo\Envai\Exceptions\ProtocolVersionException;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
+use Digitalygo\Envai\Models\Chat\DeliveryOutcome;
+use Digitalygo\Envai\Models\Chat\TaskSnapshot;
+use Digitalygo\Envai\Models\Internal\Wire;
 use Digitalygo\Envai\Models\Json\JsonObject;
 use Digitalygo\Envai\Streaming\Events\AgentArtifactEvent;
 use Digitalygo\Envai\Streaming\Events\AgentContextCompactedEvent;
@@ -31,9 +34,16 @@ use Digitalygo\Envai\Streaming\Events\ApprovalExpireEvent;
 use Digitalygo\Envai\Streaming\Events\ApprovalRequestEvent;
 use Digitalygo\Envai\Streaming\Events\ApprovalResponseEvent;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\ChatDeliveryDeliveredEvent;
+use Digitalygo\Envai\Streaming\Events\ChatDeliveryQueuedEvent;
 use Digitalygo\Envai\Streaming\Events\EventEnvelope;
 use Digitalygo\Envai\Streaming\Events\PingEvent;
 use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
+use Digitalygo\Envai\Streaming\Events\TaskCancelledEvent;
+use Digitalygo\Envai\Streaming\Events\TaskCompletedEvent;
+use Digitalygo\Envai\Streaming\Events\TaskEvent;
+use Digitalygo\Envai\Streaming\Events\TaskFailedEvent;
+use Digitalygo\Envai\Streaming\Events\TaskStartedEvent;
 use Digitalygo\Envai\Streaming\Events\ToolKind;
 use Digitalygo\Envai\Streaming\Events\TurnCancelledEvent;
 use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
@@ -114,6 +124,9 @@ final class AtpEventDecoder
         }
 
         $event = match ($envelope->type) {
+            'task.event' => $this->decodeTaskEvent($envelope, $data, $treeData),
+            'task.started', 'task.completed', 'task.failed', 'task.cancelled' => $this->decodeTaskLifecycle($envelope, $data),
+            'chat.delivery.queued', 'chat.delivery.delivered' => $this->decodeDelivery($envelope, $data),
             'turn.started' => $this->decodeTurnStarted($envelope, $data),
             'turn.completed' => $this->decodeTurnCompleted($envelope, $data),
             'turn.cancelled' => $this->decodeTurnCancelled($envelope, $data),
@@ -151,11 +164,93 @@ final class AtpEventDecoder
             }
         }
 
-        if (! $event instanceof UnknownEvent && $envelope->turnId === null) {
+        if (! $event instanceof UnknownEvent && $envelope->turnId === null && ! str_starts_with($envelope->type, 'task.') && ! str_starts_with($envelope->type, 'chat.delivery.')) {
             return new ProtocolViolationEvent($envelope, ['Known replayable events require a non-null turn_id.'], $data);
         }
 
         return $event;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function decodeTaskLifecycle(EventEnvelope $envelope, array $data): AtpEvent
+    {
+        try {
+            if ($envelope->turnId !== null || $envelope->agent !== null) {
+                throw new \InvalidArgumentException('Task lifecycle events require null turn_id and agent.');
+            }
+            $expected = $envelope->type === 'task.started' ? 'running' : substr($envelope->type, 5);
+            if ($envelope->type === 'task.started') {
+                $data['status'] ??= 'running';
+            }
+            $task = TaskSnapshot::fromArray($data);
+            if ($task->status->value !== $expected) {
+                throw new \InvalidArgumentException('Task status must match its event type.');
+            }
+
+            return match ($envelope->type) {
+                'task.started' => new TaskStartedEvent($envelope, $task),
+                'task.completed' => new TaskCompletedEvent($envelope, $task),
+                'task.failed' => new TaskFailedEvent($envelope, $task),
+                default => new TaskCancelledEvent($envelope, $task),
+            };
+        } catch (\InvalidArgumentException|\ValueError $error) {
+            return new ProtocolViolationEvent($envelope, [$error->getMessage()], $data);
+        }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function decodeTaskEvent(EventEnvelope $envelope, array $data, \stdClass $treeData): AtpEvent
+    {
+        $violations = [];
+        $taskId = Payload::string($data, 'task_id', $violations, 'task.event');
+        $origin = Payload::string($data, 'origin_turn_id', $violations, 'task.event');
+        $type = Payload::string($data, 'event_type', $violations, 'task.event');
+        $payload = Payload::treeObject($treeData, 'event_payload', $violations, 'task.event');
+        if ($envelope->turnId !== null) {
+            $violations[] = 'task.event requires null turn_id.';
+        }
+        if ($violations !== []) {
+            return new ProtocolViolationEvent($envelope, $violations, $data);
+        }
+        assert($taskId !== null && $origin !== null && $type !== null && $payload !== null);
+        $tool = null;
+        if ($type === 'agent.tool.request') {
+            $inner = $treeData->event_payload;
+            assert($inner instanceof \stdClass);
+            /** @var array<string, mixed> $innerData */
+            $innerData = self::assoc($inner);
+            $innerEnvelope = new EventEnvelope($envelope->v, $envelope->id, $envelope->seq, $envelope->ts, $envelope->chatId, null, $envelope->agent, $type);
+            $decoded = $this->decodeAgentToolRequest($innerEnvelope, $innerData, $inner);
+            if ($decoded instanceof ProtocolViolationEvent) {
+                return new ProtocolViolationEvent($envelope, $decoded->violations, $data);
+            }
+            assert($decoded instanceof AgentToolRequestEvent);
+            $tool = $decoded;
+        }
+
+        return new TaskEvent($envelope, $taskId, $origin, $type, $payload, $tool, Payload::extra($data, ['task_id', 'origin_turn_id', 'event_type', 'event_payload']));
+    }
+
+    /** @param array<string, mixed> $data */
+    private function decodeDelivery(EventEnvelope $envelope, array $data): AtpEvent
+    {
+        try {
+            if ($envelope->turnId !== null || $envelope->agent !== null) {
+                throw new \InvalidArgumentException('Delivery events require null turn_id and agent.');
+            }
+            $eventId = Wire::string($data, 'event_id', $envelope->type);
+            $taskId = Wire::string($data, 'task_id', $envelope->type);
+            $origin = Wire::string($data, 'origin_turn_id', $envelope->type);
+            $status = DeliveryOutcome::from(Wire::string($data, 'status', $envelope->type));
+            $turn = $envelope->type === 'chat.delivery.delivered' ? Wire::string($data, 'delivery_turn_id', $envelope->type) : null;
+            $extra = Wire::extra($data, ['event_id', 'task_id', 'origin_turn_id', 'status', 'delivery_turn_id']);
+
+            return $envelope->type === 'chat.delivery.delivered'
+                ? new ChatDeliveryDeliveredEvent($envelope, $eventId, $taskId, $origin, $status, $turn, $extra)
+                : new ChatDeliveryQueuedEvent($envelope, $eventId, $taskId, $origin, $status, $turn, $extra);
+        } catch (\InvalidArgumentException|\ValueError $error) {
+            return new ProtocolViolationEvent($envelope, [$error->getMessage()], $data);
+        }
     }
 
     /** @param array<string, mixed> $data
@@ -807,6 +902,8 @@ final class AtpEventDecoder
         $summary = Payload::string($data, 'summary', $violations, 'agent.done');
         $usage = Payload::usage($data, 'usage', $violations, 'agent.done');
         $durationMs = Payload::int($data, 'duration_ms', $violations, 'agent.done');
+        $requestedModel = Payload::nullableString($data, 'requested_model', $violations, 'agent.done');
+        $model = Payload::nullableString($data, 'model', $violations, 'agent.done');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
@@ -814,7 +911,7 @@ final class AtpEventDecoder
 
         assert($status !== null && $summary !== null && $usage !== null && $durationMs !== null);
 
-        return new AgentDoneEvent($envelope, $status, $summary, $usage, $durationMs, Payload::extra($data, ['status', 'summary', 'usage', 'duration_ms']));
+        return new AgentDoneEvent($envelope, $status, $summary, $usage, $durationMs, Payload::extra($data, ['status', 'summary', 'usage', 'duration_ms', 'requested_model', 'model']), $requestedModel, $model);
     }
 
     /**

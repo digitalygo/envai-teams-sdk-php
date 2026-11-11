@@ -17,7 +17,7 @@ final class ChatRuntimeTest extends TestCase
 {
     private const WORKSPACE = 'wsp_01';
 
-    private const CHAT = 'cht_01';
+    private const CHAT = Fixtures::CHAT_ID;
 
     public function test_events_opens_the_stream_with_the_cursor_and_bearer_header(): void
     {

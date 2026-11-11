@@ -298,7 +298,7 @@ final class ContractNegotiationTest extends TestCase
         $gap = $new;
         $gap['seq'] = 3;
         $transport->connections = [FakeEventStreamConnection::fromEnvelopes([$old, $gap]), FakeEventStreamConnection::fromEnvelopes([$new, $gap])];
-        $events = iterator_to_array($this->client($transport)->chat('w', Fixtures::CHAT_ID)->events());
+        $events = iterator_to_array($this->client($transport)->chat('w', 'cht_01ARZ3NDEKTSV4RRFFQ69G5FAV')->events(reconnect: false));
         self::assertSame([2, 3, 3], array_map(fn ($event) => $event->envelope->v, $events));
         self::assertSame($old, $events[0]->raw());
         self::assertSame($new, $events[1]->raw());

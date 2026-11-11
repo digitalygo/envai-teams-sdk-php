@@ -13,6 +13,7 @@
             <directory>tests/Models</directory>
             <directory>tests/Pagination</directory>
             <directory>tests/Client</directory>
+            <directory>tests/Background</directory>
             <directory>tests/Streaming</directory>
             <directory>tests/Definitions</directory>
             <directory>tests/Sync</directory>

@@ -81,6 +81,12 @@ final readonly class RequestExecutor
         $this->sleepMicroseconds = $sleepMicroseconds ?? usleep(...);
     }
 
+    /** Poll loops own their deadline and do not nest automatic retries. */
+    public function withoutRetries(): self
+    {
+        return new self($this->transport, $this->uris, null, $this->logger, $this->apiKey, $this->sleepMicroseconds);
+    }
+
     /**
      * Sends a request, applying default headers and the retry policy, and
      * returns the final HttpResponse (which may still carry an error status;

@@ -57,6 +57,7 @@ final class LaravelDatabaseSyncStateStoreTest extends IntegrationTestCase
             $table->string('desired_hash', 191)->nullable();
             $table->text('last_applied_payload')->nullable();
             $table->text('remote_marker')->nullable();
+            $table->text('state_metadata')->nullable();
             $table->string('status', 32);
             $table->string('synchronized_at', 64)->nullable();
             $table->string('created_at', 64);

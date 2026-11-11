@@ -17,6 +17,9 @@ use Digitalygo\Envai\Models\Usage\UsageCost;
  *
  * `usage` is preserved as a wire-faithful JsonObject, `status` and
  * `finish_reason` are enum-backed and `cost_usd` keeps sub-cent precision.
+ * Project and API-key attribution is exposed when present; null defaults retain
+ * compatibility with historical completion records.
+ *
  * Timestamps stay ISO 8601 strings (wire-faithful), never parsed into
  * DateTimeImmutable.
  */
@@ -31,7 +34,7 @@ final readonly class Completion implements ArrayHydratable
         public string $workspaceId,
         public string $chatId,
         public string $teamId,
-        public string $userId,
+        public ?string $userId,
         public ?string $modelOrchestrator,
         public array $modelsSubagents,
         public string $startedAt,
@@ -48,6 +51,8 @@ final readonly class Completion implements ArrayHydratable
         public ?BillingState $billing = null,
         public ?UsageCost $usageCost = null,
         public ?CompletionTerminalSnapshot $terminalSnapshot = null,
+        public ?string $projectId = null,
+        public ?string $apiKeyId = null,
     ) {
         if ($terminalSnapshot !== null && $terminalSnapshot->data->get('turn_id') !== $id) {
             throw new \InvalidArgumentException('Terminal snapshot turn_id does not match its completion.');
@@ -66,7 +71,9 @@ final readonly class Completion implements ArrayHydratable
             workspaceId: Wire::string($data, 'workspace_id', $context),
             chatId: Wire::string($data, 'chat_id', $context),
             teamId: Wire::string($data, 'team_id', $context),
-            userId: Wire::string($data, 'user_id', $context),
+            userId: Wire::nullableString($data, 'user_id', $context),
+            projectId: Wire::nullableString($data, 'project_id', $context),
+            apiKeyId: Wire::nullableString($data, 'api_key_id', $context),
             modelOrchestrator: Wire::nullableString($data, 'model_orchestrator', $context),
             modelsSubagents: Wire::stringList($data, 'models_subagents', $context),
             startedAt: Wire::string($data, 'started_at', $context),
@@ -91,6 +98,8 @@ final readonly class Completion implements ArrayHydratable
                 'chat_id',
                 'team_id',
                 'user_id',
+                'project_id',
+                'api_key_id',
                 'model_orchestrator',
                 'models_subagents',
                 'started_at',
@@ -131,6 +140,13 @@ final readonly class Completion implements ArrayHydratable
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
         ];
+
+        if ($this->projectId !== null) {
+            $payload['project_id'] = $this->projectId;
+        }
+        if ($this->apiKeyId !== null) {
+            $payload['api_key_id'] = $this->apiKeyId;
+        }
 
         if ($this->billing !== null) {
             $payload['billing'] = $this->billing->toArray();

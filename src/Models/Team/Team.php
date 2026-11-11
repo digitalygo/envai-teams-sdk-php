@@ -8,8 +8,8 @@ use Digitalygo\Envai\Models\Common\ArrayHydratable;
 use Digitalygo\Envai\Models\Internal\Wire;
 
 /**
- * A team with id `team_<ulid>` owned by a user with id `usr_<ulid>`. It has
- * exactly one orchestrator, a primary-mode agent owned by the same user, and
+ * A team with id `team_<ulid>` owned by a project with id `prj_<ulid>`. It has
+ * exactly one orchestrator, a primary-mode agent owned by the same project, and
  * an ordered member list. Timestamps stay ISO 8601 strings (wire-faithful).
  */
 final readonly class Team implements ArrayHydratable
@@ -20,7 +20,8 @@ final readonly class Team implements ArrayHydratable
      */
     public function __construct(
         public string $id,
-        public string $userId,
+        public string $projectId,
+        public ?string $createdByUserId,
         public string $name,
         public ?string $description,
         public string $orchestratorId,
@@ -61,14 +62,15 @@ final readonly class Team implements ArrayHydratable
 
         return new self(
             id: Wire::string($data, 'id', $context),
-            userId: Wire::string($data, 'user_id', $context),
+            projectId: Wire::string($data, 'project_id', $context),
+            createdByUserId: Wire::nullableString($data, 'created_by_user_id', $context),
             name: Wire::string($data, 'name', $context),
             description: Wire::nullableString($data, 'description', $context),
             orchestratorId: Wire::string($data, 'orchestrator_id', $context),
             members: $members,
             createdAt: Wire::string($data, 'created_at', $context),
             updatedAt: Wire::string($data, 'updated_at', $context),
-            extra: Wire::extra($data, ['id', 'user_id', 'name', 'description', 'orchestrator_id', 'members', 'created_at', 'updated_at']),
+            extra: Wire::extra($data, ['id', 'project_id', 'created_by_user_id', 'name', 'description', 'orchestrator_id', 'members', 'created_at', 'updated_at']),
         );
     }
 
@@ -79,7 +81,8 @@ final readonly class Team implements ArrayHydratable
     {
         return array_merge([
             'id' => $this->id,
-            'user_id' => $this->userId,
+            'project_id' => $this->projectId,
+            'created_by_user_id' => $this->createdByUserId,
             'name' => $this->name,
             'description' => $this->description,
             'orchestrator_id' => $this->orchestratorId,

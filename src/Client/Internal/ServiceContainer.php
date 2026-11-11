@@ -217,12 +217,7 @@ final class ServiceContainer
 
     public function apiKeys(): ApiKeysService
     {
-        return $this->apiKeys ??= new ApiKeysService(
-            $this->executor,
-            $this->uris,
-            $this->connectTimeoutSeconds,
-            $this->requestTimeoutSeconds,
-        );
+        return $this->apiKeys ??= new ApiKeysService;
     }
 
     public function images(): ImagesService

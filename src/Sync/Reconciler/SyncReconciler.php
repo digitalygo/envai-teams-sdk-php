@@ -13,6 +13,7 @@ use Digitalygo\Envai\Sync\Planner\PayloadNormalizer;
 use Digitalygo\Envai\Sync\Planner\SyncAction;
 use Digitalygo\Envai\Sync\Planner\SyncOperation;
 use Digitalygo\Envai\Sync\Planner\SyncPlan;
+use Digitalygo\Envai\Sync\State\InvalidatesReadyManifest;
 use Digitalygo\Envai\Sync\State\ManagedResourceState;
 use Digitalygo\Envai\Sync\State\ManagedResourceStatus;
 use Digitalygo\Envai\Sync\State\ResourceType;
@@ -97,6 +98,11 @@ final class SyncReconciler
             return $this->buildReport($plan, $startedAt, SyncReportStatus::DryRun, $results, manifestReady: false);
         }
 
+        if ($this->store instanceof InvalidatesReadyManifest) {
+            $this->store->clearManifestReady($connection);
+        } elseif ($this->store->readyManifest($connection) !== null) {
+            throw new \LogicException('The custom state store must implement InvalidatesReadyManifest before another apply.');
+        }
         $executed = [];
         $interrupted = false;
         $unexpected = false;
@@ -137,7 +143,14 @@ final class SyncReconciler
 
         $manifestReady = false;
 
-        if ($status === SyncReportStatus::Succeeded && ! $plan->isPartialScope()) {
+        $adoptedDifferentPayload = false;
+        foreach ($plan->operations as $op) {
+            if ($op->action === SyncAction::Adopt && ! $plan->options->overwriteDrift
+                && ! DefinitionDiff::between($op->desiredPayload ?? [], $op->remotePayload ?? [])->isEmpty()) {
+                $adoptedDifferentPayload = true;
+            }
+        }
+        if ($status === SyncReportStatus::Succeeded && ! $plan->isPartialScope() && ! $adoptedDifferentPayload) {
             $this->store->markManifestReady($connection, $plan->manifestHash);
             $manifestReady = true;
         }
@@ -180,7 +193,49 @@ final class SyncReconciler
             SyncAction::Adopt => $this->adopt($connection, $plan, $op, $agentIds),
             SyncAction::Delete => $this->delete($connection, $op),
             SyncAction::None => $this->resultFor($op, SyncOperationOutcome::Skipped),
+            SyncAction::Recover => $this->recover($connection, $op, $agentIds),
         };
+    }
+
+    /** @param array<string, string> $agentIds */
+    private function recover(string $connection, SyncOperation $op, array &$agentIds): SyncOperationResult
+    {
+        if ($op->desiredPayload === null) {
+            $this->store->deleteResource($connection, $op->type, $op->localKey);
+
+            return $this->resultFor($op, SyncOperationOutcome::Succeeded);
+        }
+        $found = array_replace($op->remotePayload ?? [], ['id' => $op->remoteId, 'name' => $op->remoteName ?? $op->localKey]);
+        $this->saveApplied($connection, $op, $found, $op->desiredPayload, $agentIds);
+
+        return $this->succeeded($op, $found);
+    }
+
+    /** Persist intent before crossing the remote mutation boundary. */
+    private function mutationIntent(string $connection, SyncOperation $op): ?ManagedResourceState
+    {
+        $previous = $this->store->getResource($connection, $op->type, $op->localKey);
+        $intent = $previous ?? new ManagedResourceState($connection, $op->type, $op->localKey,
+            remoteId: $op->remoteId, remoteName: $op->remoteName ?? $op->localKey,
+            desiredHash: $this->hasher->resourceHash($op->type->value, $op->localKey, $op->desiredPayload ?? []),
+            lastAppliedPayload: $op->lastAppliedPayload);
+        $this->store->saveResource($intent->withStatus(ManagedResourceStatus::Ambiguous)->withMetadata(array_replace($intent->metadata, ['pending_action' => $op->action->value, 'pending_payload' => $op->desiredPayload])));
+
+        return $previous;
+    }
+
+    private function restoreRejectedIntent(string $connection, SyncOperation $op, ?ManagedResourceState $previous, ApiException $error): void
+    {
+        // A definitive application rejection is not an uncertain transport
+        // outcome. Server failures/timeouts retain the durable intent.
+        if ($error->httpStatus < 400 || $error->httpStatus >= 500 || $error->httpStatus === 408) {
+            return;
+        }
+        if ($previous !== null) {
+            $this->store->saveResource($previous);
+        } else {
+            $this->store->deleteResource($connection, $op->type, $op->localKey);
+        }
     }
 
     /**
@@ -189,6 +244,8 @@ final class SyncReconciler
     private function create(string $connection, SyncOperation $op, array &$agentIds): SyncOperationResult
     {
         $desired = $op->desiredPayload ?? [];
+
+        $previous = $this->mutationIntent($connection, $op);
 
         try {
             $result = match ($op->type) {
@@ -199,6 +256,11 @@ final class SyncReconciler
         } catch (TransportException $exception) {
             return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
         } catch (ApiException $exception) {
+            if ($exception->httpStatus >= 500 || $exception->httpStatus === 408) {
+                return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
+            }
+            $this->restoreRejectedIntent($connection, $op, $previous, $exception);
+
             return $this->failed($op, $exception);
         }
 
@@ -214,6 +276,8 @@ final class SyncReconciler
     {
         $desired = $op->desiredPayload ?? [];
 
+        $previous = $this->mutationIntent($connection, $op);
+
         try {
             $result = match ($op->type) {
                 ResourceType::Tool => $this->writer->updateTool($op->remoteName ?? $op->localKey, $desired),
@@ -223,6 +287,11 @@ final class SyncReconciler
         } catch (TransportException $exception) {
             return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
         } catch (ApiException $exception) {
+            if ($exception->httpStatus >= 500 || $exception->httpStatus === 408) {
+                return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
+            }
+            $this->restoreRejectedIntent($connection, $op, $previous, $exception);
+
             return $this->failed($op, $exception);
         }
 
@@ -270,6 +339,8 @@ final class SyncReconciler
             return new SyncOperationResult($op->id, SyncOperationOutcome::Succeeded, $remoteId, $remoteName, $remoteMarker);
         }
 
+        $previous = $this->mutationIntent($connection, $op);
+
         try {
             $result = match ($op->type) {
                 ResourceType::Tool => $this->writer->updateTool($remoteName, $desired),
@@ -279,6 +350,11 @@ final class SyncReconciler
         } catch (TransportException $exception) {
             return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
         } catch (ApiException $exception) {
+            if ($exception->httpStatus >= 500 || $exception->httpStatus === 408) {
+                return $this->reconcileAmbiguous($connection, $op, $exception, $agentIds);
+            }
+            $this->restoreRejectedIntent($connection, $op, $previous, $exception);
+
             return $this->failed($op, $exception);
         }
 
@@ -299,6 +375,8 @@ final class SyncReconciler
             );
         }
 
+        $previous = $this->mutationIntent($connection, $op);
+
         try {
             if ($op->type === ResourceType::Tool) {
                 $this->writer->deleteTool($state->remoteName ?? $state->localKey);
@@ -310,6 +388,11 @@ final class SyncReconciler
         } catch (TransportException $exception) {
             return $this->reconcileAmbiguousDelete($connection, $op, $state, $exception);
         } catch (ApiException $exception) {
+            if ($exception->httpStatus >= 500 || $exception->httpStatus === 408) {
+                return $this->reconcileAmbiguousDelete($connection, $op, $state, $exception);
+            }
+            $this->restoreRejectedIntent($connection, $op, $previous, $exception);
+
             return $this->failed($op, $exception);
         }
 
@@ -327,7 +410,7 @@ final class SyncReconciler
      *
      * @param  array<string, string>  $agentIds
      */
-    private function reconcileAmbiguous(string $connection, SyncOperation $op, TransportException $exception, array $agentIds): SyncOperationResult
+    private function reconcileAmbiguous(string $connection, SyncOperation $op, TransportException|ApiException $exception, array &$agentIds): SyncOperationResult
     {
         $nameOrId = match ($op->type) {
             ResourceType::Tool => $op->remoteName ?? $op->localKey,
@@ -335,7 +418,9 @@ final class SyncReconciler
         };
 
         try {
-            $found = $this->writer->readRemote($op->type->value, $nameOrId);
+            $found = $nameOrId === '' && $this->writer instanceof RemoteNameReader
+                ? $this->writer->readRemoteByName($op->type->value, $this->stringValue($op->desiredPayload ?? [], 'name') ?? $op->localKey)
+                : ($nameOrId === '' ? null : $this->writer->readRemote($op->type->value, $nameOrId));
         } catch (\Throwable) {
             $this->markAmbiguous($connection, $op, null);
 
@@ -343,7 +428,7 @@ final class SyncReconciler
         }
 
         $desired = $op->desiredPayload ?? [];
-        $normalized = $found === null ? null : PayloadNormalizer::normalize($op->type, $found, $agentIds);
+        $normalized = $found === null ? null : PayloadNormalizer::normalize($op->type, $found, array_flip($agentIds));
 
         if ($found !== null && DefinitionDiff::between($desired, $normalized ?? [])->isEmpty()) {
             $this->saveApplied($connection, $op, $found, $desired, $agentIds);
@@ -361,7 +446,7 @@ final class SyncReconciler
      * delete: a remote read that no longer finds the resource proves the
      * delete landed; a still-present resource is ambiguous and blocks.
      */
-    private function reconcileAmbiguousDelete(string $connection, SyncOperation $op, ManagedResourceState $state, TransportException $exception): SyncOperationResult
+    private function reconcileAmbiguousDelete(string $connection, SyncOperation $op, ManagedResourceState $state, TransportException|ApiException $exception): SyncOperationResult
     {
         $nameOrId = $op->type === ResourceType::Tool
             ? ($state->remoteName ?? $state->localKey)
