@@ -29,10 +29,11 @@ final class CurrentServerContractTest extends TestCase
     public function test_all_declared_server_sources_are_byte_exact(): void
     {
         $provenance = self::fixture('provenance.json');
-        $this->assertSame('digitalygo/envai-teams', $provenance->repository);
-        $this->assertSame('964c11fe72887329e8d06c2afb483442d643b290', $provenance->commit);
+        $this->assertSame('digitalygo/1-1-5-envai-aaas', $provenance->repository);
+        $this->assertSame('9117967221e433eea4ebabba23b7a2278ad6abc1', $provenance->commit);
         $this->assertSame('c907371b252244cf7a2475d6326e90a28da82880', $provenance->base_commit);
         $this->assertSame('pinned backend commit', $provenance->snapshot_status);
+        $this->assertSame(file_get_contents(dirname(__DIR__, 3).'/docs/openapi.yaml'), file_get_contents(dirname(__DIR__, 3).'/resources/http/openapi.yaml'));
         $this->assertSame(['openapi.yaml', 'events.json', 'wiki.json', 'terminal-snapshot.json', 'events-v2.json', 'smidja-native.json'], array_keys(get_object_vars($provenance->sources)));
         foreach ($provenance->sources as $name => $source) {
             $bytes = file_get_contents(dirname(__DIR__, 3).'/'.$source->snapshot_path);

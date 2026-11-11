@@ -7,10 +7,16 @@ ATP v3 (with historical v2 replay) runtime for chats, event streaming, declarati
 configuration synchronization, and verified client tools. Laravel integration
 is optional.
 
-Version 0.2.1 is available on [Packagist](https://packagist.org/packages/digitalygo/envai-teams-sdk-php). This pre-1.0 SDK supports the contract
-snapshot bundled in the repository; optional features also depend on the server
-capabilities. See the [documentation index](docs/README.md),
-[examples](docs/EXAMPLES.md), and
+The latest reviewed release baseline is Git tag `v1.3.0` (commit `6957f70`).
+This source tree is unreleased work on top of that tag: it adds project
+resources, chat crons, cleanup deletions, billing events and exceptions that
+`v1.3.0` does not contain. No newer tag, Packagist version or deployment is
+implied. See [release baseline and unreleased source](#release-baseline-and-unreleased-source).
+
+The SDK supports the contract snapshots bundled in the repository, pinned to
+backend commit `9117967221e433eea4ebabba23b7a2278ad6abc1`; optional features also
+depend on the server capabilities. See the [documentation index](docs/README.md),
+[examples](docs/EXAMPLES.md), [project resources](docs/project-resources.md) and
 [compatibility and safety guide](docs/CURRENT_SERVER_COMPATIBILITY.md).
 
 ## Installation
@@ -19,17 +25,28 @@ Requirements: PHP 8.2 or later in the PHP 8 series, Composer, and the `curl`,
 `json`, `mbstring`, `pdo` and `sodium` extensions. Additional PDO drivers are
 needed only for their corresponding state stores.
 
-Install the published package with Composer:
+Install the reviewed stable 1.x baseline with Composer:
 
 ```bash
-composer require digitalygo/envai-teams-sdk-php:^0.2.1
+composer require digitalygo/envai-teams-sdk-php:^1.3
 ```
 
-Composer resolves the package through Packagist. No custom `repositories`
+The `^1.3` constraint selects stable 1.x releases from 1.3.0 upward. It does not
+include the unreleased additions described below. Confirm that the version you
+need is listed on [Packagist](https://packagist.org/packages/digitalygo/envai-teams-sdk-php)
+before depending on it. Packages from the old 0.2 line predate 1.x and must not
+be used with the current backend contract.
+
+Composer resolves tagged releases through Packagist. No custom `repositories`
 entry or GitHub personal access token is required for normal installation.
 If your application has an SDK-specific VCS entry from an earlier installation,
 remove that entry to use Packagist; retain entries needed by other packages.
 Never commit Composer authentication files.
+
+To evaluate the unreleased additions, use a source checkout of this branch
+(`feature/current-branch-sdk-alignment`) and run `composer install` there.
+Do not pin production applications to a development branch; wait for a tagged
+release that lists these changes in its release notes.
 
 Commit `composer.json` and `composer.lock`; deploy with `composer install` to
 reuse the reviewed dependency versions. The Composer name is
@@ -90,7 +107,24 @@ loop does not execute tools. See [client tools](#client-tools).
 
 ## Versioning
 
-Install tagged releases and review their release notes before upgrading. The SDK is pre-1.0; compatibility changes may occur between minor versions. A `^0.2.1` Composer constraint selects compatible 0.2 releases starting at 0.2.1 rather than a development branch.
+Install tagged releases and review their release notes before upgrading. A `^1.3` Composer constraint selects stable 1.x releases starting at 1.3.0 rather than a development branch.
+
+### Release baseline and unreleased source
+
+| Item | State |
+| --- | --- |
+| Reviewed release baseline | Git tag `v1.3.0`, commit `6957f70` |
+| This source tree | Unreleased changes on top of `v1.3.0` |
+| Contract snapshots | Backend commit `9117967221e433eea4ebabba23b7a2278ad6abc1` |
+| New tag, Packagist version, deployment | None implied by this documentation |
+
+The unreleased source adds 14 operations to the canonical inventory (92 in
+total, 89 callable): workspace and chat deletion, chat rename, four chat cron
+operations, five project skill operations, and project usage and logs reports.
+It also adds four typed events (`chat.title.updated`, `chat.cron.wakeup`,
+`billing.limit_reached`, `billing.credit_exhausted`) and
+`PaymentRequiredException`. Nothing in this list is available in `v1.3.0`.
+The [changelog](CHANGELOG.md) records the delta under Unreleased.
 
 Requirements: PHP `^8.2`; the `curl`, `json`, `mbstring`, `pdo` and `sodium` extensions; a PSR-3 logger if you want log injection; Symfony Console and Symfony YAML for the core CLI.
 
@@ -106,7 +140,7 @@ otherwise compatible version range, use a package-specific stability flag:
 ```json
 {
     "require": {
-        "digitalygo/envai-teams-sdk-php": "^0.2@beta"
+        "digitalygo/envai-teams-sdk-php": "^1.3@beta"
     }
 }
 ```
@@ -144,7 +178,7 @@ Configuration notes:
 
 The default transport is `CurlTransport`. You can inject any transport, but it must implement both `HttpTransport` and `EventStreamTransport` because chat streaming shares the transport; the constructor rejects a transport that only implements `HttpTransport`. A PSR-3 logger can be passed as the third constructor argument.
 
-Retries are conservative: only retry-safe operations are retried automatically. Ambiguous mutations (creating resources, sending messages, forking, restoring, generating images, resolving client tools, reconciler apply) are never retried automatically. `RetryPolicy` accepts `maxAttempts`, `baseDelayMs`, `maxDelayMs`, `jitter`, `retryableStatuses` and `respectRetryAfter`.
+Retries are conservative: only retry-safe operations are retried automatically. Ambiguous mutations (creating resources, deleting workspaces and chats, updating crons and skills, sending messages, forking, restoring, generating images, resolving client tools, reconciler apply) are never retried automatically. A message rejected with HTTP 402 is never resent by the SDK. `RetryPolicy` accepts `maxAttempts`, `baseDelayMs`, `maxDelayMs`, `jitter`, `retryableStatuses` and `respectRetryAfter`.
 
 ## Laravel configuration
 
@@ -208,7 +242,7 @@ For local development, set `ENVAI_SYNC_MODE=lazy` (or the config key). `LazySync
 
 ## HTTP client
 
-`EnvaiClient` exposes one typed service per API family: `workspaces()`, `tools()`, `workspaceFiles()`, `chats()`, `completions()`, `agents()`, `teams()`, `models()`, `apiKeys()`, `images()` and `capabilities()`.
+`EnvaiClient` exposes one typed service per API family: `workspaces()`, `tools()`, `workspaceFiles()`, `chats()`, `completions()`, `agents()`, `teams()`, `models()`, `apiKeys()`, `images()` and `capabilities()`. The unreleased source adds `chatCrons()`, `projectSkills()` and `projectReports()`; see [project resources](docs/project-resources.md).
 
 API key management is session-only on the server: `/api/v1/api-keys` requires a human browser session and CSRF protection and rejects bearer credentials. This SDK uses bearer/project keys, so `apiKeys()->create()`, `list()` and `delete()` throw `LogicException` before any network request. Manage keys in the Envai web application instead.
 
@@ -234,7 +268,7 @@ $capabilities = $envai->capabilities()->getCapabilities();
 $health = $envai->capabilities()->healthCheck();
 ```
 
-Reads return typed DTOs (or `ResourceCollection` for lists) and are retry-safe; mutations take typed request models, are classified as ambiguous and are never retried automatically. The low-level client is usable with explicit remote ids without any synchronization.
+Reads return typed DTOs (or `ResourceCollection` for lists, or `Page` for paginated reports) and are retry-safe; mutations take typed request models, are classified as ambiguous and are never retried automatically. The low-level client is usable with explicit remote ids without any synchronization.
 
 ## Local definitions
 
@@ -583,7 +617,9 @@ $chat = $envai->workspace($workspace->id)
 - `requireSynchronized()` compares the freshly compiled local manifest with the last manifest marked ready on the connection and throws when they differ or when no manifest was ever marked ready.
 - Readiness is scoped to connection/account + manifest hash, never to a workspace.
 
-Chat control plane operations per workspace: `chats()->list()`, `chats()->get($chatId)` and `chats()->create($team)`. The low-level `ChatsService` also exposes `cancel()`, `steer()`, `fork()`, `restore()`, `resolveToolOutput()` and `submitApproval()` with explicit remote ids.
+Chat control plane operations per workspace: `chats()->list()`, `chats()->get($chatId)`, `chats()->create($team)`, and, in the unreleased source, `chats()->update($chatId, $request)` and `chats()->delete($chatId)`. The low-level `ChatsService` also exposes `cancel()`, `steer()`, `fork()`, `restore()`, `resolveToolOutput()` and `submitApproval()` with explicit remote ids, plus `updateChat()` and `deleteChat()` in the unreleased source.
+
+A 409 on message submission means the chat state conflicts with the request, for example an active turn. The SDK surfaces `ConflictException`; it never cancels the active turn and retries on your behalf.
 
 ## Streaming
 
@@ -622,6 +658,7 @@ Stream details:
 - The cursor (`lastCursor()`) advances with every delivered replayable event; `ping` events are delivered as control events but never advance it; duplicates with `seq <= cursor` are skipped.
 - On a sequence gap the stream closes the connection and reopens it with `after=cursor` (default up to 2 attempts with backoff and jitter). If the replay still starts beyond `cursor + 1`, it throws `ReplayGapException` with the missing range.
 - `waitLiveConfirmation()` blocks until the first `ping`, proving the gateway registered the live subscription; this is the send-message race workaround used by the turn helpers.
+- In the unreleased source, `ChatTitleUpdatedEvent`, `ChatCronWakeupEvent`, `BillingLimitReachedEvent` and `BillingCreditExhaustedEvent` decode as typed events. They are informational: none ends a turn, and billing events may carry a null `turn_id`. Billing amounts stay exact decimal strings; on `BillingLimitReachedEvent`, `resetAt`, `amount` and `remaining` are nullable.
 - Known events decode to typed classes; unknown events are preserved as `UnknownEvent`; known events with invalid payloads become `ProtocolViolationEvent`.
 - Close the stream deterministically with `close()`; the connection is also closed when iteration completes or is abandoned.
 
@@ -687,6 +724,7 @@ Every exception extends `EnvaiException` (a `RuntimeException`), which carries `
 EnvaiException
 ├── ApiException
 │   ├── AuthenticationException     (401 / type unauthenticated)
+│   ├── PaymentRequiredException    (402, any error type; unreleased)
 │   ├── AccessDeniedException       (403 / type access_denied)
 │   ├── NotFoundException           (404 / type not_found)
 │   ├── ConflictException           (409 / type conflict)
@@ -694,7 +732,7 @@ EnvaiException
 │   ├── RateLimitException          (429 / type too_many_requests)
 │   ├── ProviderException           (type provider_error)
 │   ├── FileException               (file_* types)
-│   └── ServerException             (5xx / server_error, internal_error)
+│   └── ServerException             (5xx / server_error, internal_error; 503 provider_configuration_error)
 ├── TransportException              (network layer, reconnect failures)
 ├── ProtocolViolationException      (malformed events, unverifiable tool requests)
 │   └── ProtocolVersionException
@@ -706,7 +744,7 @@ EnvaiException
 └── OperationCancelledException     (cancellation token fired mid-stream)
 ```
 
-API errors are mapped from the `{error: {type, code?, message, details?}}` envelope by type, with a status-code fallback for unknown or unparseable responses. `RateLimitException` exposes the parsed `Retry-After` delay. Messages never embed credentials.
+API errors are mapped from the `{error: {type, code?, message, details?}}` envelope by type, with a status-code fallback for unknown or unparseable responses. In the unreleased source, HTTP 402 always maps to `PaymentRequiredException`, whatever its error type, and `apiError()` keeps the server error code. HTTP 503 `provider_configuration_error` stays a `ServerException` with its code preserved; it is not a payment error. `RateLimitException` exposes the parsed `Retry-After` delay. Messages never embed credentials.
 
 ## Capability detection
 
@@ -791,6 +829,36 @@ Opt in with `EnvaiConfig(nativeTasks: true)` for typed deliveries, delegations, 
 
 ### Project tenancy and supported API surface
 
-The embedded contract describes all 146 server operations. `OperationInventory` deliberately tracks the existing 78 SDK operations, including three API-key management methods that fail locally as unsupported (75 callable operations). The current ATP contract declares 39 event types. Human administration and internal APIs are not supported merely because they appear in the source contract.
+The embedded contract describes all 146 server operations. In the unreleased
+source, `OperationInventory` tracks 92 SDK operations, including three API-key
+management methods that fail locally as unsupported because the server accepts
+human browser sessions only (89 callable operations). The bundled ATP contract
+defines 39 known event types and an unknown-event fallback schema (40 variants
+in its Event union). Human administration and internal APIs are not supported
+merely because they appear in the source contract; for example, company,
+invitation and human-only administration operations are excluded, and a bearer
+or project key is the only supported credential.
 
-The five `/tools` operations are now named `createProjectTool`, `listProjectTools`, `getProjectTool`, `updateProjectTool` and `deleteProjectTool` in the canonical inventory. The existing `tools()` methods and legacy `UserTool` model/request names remain compatible aliases for these same routes and payloads. **Their scope has changed:** tools belong to the API key's project, not all workspaces owned by a person. Do not use the old names to infer user-wide access or ownership.
+The five `/tools` operations are named `createProjectTool`, `listProjectTools`,
+`getProjectTool`, `updateProjectTool` and `deleteProjectTool` in the canonical
+inventory. The existing `tools()` methods and legacy `UserTool` model/request
+names remain compatible aliases for these same routes and payloads. **Their
+scope has changed:** tools belong to the API key's project, not all workspaces
+owned by a person. Do not use the old names to infer user-wide access or
+ownership.
+
+Project skills are shared project resources managed through `projectSkills()`.
+They are not files of a workspace: the workspace filesystem exposed by
+`workspaceFiles()` has its own protected `/skills` directory, and that service
+does not create, update or delete project skills. Runtime agents can read
+project skills but cannot modify them.
+
+Chat crons have no public create or cancel-admitted-turn operation. Schedules
+are created only by the native cron tool during an active turn; the SDK lists,
+reads, updates and deletes them. Deleting a cron fences occurrences that are
+not yet admitted and does not cancel an admitted turn.
+
+Deleting a workspace or chat returns a `CleanupResult` with HTTP 200. Access is
+cut at once, but each `CleanupIntentState` stays `pending` until content removal
+is confirmed. A pending intent is not proof that content has been physically
+purged. Accounting rows are retained.

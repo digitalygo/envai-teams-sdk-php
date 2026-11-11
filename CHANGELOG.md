@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Document the unreleased source on top of tag `v1.3.0` (commit `6957f70`): 14 new inventory operations (92 total, 89 callable), project skills, chat crons, chat rename, workspace and chat deletion returning `CleanupResult`, and project usage and log reports with pagination. No new tag or Packagist version is implied.
+- Add typed `chat.title.updated`, `chat.cron.wakeup`, `billing.limit_reached` and `billing.credit_exhausted` events, and `PaymentRequiredException` for HTTP 402; HTTP 503 `provider_configuration_error` stays a `ServerException` with its code preserved.
+- Support array log queries and exact empty-array log metadata in strict validation; pin the six contract snapshots (146 operations) to backend commit `9117967221e433eea4ebabba23b7a2278ad6abc1`.
+- Replace stale 0.2.x installation guidance with the stable 1.x baseline and add a project resources guide.
+
 - Eagerly validate complete tool schemas against pinned offline metaschemas; guard nonproductive reference cycles and keep literal IDs inert.
 - Preserve tool schema object/list shapes through definitions, sync snapshots, HTTP create/update and response hydration.
 

@@ -133,6 +133,21 @@ final readonly class EnvaiClient
         return $this->services->completions();
     }
 
+    public function chatCrons(): ChatCronsService
+    {
+        return $this->services->chatCrons();
+    }
+
+    public function projectSkills(): ProjectSkillsService
+    {
+        return $this->services->projectSkills();
+    }
+
+    public function projectReports(): ProjectReportsService
+    {
+        return $this->services->projectReports();
+    }
+
     public function agents(): AgentsService
     {
         return $this->services->agents();

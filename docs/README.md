@@ -1,14 +1,20 @@
 # Envai PHP SDK documentation
 
 Start with the [installation and quick start](../README.md#installation).
-The SDK provides typed HTTP services, ATP v2 event streaming, declarative
-resource synchronization, client-tool verification and optional Laravel
-integration.
+The SDK provides typed HTTP services, ATP v3 event streaming with historical v2
+replay, declarative resource synchronization, client-tool verification and
+optional Laravel integration.
+
+The reviewed release baseline is Git tag `v1.3.0` (commit `6957f70`). This
+source tree is unreleased work on top of it; these docs describe that unreleased
+source where marked, and imply no new tag, Packagist version or deployment. See
+[release baseline and unreleased source](../README.md#release-baseline-and-unreleased-source).
 
 ## Guides
 
 - [Configuration and Laravel](../README.md#framework-independent-configuration)
 - [Typed HTTP services](../README.md#http-client)
+- [Project skills, chat crons, deletions and reports (unreleased)](project-resources.md)
 - [Local agent, tool and team definitions](../README.md#local-definitions)
 - [Synchronization, drift and deployment](../README.md#deployment)
 - [Workspace and chat creation](../README.md#workspace-and-chat-creation)
@@ -17,6 +23,7 @@ integration.
 - [Error handling](../README.md#error-handling)
 - [Runnable examples and recipes](EXAMPLES.md)
 - [Compatibility, schema shapes and recovery](CURRENT_SERVER_COMPATIBILITY.md)
+- [Strict HTTP validation](STRICT_VALIDATION.md)
 
 ## Public contracts
 
@@ -29,11 +36,13 @@ Use the documented services for normal client operations and discover optional
 features through `capabilities()`.
 
 The [provenance manifest](../tests/fixtures/current-server/provenance.json)
-records the exact upstream revision and content hashes of these two snapshots.
-Locally generated regression fixtures are listed separately. The tests verify
-the retained bytes without contacting a production service. Contract examples,
-resource IDs and cryptographic test vectors are synthetic and are not
-credentials or customer traffic.
+records the exact upstream revision and content hashes of all six source
+snapshots (146 operations, six sources), pinned to backend commit
+`9117967221e433eea4ebabba23b7a2278ad6abc1`. Locally generated regression
+fixtures are listed separately. The tests verify the retained bytes without
+contacting a production service. Contract examples, resource IDs and
+cryptographic test vectors are synthetic and are not credentials or customer
+traffic.
 
 ## Security and compatibility
 

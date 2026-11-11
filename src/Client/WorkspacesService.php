@@ -10,6 +10,7 @@ use Digitalygo\Envai\Http\Client\EnvelopeMode;
 use Digitalygo\Envai\Http\Client\RequestExecutor;
 use Digitalygo\Envai\Http\Client\UriResolver;
 use Digitalygo\Envai\Http\RetrySafety;
+use Digitalygo\Envai\Models\Common\CleanupResult;
 use Digitalygo\Envai\Models\Common\ResourceCollection;
 use Digitalygo\Envai\Models\Workspace\Workspace;
 use Digitalygo\Envai\Models\Workspace\WorkspaceCreateRequest;
@@ -91,6 +92,18 @@ final readonly class WorkspacesService
         );
 
         /** @var Workspace $result */
+        return $result;
+    }
+
+    public function delete(string $workspaceId): CleanupResult
+    {
+        $result = $this->requests->request(
+            'DELETE',
+            $this->requests->resolve('/workspaces/{workspace_id}', ['workspace_id' => $workspaceId]),
+            [], null, CleanupResult::class, EnvelopeMode::Envelope, AuthenticationMode::Bearer, RetrySafety::NeverRetry,
+        );
+        assert($result instanceof CleanupResult);
+
         return $result;
     }
 

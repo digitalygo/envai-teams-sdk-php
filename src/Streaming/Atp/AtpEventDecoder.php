@@ -124,6 +124,7 @@ final class AtpEventDecoder
         }
 
         $event = match ($envelope->type) {
+            'chat.title.updated', 'chat.cron.wakeup', 'billing.limit_reached', 'billing.credit_exhausted' => AdditionalEventDecoder::decode($envelope, $data),
             'task.event' => $this->decodeTaskEvent($envelope, $data, $treeData),
             'task.started', 'task.completed', 'task.failed', 'task.cancelled' => $this->decodeTaskLifecycle($envelope, $data),
             'chat.delivery.queued', 'chat.delivery.delivered' => $this->decodeDelivery($envelope, $data),
@@ -164,7 +165,7 @@ final class AtpEventDecoder
             }
         }
 
-        if (! $event instanceof UnknownEvent && $envelope->turnId === null && ! str_starts_with($envelope->type, 'task.') && ! str_starts_with($envelope->type, 'chat.delivery.')) {
+        if (! $event instanceof UnknownEvent && $envelope->turnId === null && ! str_starts_with($envelope->type, 'task.') && ! str_starts_with($envelope->type, 'chat.delivery.') && ! in_array($envelope->type, ['billing.limit_reached', 'billing.credit_exhausted'], true)) {
             return new ProtocolViolationEvent($envelope, ['Known replayable events require a non-null turn_id.'], $data);
         }
 
