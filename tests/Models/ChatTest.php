@@ -169,6 +169,17 @@ final class ChatTest extends TestCase
             }
         }
         $this->assertSame('x', (new ChatMessageRequest('hi', model: OptionalField::of('x')))->toArray()['model']);
+        $this->assertSame("Vendor/模型\ninternal", (new ChatMessageRequest('hi', model: "Vendor/模型\ninternal"))->toArray()['model']);
+        foreach (["\n", "\r\n", "\t", "\u{0085}", "\u{00a0}"] as $space) {
+            foreach ([$space.'model', 'model'.$space] as $invalid) {
+                try {
+                    new ChatMessageRequest('hi', model: $invalid);
+                    $this->fail('Padded model accepted');
+                } catch (\InvalidArgumentException) {
+                    $this->assertTrue(true);
+                }
+            }
+        }
     }
 
     public function test_tool_output_request_serializes_is_error_default(): void

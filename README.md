@@ -14,7 +14,7 @@ resources, chat crons, cleanup deletions, billing events and exceptions that
 implied. See [release baseline and unreleased source](#release-baseline-and-unreleased-source).
 
 The SDK supports the contract snapshots bundled in the repository, pinned to
-backend commit `7f4085dbfdd3f208b82716119cff1860fbd502bb`; optional features also
+backend commit `f970714c0a358ff94b14f15eabde197c55861e74`; optional features also
 depend on the server capabilities. See the [documentation index](docs/README.md),
 [examples](docs/EXAMPLES.md), [project resources](docs/project-resources.md) and
 [compatibility and safety guide](docs/CURRENT_SERVER_COMPATIBILITY.md).
@@ -115,7 +115,7 @@ Install tagged releases and review their release notes before upgrading. A `^1.3
 | --- | --- |
 | Reviewed release baseline | Git tag `v1.3.0`, commit `6957f70` |
 | This source tree | Unreleased changes on top of `v1.3.0` |
-| Contract snapshots | Backend commit `7f4085dbfdd3f208b82716119cff1860fbd502bb` |
+| Contract snapshots | Backend commit `f970714c0a358ff94b14f15eabde197c55861e74` |
 | New tag, Packagist version, deployment | None implied by this documentation |
 
 The unreleased source adds 14 operations to the canonical inventory (92 in
@@ -666,7 +666,7 @@ Turn helpers open their own stream per call, wait for live confirmation, send th
 
 ### Per-turn model selection
 
-Unreleased source, verified with offline tests and fake providers only. The contract snapshots are fixed at `digitalygo/envai-teams` commit `7f4085dbfdd3f208b82716119cff1860fbd502bb`; that is a source pin, not a claim about any deployed server.
+Unreleased source, verified with offline tests and fake providers only. The contract snapshots are fixed at `digitalygo/envai-teams` commit `f970714c0a358ff94b14f15eabde197c55861e74`; that is a source pin, not a claim about any deployed server.
 
 Pass a model to pin the root orchestrator model for one turn. It is the appended last argument (`$model`) of `ChatRuntime::sendMessage()`, `sendAndStream()` and `sendAndWait()`, and the fourth argument of `ChatMessageRequest`:
 

@@ -39,7 +39,7 @@ features through `capabilities()`.
 The [provenance manifest](../tests/fixtures/current-server/provenance.json)
 records the exact upstream revision and content hashes of all six source
 snapshots (146 operations, six sources), pinned to backend commit
-`7f4085dbfdd3f208b82716119cff1860fbd502bb`. Locally generated regression
+`f970714c0a358ff94b14f15eabde197c55861e74`. Locally generated regression
 fixtures are listed separately. The tests verify the retained bytes without
 contacting a production service. Contract examples, resource IDs and
 cryptographic test vectors are synthetic and are not credentials or customer

@@ -14,7 +14,7 @@ semantics, including explicit `native-tasks-v1` negotiation. The exact server
 revision, source paths, SHA-256 hashes, Git blob IDs and byte counts for all six
 contract snapshots (146 operations, six sources) are recorded in
 [`provenance.json`](../tests/fixtures/current-server/provenance.json) and pinned
-to backend commit `7f4085dbfdd3f208b82716119cff1860fbd502bb`.
+to backend commit `f970714c0a358ff94b14f15eabde197c55861e74`.
 See [native background task usage](BACKGROUND_TASKS.md) for opt-in behavior.
 
 The manifest separately records locally generated fixtures. Their events and
