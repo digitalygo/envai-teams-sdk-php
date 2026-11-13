@@ -7,6 +7,7 @@ namespace Digitalygo\Envai\Tests\Http\Client;
 use Digitalygo\Envai\Configuration\RetryPolicy;
 use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Exceptions\NotFoundException;
+use Digitalygo\Envai\Exceptions\PaymentRequiredException;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Exceptions\ServerException;
 use Digitalygo\Envai\Exceptions\TransportException;
@@ -197,6 +198,19 @@ final class RequestExecutorTest extends TestCase
 
         $this->assertSame(503, $response->status);
         $this->assertCount(1, $this->transport->requests);
+    }
+
+    public function test_payment_refused_mutation_is_not_retried(): void
+    {
+        $this->transport->queueResponse(new HttpResponse(402, body: '{"error":{"type":"invalid_request","code":"credit_exhausted","message":"No credit"}}'));
+
+        try {
+            $this->executor()->apiRequest('POST', '/chats/cht_1/messages', [], ['message' => 'hi'], TestAck::class, EnvelopeMode::TopLevel);
+            $this->fail('Expected payment refusal.');
+        } catch (PaymentRequiredException $error) {
+            $this->assertSame('credit_exhausted', $error->apiError?->code);
+            $this->assertCount(1, $this->transport->requests);
+        }
     }
 
     public function test_safe_request_is_not_retried_on_404(): void

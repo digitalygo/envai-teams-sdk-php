@@ -7,7 +7,9 @@ namespace Digitalygo\Envai\Tests\Client;
 use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
+use Digitalygo\Envai\Exceptions\ApiException;
 use Digitalygo\Envai\Http\HttpResponse;
+use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
 use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
 use Digitalygo\Envai\Tests\Streaming\Atp\FakeEventStreamConnection;
 use Digitalygo\Envai\Tests\Streaming\Fixtures;
@@ -118,6 +120,42 @@ final class ChatRuntimeTest extends TestCase
             static fn ($event): int => $event->envelope->seq,
             $events,
         ));
+    }
+
+    public function test_model_is_sent_per_turn_by_all_helpers(): void
+    {
+        foreach (['sendMessage', 'sendAndStream', 'sendAndWait'] as $method) {
+            $transport = new FakeTransport;
+            $transport->connection = FakeEventStreamConnection::fromEnvelopes([Fixtures::ping(), ...Fixtures::simpleTurn()]);
+            $transport->queueResponse($this->topLevelResponse(['status' => 'accepted', 'turn_id' => Fixtures::TURN_ID]));
+            $chat = $this->client($transport)->chat(self::WORKSPACE, self::CHAT);
+            $result = $chat->$method('hi', [], 'key-1', null, 'Vendor/Model');
+            if ($result instanceof \Generator) {
+                iterator_to_array($result);
+            }
+            $wire = json_decode((string) $transport->requests[0]->body, true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame(['message' => 'hi', 'model' => 'Vendor/Model'], $wire);
+            $this->assertSame('key-1', $transport->requests[0]->headers['idempotency-key'][0]);
+            $transport->queueResponse($this->topLevelResponse(['status' => 'accepted', 'turn_id' => Fixtures::TURN_ID]));
+            $chat->sendMessage('next');
+            $this->assertSame(['message' => 'next'], json_decode((string) $transport->requests[1]->body, true, 512, JSON_THROW_ON_ERROR));
+        }
+    }
+
+    public function test_model_errors_are_preserved_without_resending(): void
+    {
+        foreach (['invalid_model' => 422, 'unknown_model' => 422, 'model_unavailable' => 422, 'model_incompatible' => 422, 'model_catalog_unavailable' => 503, 'idempotency_conflict' => 409] as $code => $status) {
+            $transport = new FakeTransport;
+            $transport->queueResponse(new HttpResponse($status, [], json_encode(['error' => ['type' => $status === 422 ? 'validation_error' : ($status === 503 ? 'server_error' : 'conflict'), 'code' => $code, 'message' => 'rejected']])));
+            try {
+                $this->client($transport)->chats()->sendMessage(self::CHAT, new ChatMessageRequest('hi', model: 'vendor/model'), 'stable');
+                $this->fail('Expected rejection');
+            } catch (ApiException $error) {
+                $this->assertSame($status, $error->httpStatus);
+                $this->assertSame($code, $error->apiError?->code);
+                $this->assertCount(1, $transport->requests);
+            }
+        }
     }
 
     private function client(FakeTransport $transport): EnvaiClient

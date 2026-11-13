@@ -147,6 +147,38 @@ final class StrictValidationTransportTest extends TestCase
         self::assertSame(126, $count);
     }
 
+    public function test_chat_model_boundary_schema_is_enforced_by_strict_transport(): void
+    {
+        $fake = new FakeTransport;
+        $strict = new StrictValidationTransport($fake, new UriResolver('https://example.test'));
+        $uri = 'https://example.test/api/v1/atp/v3/chats/cht_01ARZ3NDEKTSV4RRFFQ69G5FAV/messages';
+        $spaces = ["\u{0009}", "\u{000a}", "\u{000b}", "\u{000c}", "\u{000d}", "\u{0020}", "\u{0085}", "\u{00a0}", "\u{1680}", "\u{2000}", "\u{2001}", "\u{2002}", "\u{2003}", "\u{2004}", "\u{2005}", "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}", "\u{200a}", "\u{2028}", "\u{2029}", "\u{202f}", "\u{205f}", "\u{3000}"];
+        foreach ($spaces as $space) {
+            foreach ([$space.'model', 'model'.$space] as $model) {
+                try {
+                    $strict->send(new HttpRequest('POST', $uri, body: json_encode(['message' => 'hi', 'model' => $model], JSON_THROW_ON_ERROR)));
+                    self::fail('Padded model accepted');
+                } catch (\InvalidArgumentException) {
+                    self::assertSame([], $fake->requests);
+                }
+            }
+        }
+        foreach (["\r\nmodel", "model\r\n", '', null, 1] as $model) {
+            try {
+                $strict->send(new HttpRequest('POST', $uri, body: json_encode(['message' => 'hi', 'model' => $model], JSON_THROW_ON_ERROR)));
+                self::fail('Invalid model accepted');
+            } catch (\InvalidArgumentException) {
+                self::assertSame([], $fake->requests);
+            }
+        }
+        foreach ([['message' => 'hi'], ['message' => 'hi', 'model' => 'Vendor/模型'], ['message' => 'hi', 'model' => "Vendor/模型\ninternal", 'strict_model' => false]] as $body) {
+            $fake->queueResponse(new HttpResponse(422, [], '{}'));
+            self::assertSame(422, $strict->send(new HttpRequest('POST', $uri, body: json_encode($body, JSON_THROW_ON_ERROR)))->status);
+        }
+        self::assertCount(3, $fake->requests);
+        self::assertSame([], $fake->preflightRequests);
+    }
+
     public function test_runtime_schema_is_exact_canonical_mirror_and_included_in_distribution(): void
     {
         self::assertSame(file_get_contents(__DIR__.'/../../../docs/openapi.yaml'), file_get_contents(__DIR__.'/../../../resources/http/openapi.yaml'));

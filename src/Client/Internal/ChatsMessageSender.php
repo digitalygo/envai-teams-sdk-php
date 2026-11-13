@@ -22,10 +22,11 @@ final readonly class ChatsMessageSender implements MessageSender
         private array $attachmentIds = [],
         private ?string $idempotencyKey = null,
         private ?bool $strictModel = null,
+        private mixed $model = null,
     ) {}
 
     public function send(string $chatId, string $message): ChatMessageAccepted
     {
-        return $this->chats->sendMessage($chatId, new ChatMessageRequest($message, $this->attachmentIds, $this->strictModel), $this->idempotencyKey);
+        return $this->chats->sendMessage($chatId, new ChatMessageRequest($message, $this->attachmentIds, $this->strictModel, $this->model), $this->idempotencyKey);
     }
 }

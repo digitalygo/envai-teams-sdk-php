@@ -193,6 +193,20 @@ final class ModelTest extends TestCase
         $this->assertEquals($payload, ModelList::fromArray($payload)->toArray());
     }
 
+    public function test_selectable_round_trips_without_filtering(): void
+    {
+        $base = ['id' => 'vendor/model', 'object' => 'model', 'created' => 1, 'owned_by' => 'vendor', 'type' => 'llm', 'deprecated' => false, 'sunset_at' => null];
+        foreach ([true, false] as $selectable) {
+            $entry = LlmModelEntry::fromArray($base + ['selectable' => $selectable]);
+            $this->assertSame($selectable, $entry->selectable);
+            $this->assertSame($selectable, $entry->toArray()['selectable']);
+            $this->assertArrayNotHasKey('selectable', $entry->extra);
+        }
+        $this->assertNull(LlmModelEntry::fromArray($base)->selectable);
+        $this->assertNull(LlmModelEntry::fromArray($base + ['selectable' => null])->selectable);
+        $this->assertArrayNotHasKey('selectable', LlmModelEntry::fromArray($base)->toArray());
+    }
+
     public function test_model_defaults_hydrates_and_preserves_extra(): void
     {
         $defaults = ModelDefaults::fromArray([

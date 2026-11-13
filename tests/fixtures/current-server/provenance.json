@@ -1,22 +1,22 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "964c11fe72887329e8d06c2afb483442d643b290",
+  "commit": "f970714c0a358ff94b14f15eabde197c55861e74",
   "protocol_version": 3,
   "operations": 146,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
       "snapshot_path": "docs/openapi.yaml",
-      "bytes": 493110,
-      "sha256": "382c85424131410826df59935948b4a9f1aaf6ee8137bec14ebdce26574eec24",
-      "git_blob_sha": "1d2d7b67677b79e830c05b443f9fb07af0ef65a5"
+      "bytes": 500235,
+      "sha256": "13a177fd31dc61e108e61c5209b1395e57735ca6049f3737e33e3be9eb3109e0",
+      "git_blob_sha": "388995332129814273560703eb16a36cb51e4d73"
     },
     "events.json": {
       "repository_path": "packages/contracts/events.json",
       "snapshot_path": "docs/events.json",
-      "bytes": 67983,
-      "sha256": "3e21302b1e2cbef0269aa293d75d6cd8d8cc82b8832a5dbba409530ed876a460",
-      "git_blob_sha": "13f60940fbf107e6ee5b1c6e02b051f9403843e5"
+      "bytes": 68376,
+      "sha256": "7522d63756d624e7ebc7a2a5787f8ab2d6fc0099c5c70e56e65cf08e93daae85",
+      "git_blob_sha": "e4713436407e2c27cdecb8d49dd3f815cc2e5870"
     },
     "wiki.json": {
       "repository_path": "packages/contracts/wiki.json",

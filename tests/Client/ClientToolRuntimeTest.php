@@ -9,6 +9,9 @@ use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
 use Digitalygo\Envai\Exceptions\ProtocolViolationException;
 use Digitalygo\Envai\Http\HttpResponse;
+use Digitalygo\Envai\Streaming\Atp\AtpEventDecoder;
+use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
+use Digitalygo\Envai\Tests\Streaming\Fixtures;
 use Digitalygo\Envai\Tests\Tools\Support\FlexibleTool;
 use Digitalygo\Envai\Tests\Tools\Support\TestKeys;
 use Digitalygo\Envai\Tests\Tools\Support\ToolRequestFactory;
@@ -79,6 +82,44 @@ final class ClientToolRuntimeTest extends TestCase
         $this->assertSame('call_02', $results[0]->callId);
         $this->assertSame(ToolRunOutcome::Executed, $results[0]->outcome);
         $this->assertSame('/api/v1/atp/v3/chats/cht_02/tool-output', parse_url($transport->requests[1]->uri, PHP_URL_PATH));
+    }
+
+    public function test_additional_events_do_not_disrupt_client_tool_handling(): void
+    {
+        $keys = TestKeys::generate();
+        $kid = TestKeys::kid(1);
+
+        $transport = new FakeTransport;
+        $transport->queueResponse($this->jsonResponse(TestKeys::jwkDocument($kid, $keys['public'])));
+        $transport->queueResponse(new HttpResponse(204));
+
+        $decoder = new AtpEventDecoder;
+        $events = [];
+        foreach ([
+            ['chat.title.updated', ['title' => 'Title'], Fixtures::TURN_ID],
+            ['chat.cron.wakeup', [
+                'cron_id' => 'cron_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'occurrence_id' => 'occ_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'scheduled_at' => '2026-01-01T00:00:00Z',
+                'delivered_at' => '2026-01-01T00:01:00Z',
+                'prompt' => 'Do it',
+                'target_mode' => 'same_chat',
+                'dispatch_mode' => 'turn_injected',
+            ], Fixtures::TURN_ID],
+            ['billing.limit_reached', ['reason' => 'limit_reached', 'scope' => 'project', 'currency' => 'EUR'], null],
+            ['billing.credit_exhausted', ['reason' => 'credit_exhausted', 'scope' => 'company', 'currency' => 'EUR'], Fixtures::TURN_ID],
+        ] as $index => [$type, $data, $turnId]) {
+            $event = $decoder->decode(json_encode(self::additionalWire($index + 1, $type, $data, $turnId), JSON_THROW_ON_ERROR));
+            $this->assertNotInstanceOf(ProtocolViolationEvent::class, $event);
+            $events[] = $event;
+        }
+
+        $events[] = ToolRequestFactory::signed('call_06', 'lookup_order', ['order_id' => 'ord_666'], $keys['secret'], $kid, chatId: Fixtures::CHAT_ID);
+        $results = $this->client($transport)->clientTools(ClientToolRegistry::fromArray(['lookup_order' => FlexibleTool::class]))->handleEvents($events, Fixtures::CHAT_ID);
+
+        $this->assertCount(1, $results);
+        $this->assertSame('call_06', $results[0]->callId);
+        $this->assertSame(ToolRunOutcome::Executed, $results[0]->outcome);
     }
 
     public function test_unknown_tool_delivers_a_controlled_error(): void
@@ -157,6 +198,15 @@ final class ClientToolRuntimeTest extends TestCase
 
         $this->assertSame(ToolRunOutcome::Executed, $result->outcome);
         $this->assertTrue($result->outputSubmitted);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function additionalWire(int $seq, string $type, array $data, ?string $turnId): array
+    {
+        return Fixtures::envelope($seq, sprintf('evt_%02d', $seq), '2026-08-17T14:00:00Z', $type, $data, null, $turnId);
     }
 
     private function client(FakeTransport $transport): EnvaiClient

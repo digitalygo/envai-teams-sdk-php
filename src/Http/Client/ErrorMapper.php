@@ -11,6 +11,7 @@ use Digitalygo\Envai\Exceptions\ConflictException;
 use Digitalygo\Envai\Exceptions\EnvaiException;
 use Digitalygo\Envai\Exceptions\FileException;
 use Digitalygo\Envai\Exceptions\NotFoundException;
+use Digitalygo\Envai\Exceptions\PaymentRequiredException;
 use Digitalygo\Envai\Exceptions\ProviderException;
 use Digitalygo\Envai\Exceptions\RateLimitException;
 use Digitalygo\Envai\Exceptions\ServerException;
@@ -74,6 +75,14 @@ final class ErrorMapper
     private static function map(ApiError $apiError, int $status, array $headers): EnvaiException
     {
         $message = $apiError->message !== '' ? $apiError->message : self::statusMessage($status);
+
+        if ($status === 402) {
+            return new PaymentRequiredException($message, $status, $apiError, $headers);
+        }
+
+        if ($status === 503 && $apiError->type === 'provider_configuration_error') {
+            return new ServerException($message, $status, $apiError, $headers);
+        }
 
         return match ($apiError->type) {
             'unauthenticated' => new AuthenticationException($message, $status, $apiError, $headers),

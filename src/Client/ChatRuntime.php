@@ -155,9 +155,9 @@ final class ChatRuntime
      * acknowledgment (POST /chats/{chat_id}/messages, HTTP 202).
      */
     /** @param list<string> $attachmentIds */
-    public function sendMessage(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): ChatMessageAccepted
+    public function sendMessage(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null, mixed $model = null): ChatMessageAccepted
     {
-        return $this->chats->sendMessage($this->chatId, new ChatMessageRequest($message, $attachmentIds, $strictModel), $idempotencyKey);
+        return $this->chats->sendMessage($this->chatId, new ChatMessageRequest($message, $attachmentIds, $strictModel, $model), $idempotencyKey);
     }
 
     /**
@@ -167,9 +167,9 @@ final class ChatRuntime
      * @param  list<string>  $attachmentIds
      * @return \Generator<int, AtpEvent, mixed, void>
      */
-    public function sendAndStream(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): \Generator
+    public function sendAndStream(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null, mixed $model = null): \Generator
     {
-        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel)->sendAndStream($message);
+        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel, $model)->sendAndStream($message);
     }
 
     /**
@@ -177,17 +177,17 @@ final class ChatRuntime
      * turn.
      */
     /** @param list<string> $attachmentIds */
-    public function sendAndWait(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null): TurnResult
+    public function sendAndWait(string $message, array $attachmentIds = [], ?string $idempotencyKey = null, ?bool $strictModel = null, mixed $model = null): TurnResult
     {
-        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel)->sendAndWait($message);
+        return $this->runtime($attachmentIds, $idempotencyKey, $strictModel, $model)->sendAndWait($message);
     }
 
     /** @param list<string> $attachmentIds */
-    private function runtime(array $attachmentIds, ?string $idempotencyKey, ?bool $strictModel): ChatTurnRuntime
+    private function runtime(array $attachmentIds, ?string $idempotencyKey, ?bool $strictModel, mixed $model): ChatTurnRuntime
     {
         return new ChatTurnRuntime(
             $this->events(),
-            new ChatsMessageSender($this->chats, $attachmentIds, $idempotencyKey, $strictModel),
+            new ChatsMessageSender($this->chats, $attachmentIds, $idempotencyKey, $strictModel, $model),
             $this->chatId,
             retainReplay: $idempotencyKey !== null,
         );

@@ -6,12 +6,15 @@ snapshots do not establish compatibility of previously published SDK packages.
 
 ## Contract snapshots
 
-[`openapi.yaml`](openapi.yaml) covers 76 HTTP operations. [`events.json`](events.json)
+[`openapi.yaml`](openapi.yaml) covers 146 HTTP operations; the SDK inventory
+tracks 92 of them (89 callable, because three API-key management methods are
+human-session only and fail locally). [`events.json`](events.json)
 and [`smidja-native.json`](smidja-native.json) describe ATP v3 and native task
 semantics, including explicit `native-tasks-v1` negotiation. The exact server
 revision, source paths, SHA-256 hashes, Git blob IDs and byte counts for all six
-contract snapshots are recorded in
-[`provenance.json`](../tests/fixtures/current-server/provenance.json).
+contract snapshots (146 operations, six sources) are recorded in
+[`provenance.json`](../tests/fixtures/current-server/provenance.json) and pinned
+to backend commit `f970714c0a358ff94b14f15eabde197c55861e74`.
 See [native background task usage](BACKGROUND_TASKS.md) for opt-in behavior.
 
 The manifest separately records locally generated fixtures. Their events and
@@ -19,13 +22,51 @@ signatures are deterministic test data, not captured customer traffic or
 server-issued credentials. Offline tests verify every retained source and
 fixture; they establish integrity, not freshness against a newer deployment.
 
+## Release baseline and unreleased source
+
+The latest reviewed release baseline is Git tag `v1.3.0` (commit `6957f70`).
+The source in this repository is unreleased work on top of that tag. The tag does
+not contain the additions listed below, and this documentation does not announce
+a new tag, a Packagist version or a backend deployment. Backend sources were not
+modified; the snapshots only record what the pinned commit declares.
+
+Unreleased additions:
+
+- 14 inventory operations, taking the inventory to 92 (89 callable):
+  workspace and chat deletion, chat rename, chat cron list/get/update/delete,
+  project skill CRUD and project usage/logs reports. See
+  [project resources](project-resources.md).
+- Four typed events: `chat.title.updated`, `chat.cron.wakeup`,
+  `billing.limit_reached` and `billing.credit_exhausted`.
+- `PaymentRequiredException` for HTTP 402.
+
+Boundaries that matter when adopting them:
+
+- Project skills are shared project resources. They are not files of the workspace
+  filesystem, whose own `/skills` directory is protected and separate.
+- Chat crons have no public create operation and no operation that cancels an
+  already admitted turn. Deleting a cron only fences occurrences not yet admitted.
+- Native background tasks remain opt-in (`EnvaiConfig(nativeTasks: true)`).
+- Only bearer or project-key operations are supported. Human-session
+  administration (API keys, companies, invitations) stays excluded.
+- A 409 on message submission is surfaced as `ConflictException`. The SDK never
+  stops the active turn and retries.
+- A rejected message (402 included) is never resent automatically.
+- A deletion returns HTTP 200 with a `CleanupResult`. Pending cleanup intents are
+  not a physical purge; check each intent status.
+- Usage totals are exact decimal strings per currency. Unknown costs and unknown
+  currencies are counted separately, never converted to zero. Reports expose
+  metadata only.
+
 ## Upgrading from 0.1
 
-The 0.2 release line uses Composer package `digitalygo/envai-teams-sdk-php` instead of
-`digitalygo/atp-php-sdk`. PHP namespaces and Laravel provider class names are
-unchanged. Version 0.2.1 is published on Packagist. Replace the old Composer
-requirement with `digitalygo/envai-teams-sdk-php:^0.2.1`, update the lockfile,
-and run application checks before deploying. Follow the
+The 0.2 release line used Composer package
+`digitalygo/envai-teams-sdk-php` instead of `digitalygo/atp-php-sdk`. PHP
+namespaces and Laravel provider class names are unchanged. Replace the old
+Composer requirement with the stable 1.x constraint
+`digitalygo/envai-teams-sdk-php:^1.3`, update the lockfile, and run application
+checks before deploying; do not target the superseded 0.2 line. Confirm the
+version is available on Packagist first. Follow the
 [installation guide](../README.md#installation); no custom VCS repository entry
 is required. Remove any SDK-specific entry retained from a direct-GitHub
 installation while keeping repositories needed by other dependencies.
@@ -93,12 +134,20 @@ public URL. Expired artifacts and unknown generations can return generic 404s.
   telemetry. Missing telemetry remains valid.
 - Usage exposes optional `spriteRamGbMs` and `toolCalls`.
 - Unknown event types and additive fields remain accessible. Known replayable
-  event types require a non-null envelope `turn_id`. The legacy decoder treats
-  identifier strings as opaque rather than enforcing the complete ULID lexical
-  grammar; it is a typed compatibility decoder, not a complete JSON Schema
-  validator for every envelope field.
+  event types require a non-null envelope `turn_id`, except `task.*` and
+  `chat.delivery.*` events and, in the unreleased source,
+  `billing.limit_reached` and `billing.credit_exhausted`, which may carry a null
+  `turn_id`. The legacy decoder treats identifier strings as opaque rather than
+  enforcing the complete ULID lexical grammar; it is a typed compatibility
+  decoder, not a complete JSON Schema validator for every envelope field.
 - HTTP 503 `gateway_draining` is surfaced through `ServerException`, with the
   server error code retained. Message submission is not automatically retried.
+- In the unreleased source, HTTP 402 is surfaced as `PaymentRequiredException`
+  and HTTP 503 `provider_configuration_error` remains a `ServerException` with
+  its code preserved. Neither triggers an automatic resend.
+- The four additional events decode to `ChatTitleUpdatedEvent`,
+  `ChatCronWakeupEvent`, `BillingLimitReachedEvent` and
+  `BillingCreditExhaustedEvent`. They are informational and never terminate a turn.
 
 Existing constructor positions and namespaces remain unchanged. New optional
 DTO fields follow the existing `extra` argument. Older accepted-generation
@@ -164,7 +213,6 @@ schemas produce a `tool.invalid_schema` compilation violation. The public root
 objects use `JsonObject`. `JsonObject` now serializes as a JSON object even when
 empty or numerically keyed. Legacy sync snapshots that already lost shape cannot
 be repaired by inference; recompile/resynchronize their definitions.
-
 
 The gateway rejects an empty tool output string even though the OpenAPI string
 schema has no `minLength`. The runner converts an empty handler result to a

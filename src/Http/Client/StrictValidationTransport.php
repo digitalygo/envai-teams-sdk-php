@@ -108,6 +108,17 @@ final class StrictValidationTransport implements EventStreamTransport, HttpTrans
             } catch (\JsonException $exception) {
                 throw new ProtocolViolationException('Malformed JSON response.', previous: $exception);
             }
+            if ($route['id'] === 'getProjectLogs' && $value instanceof \stdClass && is_array($value->data ?? null)) {
+                foreach ($value->data as $entry) {
+                    if ($entry instanceof \stdClass) {
+                        foreach (['agent', 'data'] as $field) {
+                            if (($entry->{$field} ?? null) === []) {
+                                $entry->{$field} = new \stdClass;
+                            }
+                        }
+                    }
+                }
+            }
             $this->check($value, $route['pointer'].'/responses/'.$status.'/content/application~1json/schema', false);
         }
 
@@ -133,18 +144,44 @@ final class StrictValidationTransport implements EventStreamTransport, HttpTrans
             if ($this->version === 2 && (str_contains($path, '/atp/') || str_contains($path, '/completions') || str_contains($path, '/capabilities'))) {
                 return null;
             }
-            $values = [];
+            $values = ['path' => [], 'query' => [], 'header' => []];
             foreach ($route['names'] as $index => $name) {
                 $values['path'][$name] = rawurldecode($matches[$index + 1]);
             }
             $query = parse_url($request->uri, PHP_URL_QUERY);
+            $listStyles = [];
+            /** @var array<string, list<string>> $lists */
+            $lists = [];
             foreach (is_string($query) && $query !== '' ? explode('&', $query) : [] as $pair) {
                 [$name, $value] = array_pad(explode('=', $pair, 2), 2, '');
                 $name = urldecode($name);
+                if ($route['id'] === 'getProjectLogs' && preg_match('/^(types|workspace_ids|api_key_ids)(\[.*)?$/D', $name, $match) === 1) {
+                    $base = $match[1];
+                    $suffix = $match[2] ?? '';
+                    if ($suffix === '' || preg_match('/^\[([0-9]*)\]$/D', $suffix, $index) !== 1) {
+                        throw new \InvalidArgumentException('Invalid array query parameter.');
+                    }
+                    $style = $index[1] === '' ? 'repeated' : 'indexed';
+                    $key = $base.'[]';
+                    $lists[$key] ??= [];
+                    if (($listStyles[$base] ?? $style) !== $style || ($style === 'indexed' && $index[1] !== (string) count($lists[$key]))) {
+                        throw new \InvalidArgumentException('Invalid array query parameter.');
+                    }
+                    $listStyles[$base] = $style;
+                    $lists[$key][] = urldecode($value);
+
+                    continue;
+                }
                 if (isset($values['query'][$name])) {
                     throw new \InvalidArgumentException('Duplicate query parameter.');
                 }
                 $values['query'][$name] = urldecode($value);
+            }
+            foreach ($lists as $name => $list) {
+                $values['query'][$name] = $list;
+            }
+            if ($route['id'] === 'getProjectLogs') {
+                $this->assertProjectLogQuery($values['query']);
             }
             foreach ($request->headers as $name => $entries) {
                 $values['header'][$name] = implode(',', $entries);
@@ -167,7 +204,8 @@ final class StrictValidationTransport implements EventStreamTransport, HttpTrans
 
                     continue;
                 }
-                $this->check(self::scalar($values[$parameter->in][$name], $parameter->schema), $parameterPointer.'/schema', true);
+                $value = $values[$parameter->in][$name];
+                $this->check(is_array($value) ? $value : self::scalar($value, $parameter->schema), $parameterPointer.'/schema', true);
             }
             $body = $route['operation']->requestBody ?? null;
             if ($body instanceof \stdClass) {
@@ -251,6 +289,30 @@ final class StrictValidationTransport implements EventStreamTransport, HttpTrans
     private static function escape(string $value): string
     {
         return str_replace(['~', '/'], ['~0', '~1'], $value);
+    }
+
+    /** @param array<string, mixed> $query */
+    private function assertProjectLogQuery(array $query): void
+    {
+        if (array_key_exists('type', $query) && array_key_exists('types[]', $query)) {
+            throw new \InvalidArgumentException('Scalar and array event type filters conflict.');
+        }
+
+        if (array_key_exists('api_key_id', $query) && array_key_exists('api_key_ids[]', $query)) {
+            throw new \InvalidArgumentException('Scalar and array api key filters conflict.');
+        }
+
+        $prohibited = match ($query['view'] ?? null) {
+            'analytics' => ['type', 'types[]', 'workspace_ids[]', 'api_key_ids[]', 'page', 'per_page'],
+            'filters' => ['type', 'api_key_id', 'chat_id', 'types[]', 'workspace_ids[]', 'api_key_ids[]', 'page', 'per_page'],
+            default => [],
+        };
+
+        foreach ($prohibited as $name) {
+            if (array_key_exists($name, $query)) {
+                throw new \InvalidArgumentException('Project log view filter is prohibited.');
+            }
+        }
     }
 
     private static function scalar(string $value, \stdClass $schema): mixed

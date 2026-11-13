@@ -55,7 +55,49 @@ final class InventoryTest extends TestCase
     public function test_full_server_contract_and_sdk_subset_sizes_are_explicit(): void
     {
         $this->assertCount(146, self::openApiOperations());
-        $this->assertCount(78, OperationInventory::OPERATIONS);
+        $this->assertCount(92, OperationInventory::OPERATIONS);
+    }
+
+    /** @return array<string, array{method: string, path: string}> */
+    private static function managementOperations(): array
+    {
+        return [
+            'deleteWorkspace' => ['method' => 'DELETE', 'path' => '/workspaces/{workspace_id}'],
+            'updateChat' => ['method' => 'PUT', 'path' => '/workspaces/{workspace_id}/chats/{chat_id}'],
+            'deleteChat' => ['method' => 'DELETE', 'path' => '/workspaces/{workspace_id}/chats/{chat_id}'],
+            'listChatCrons' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/crons'],
+            'getChatCron' => ['method' => 'GET', 'path' => '/workspaces/{workspace_id}/crons/{cron_id}'],
+            'updateChatCron' => ['method' => 'PATCH', 'path' => '/workspaces/{workspace_id}/crons/{cron_id}'],
+            'deleteChatCron' => ['method' => 'DELETE', 'path' => '/workspaces/{workspace_id}/crons/{cron_id}'],
+            'listProjectSkills' => ['method' => 'GET', 'path' => '/projects/{project_id}/skills'],
+            'createProjectSkill' => ['method' => 'POST', 'path' => '/projects/{project_id}/skills'],
+            'getProjectSkill' => ['method' => 'GET', 'path' => '/projects/{project_id}/skills/{skill_id}'],
+            'updateProjectSkill' => ['method' => 'PUT', 'path' => '/projects/{project_id}/skills/{skill_id}'],
+            'deleteProjectSkill' => ['method' => 'DELETE', 'path' => '/projects/{project_id}/skills/{skill_id}'],
+            'getProjectUsage' => ['method' => 'GET', 'path' => '/projects/{project_id}/usage'],
+            'getProjectLogs' => ['method' => 'GET', 'path' => '/projects/{project_id}/logs'],
+        ];
+    }
+
+    public function test_management_operations_are_all_declared(): void
+    {
+        $expected = self::openApiOperations();
+
+        foreach (self::managementOperations() as $operationId => $definition) {
+            $this->assertArrayHasKey($operationId, OperationInventory::OPERATIONS, sprintf('Missing management operation "%s".', $operationId));
+            $this->assertSame($definition, OperationInventory::OPERATIONS[$operationId]);
+            $this->assertSame($definition, $expected[$operationId] ?? null);
+        }
+
+        $this->assertCount(14, self::managementOperations());
+    }
+
+    public function test_human_admin_and_financial_operations_are_not_sdk_capabilities(): void
+    {
+        foreach (['createCompany', 'getCompanyUsage', 'getProjectSpendLimit', 'updateProjectSpendLimit', 'deleteProject', 'deleteCompany', 'login', 'logout', 'inviteCompanyMember'] as $operationId) {
+            $this->assertArrayHasKey($operationId, self::openApiOperations());
+            $this->assertArrayNotHasKey($operationId, OperationInventory::OPERATIONS, sprintf('Human/financial operation "%s" must stay out of the SDK subset.', $operationId));
+        }
     }
 
     public function test_every_sdk_operation_matches_the_full_server_contract(): void
