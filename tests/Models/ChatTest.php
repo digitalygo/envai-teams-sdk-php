@@ -18,6 +18,7 @@ use Digitalygo\Envai\Models\Chat\RestoreChatRequest;
 use Digitalygo\Envai\Models\Chat\SteerRequest;
 use Digitalygo\Envai\Models\Chat\ToolOutputRequest;
 use Digitalygo\Envai\Models\Chat\TurnAccepted;
+use Digitalygo\Envai\Models\Common\OptionalField;
 use PHPUnit\Framework\TestCase;
 
 final class ChatTest extends TestCase
@@ -147,6 +148,27 @@ final class ChatTest extends TestCase
         $this->assertSame(['team_id' => 'team_01j5abcdefghjkmnpqrstvwxyz'], (new ChatCreateRequest('team_01j5abcdefghjkmnpqrstvwxyz'))->toArray());
         $this->assertSame(['message' => 'Summarize the last week of traffic'], (new ChatMessageRequest('Summarize the last week of traffic'))->toArray());
         $this->assertSame(['destination_chat_id' => 'cht_01j5abcdefghjkmnpqrstuvwxyZ'], (new ForkChatRequest('cht_01j5abcdefghjkmnpqrstuvwxyZ'))->toArray());
+    }
+
+    public function test_message_model_presence_and_validation(): void
+    {
+        $absent = OptionalField::absent();
+        $this->assertSame(['message' => 'hi'], (new ChatMessageRequest('hi', model: $absent))->toArray());
+        foreach ([null, false, true] as $strict) {
+            $wire = (new ChatMessageRequest('hi', ['att_1'], $strict, 'Vendor/Model'))->toArray();
+            $this->assertSame('Vendor/Model', $wire['model']);
+            $this->assertSame(['att_1'], $wire['attachment_ids']);
+            $this->assertSame($strict, $wire['strict_model'] ?? null);
+        }
+        foreach ([OptionalField::of(null), 1, false, [], '', ' x', "x\n", "\u{00a0}x"] as $invalid) {
+            try {
+                new ChatMessageRequest('hi', model: $invalid);
+                $this->fail('Invalid model accepted');
+            } catch (\InvalidArgumentException) {
+                $this->assertTrue(true);
+            }
+        }
+        $this->assertSame('x', (new ChatMessageRequest('hi', model: OptionalField::of('x')))->toArray()['model']);
     }
 
     public function test_tool_output_request_serializes_is_error_default(): void

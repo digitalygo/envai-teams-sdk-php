@@ -14,7 +14,7 @@ resources, chat crons, cleanup deletions, billing events and exceptions that
 implied. See [release baseline and unreleased source](#release-baseline-and-unreleased-source).
 
 The SDK supports the contract snapshots bundled in the repository, pinned to
-backend commit `9117967221e433eea4ebabba23b7a2278ad6abc1`; optional features also
+backend commit `7f4085dbfdd3f208b82716119cff1860fbd502bb`; optional features also
 depend on the server capabilities. See the [documentation index](docs/README.md),
 [examples](docs/EXAMPLES.md), [project resources](docs/project-resources.md) and
 [compatibility and safety guide](docs/CURRENT_SERVER_COMPATIBILITY.md).
@@ -115,7 +115,7 @@ Install tagged releases and review their release notes before upgrading. A `^1.3
 | --- | --- |
 | Reviewed release baseline | Git tag `v1.3.0`, commit `6957f70` |
 | This source tree | Unreleased changes on top of `v1.3.0` |
-| Contract snapshots | Backend commit `9117967221e433eea4ebabba23b7a2278ad6abc1` |
+| Contract snapshots | Backend commit `7f4085dbfdd3f208b82716119cff1860fbd502bb` |
 | New tag, Packagist version, deployment | None implied by this documentation |
 
 The unreleased source adds 14 operations to the canonical inventory (92 in
@@ -663,6 +663,48 @@ Stream details:
 - Close the stream deterministically with `close()`; the connection is also closed when iteration completes or is abandoned.
 
 Turn helpers open their own stream per call, wait for live confirmation, send the message and only yield events of the accepted turn (matched by `turn_id`), while the shared cursor keeps advancing over everything.
+
+### Per-turn model selection
+
+Unreleased source, verified with offline tests and fake providers only. The contract snapshots are fixed at `digitalygo/envai-teams` commit `7f4085dbfdd3f208b82716119cff1860fbd502bb`; that is a source pin, not a claim about any deployed server.
+
+Pass a model to pin the root orchestrator model for one turn. It is the appended last argument (`$model`) of `ChatRuntime::sendMessage()`, `sendAndStream()` and `sendAndWait()`, and the fourth argument of `ChatMessageRequest`:
+
+```php
+use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Common\OptionalField;
+use Digitalygo\Envai\Models\Model\LlmModelEntry;
+
+$model = null;
+foreach ($envai->models()->listModels()->data as $entry) {
+    if ($entry instanceof LlmModelEntry && $entry->selectable === true) {
+        $model = $entry->id;
+        break;
+    }
+}
+if ($model === null) {
+    throw new RuntimeException('No model reported as selectable');
+}
+
+$result = $chat->sendAndWait('Summarize the project.', [], 'summary-1', null, $model);
+$next = $chat->sendAndWait('And the risks?');
+
+$accepted = $envai->chats()->sendMessage(
+    $chatId,
+    new ChatMessageRequest('Draft a reply.', model: OptionalField::of($model)),
+);
+```
+
+- Use an exact, case-sensitive `id` copied from an `llm` entry of `GET /models`. The SDK does not trim, fold case, translate aliases or prefetch the catalog. It keeps no client-side model list and applies no allowlist.
+- `selectable` is guidance only. `LlmModelEntry::$selectable` is `null` when absent and `false` is retained as received. The SDK does not block a request because of it; the server decides.
+- The model applies to the root of that one turn. It never changes team, agent, chat or default configuration and is not carried to the next call. Omit it for the normal configured cascade.
+- A `null` parameter and `OptionalField::absent()` both mean unset. `OptionalField::of(null)`, a non-string, an empty string or a padded string (including Unicode spaces) throws `InvalidArgumentException` before message submission, so no message POST is sent. Observation and read requests such as opening the live event stream can precede validation. None is treated as omission or a fallback.
+- An explicit model needs no native tasks or `strict_model`. If you also pass `$strictModel` (including explicit `false`, whose presence in the request is gated), its existing gates (`nativeTasks` and the advertised `strict_model` feature) apply. With `$strictModel` null, false or true, an explicit model is pinned exactly with no fallback.
+- Attachment IDs require an idempotency key. On a deliberate retry send the same model, strict and native policy with the same key. A changed or omitted model answers `409 idempotency_conflict`. The SDK never resends or falls back to another model on its own.
+- Failures are `ApiException` with `httpStatus` and `apiError->code`: `422` `invalid_model`, `unknown_model`, `model_unavailable`, `model_incompatible`, and `503` `model_catalog_unavailable`. There is no `model_not_selectable` error.
+- `agent.started` `model` reports the selected logical id. On `agent.done`, `requested_model` (the logical request) and `model` (the provider-reported model) are separate fields and can differ. Their existing native-task gating is unchanged.
+- Server restart or eviction loses the resident buffer with no paid rerun; completion terminal snapshot metadata is available only when recorded. Reconcile with the original key and policy.
+- Only chat messages select a model. Jobs, delegation, deliveries and wiki endpoints have no model selection.
 
 ## Client tools
 

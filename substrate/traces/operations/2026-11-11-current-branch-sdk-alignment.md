@@ -1,7 +1,18 @@
 ---
 status: completed
 created_at: 2026-11-11
+updated_at: 2026-11-13
 files_edited:
+  - docs/events.json
+  - src/Client/ChatRuntime.php
+  - src/Client/Internal/ChatsMessageSender.php
+  - src/Models/Chat/ChatMessageRequest.php
+  - src/Models/Model/LlmModelEntry.php
+  - tests/Client/ChatAttachmentsTest.php
+  - tests/Client/ChatRuntimeTest.php
+  - tests/Models/ChatTest.php
+  - tests/Models/ModelTest.php
+  - tests/fixtures/current-server/events.json
   - CHANGELOG.md
   - README.md
   - docs/CURRENT_SERVER_COMPATIBILITY.md
@@ -80,7 +91,9 @@ files_edited:
 rationale:
   - Align project-key integrations with the current backend feature branch without adding human-session administration.
   - Preserve wire compatibility, exact accounting values, conservative retries, and historical ATP v2 bytes.
+  - Expose exact per-turn model selection without changing existing positional call conventions.
 supporting_docs:
+  - https://github.com/digitalygo/envai-teams/tree/7f4085dbfdd3f208b82716119cff1860fbd502bb
   - ../../../AGENTS.md
   - ../../../docs/project-resources.md
   - ../../../docs/CURRENT_SERVER_COMPATIBILITY.md
@@ -212,3 +225,50 @@ unrelated backend edits were left untouched.
 
 The reviewed non-trace path-and-content snapshot SHA-256 is
 `c65f83b60e8d82e85b2944278a63592e85f24dafcdbdeb38562db9669d2ec89b`.
+
+## Update: 2026-11-13 per-turn model selection
+
+### Summary and reasoning
+
+Starting from SDK `4e55537` on the subsequently renamed
+`feature/user-company-projects` branch, refreshed current contracts to backend
+`7f4085dbfdd3f208b82716119cff1860fbd502bb`. Pull already included the requested
+`alpha` merge; the backend push was up to date and PR 58 pointed to that
+revision. Verified GitHub metadata now names the backend
+`digitalygo/envai-teams`, without rewriting historical capture provenance.
+
+Appended a model parameter to `ChatMessageRequest` and the three `ChatRuntime`
+message helpers, carried by their per-call sender without changing the
+`MessageSender` interface. Strings remain exact. Null parameters and
+`OptionalField::absent()` omit the field; `OptionalField::of(null)` and malformed
+values fail before message submission. Existing strict-model capability gates,
+attachment keys and `NeverRetry` remain unchanged. Nullable catalog
+`selectable` preserves old hydration conventions and false values without
+filtering or granting permission. Documentation states these conventions.
+
+### Impact and verification
+
+No dependency, workflow, version, endpoint or backend source change was made.
+All six current snapshots match the backend pin; both OpenAPI copies and event
+copies agree, while frozen v2 and historical captures are unchanged.
+
+Independent Composer validation, Pint, PHPStan and Composer audit passed.
+The full PHP 8.5.11 suite finished with 2,509 tests, 12,806 assertions, no
+failures and 120 pre-existing optional-framework skips. PCOV covered 15/15
+changed executable lines. Tests verify all helper paths, per-call omission,
+strict policy, attachments and keys, invalid models, single-submit errors and
+catalog flags. The initial developer coverage run hit Xdebug's stack limit;
+the successful developer and independent runs used PCOV with Xdebug disabled.
+
+Quality judgment and security review returned PASS for non-trace snapshot
+`abf519e87e390487d7398207482d9c29c813469ccd0720e204ccaf5011fe6809`.
+PHP 8.2/8.3/8.4 and the optional Laravel matrix were not rerun for this update.
+The existing local PHP image was reused through Docker because no equivalent
+Podman image was available; database services used Podman. SQL checks used
+MySQL 8.4 and PostgreSQL 18 rather than CI's PostgreSQL 16. Actionlint was
+unavailable, and no workflow changed. No live provider, deployment or release
+verification is claimed.
+
+Evidence remains under `/tmp/envai-model-sdk-verify/leader-php*`. All task-created
+containers, database volumes, private connection files and the wheel test
+environment were removed; the reused image and unrelated services were kept.

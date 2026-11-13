@@ -19,6 +19,7 @@ source where marked, and imply no new tag, Packagist version or deployment. See
 - [Synchronization, drift and deployment](../README.md#deployment)
 - [Workspace and chat creation](../README.md#workspace-and-chat-creation)
 - [Streaming, cursors and turn helpers](../README.md#streaming)
+- [Per-turn model selection](../README.md#per-turn-model-selection)
 - [Client-tool registration, signatures and durable state](../README.md#client-tools)
 - [Error handling](../README.md#error-handling)
 - [Runnable examples and recipes](EXAMPLES.md)
@@ -38,7 +39,7 @@ features through `capabilities()`.
 The [provenance manifest](../tests/fixtures/current-server/provenance.json)
 records the exact upstream revision and content hashes of all six source
 snapshots (146 operations, six sources), pinned to backend commit
-`9117967221e433eea4ebabba23b7a2278ad6abc1`. Locally generated regression
+`7f4085dbfdd3f208b82716119cff1860fbd502bb`. Locally generated regression
 fixtures are listed separately. The tests verify the retained bytes without
 contacting a production service. Contract examples, resource IDs and
 cryptographic test vectors are synthetic and are not credentials or customer

@@ -36,7 +36,7 @@ accepted as an empty object, so exact empty-array log metadata from the server
 stays compatible.
 
 The canonical OpenAPI document (146 operations) is pinned to backend commit
-`9117967221e433eea4ebabba23b7a2278ad6abc1`. The repository tracks six contract
+`7f4085dbfdd3f208b82716119cff1860fbd502bb`. The repository tracks six contract
 snapshots pinned to that commit, but the HTTP validator reads only the single
 OpenAPI snapshot offline.
 
