@@ -18,7 +18,7 @@
     "require-dev": {
         "laravel/pint": "^1.27",
         "phpstan/phpstan": "^2.1",
-        "phpunit/phpunit": "^11.5"
+        "phpunit/phpunit": "^13.0"
     },
     "suggest": {
         "ext-fileinfo": "Required to detect the MIME type of multipart file uploads",
