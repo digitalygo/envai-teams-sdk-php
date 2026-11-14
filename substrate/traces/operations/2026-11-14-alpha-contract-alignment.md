@@ -143,4 +143,15 @@ Sono autorizzati commit convenzionale e normale push del solo topic branch.
 Non sono autorizzati merge, tag, release, push su main, modifiche della policy
 o pubblicazione delle modifiche nel monorepo Envai Teams. Test e copertura
 nuovi sono N/A per il passaggio Git; i precedenti PASS restano applicabili agli
-stessi byte. L'esito remoto e la PR saranno registrati dopo la creazione.
+stessi byte.
+
+Il commit convenzionale `504d82ebeaf35d08bb9a16d55fa194af3b8b0d9a` è stato
+pubblicato sul solo topic branch. La [PR #18](https://github.com/digitalygo/envai-teams-sdk-php/pull/18)
+è aperta, non draft, verso `main`; l'orchestrator ha verificato i metadati
+GitHub e il riferimento remoto. Il commit contiene esattamente i 27 file
+approvati e i due record SDK. Il seguito che registra la PR cambia soltanto
+Markdown, con codice, test e contratti ancora byte-identici al pacchetto dei
+reviewer. La CI remota resta consultabile nella PR.
+
+Nessun force push, merge, tag, release, modifica della policy o cambiamento
+nel monorepo Envai Teams è stato effettuato.

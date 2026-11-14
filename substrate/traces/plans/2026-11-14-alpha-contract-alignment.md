@@ -1,7 +1,7 @@
 ---
 document_type: mycelium-plan
 plan_id: 2026-11-14-alpha-contract-alignment
-status: in-progress
+status: completed
 created_at: 2026-11-14
 planner: orchestrator
 baseline_version: 1
@@ -14,15 +14,15 @@ last_updated_at: 2026-11-14
 
 ## Current execution snapshot
 
-- **Status:** Allineamento completato; follow-up di pubblicazione della pull request ora autorizzato dall'utente.
+- **Status:** Completed, allineamento pubblicato nella PR #18 verso main; nessun merge o release.
 - **Baseline identity:** `2026-11-14-alpha-contract-alignment`, versione 1.
 - **Execution baseline:** SDK pulito su `feature/sync-teams-alpha-20261113`, creato da main `6957f70c9ca767583ddaa9f3a9a9f4a5be786313`. Fetch e fast-forward ripetuti alla ripresa, nessuna differenza rispetto a `origin/main`.
-- **Active phase:** Follow-up V-001: commit, push del solo topic branch e pull request verso main.
-- **Last verified checkpoint:** Preflight di pubblicazione: main remoto ancora `6957f70`, nessuna PR o branch remoto omonimo, tutti i 27 hash e il diff approvato invariati. Gate qualità/sicurezza e test precedenti restano riferiti agli stessi byte.
+- **Active phase:** Tutte le fasi e il follow-up V-001 conclusi.
+- **Last verified checkpoint:** Commit `504d82e` pubblicato sul solo topic branch, PR #18 aperta non draft verso main; riferimento remoto e metadati GitHub verificati. Tutti i 27 file eseguibili, test e snapshot restano identici al pacchetto approvato.
 - **Last successful checks:** Composer validate/install/audit, Pint 586 file, PHPStan massimo, 2.343 test di base per PHP 8.2-8.5; Laravel 13 completo 2.343 test e 10.721 asserzioni senza skip; integrazione Laravel 11, 12, 13 su PHP 8.5 con 151 test ciascuna; actionlint, 91 test release tooling, whitespace e confronto storico. Security PASS sul pacchetto congelato.
 - **Open blockers:** Nessuno.
 - **Required approvals and gates:** L'utente autorizza ora la pull request dell'SDK, quindi commit convenzionale e normale push del topic branch. Gate e copertura 20/20 già verificati; nessun nuovo comportamento. Restano esclusi merge, push su main, tag, release, cambi di policy e modifiche del monorepo o della preview.
-- **Next action:** Committare soltanto i 27 file approvati e i due record SDK, pubblicare il topic branch e aprire la PR verso main.
+- **Next action:** Review umana della PR #18 e relativi check CI; nessun merge, tag, release o ulteriore modifica del runtime autorizzata da questa richiesta.
 
 ## Planner baseline
 
@@ -152,6 +152,14 @@ Solo l'orchestrator aggiorna snapshot e checkpoint. La baseline resta immutabile
 - **Decision and impact:** Pubblicazione standard senza force push, bypass, merge o trigger manuale di release. Nessuna nuova esecuzione applicativa o modifica di comportamento; test e coverage nuovi N/A per il solo passaggio Git, con continuità dei precedenti PASS dimostrata dagli hash. La CI remota dovrà validare la PR.
 - **Next action:** Commit convenzionale, push del topic branch e creazione della PR.
 
+#### Checkpoint 2026-11-14: PR SDK #18 creata e verificata
+
+- **Event:** Follow-up di pubblicazione concluso senza modificare il codice già verificato.
+- **Subagent claims:** Locator e analyzer confermano riuso delle tracce, scope SDK e assenza di release su PR o push del topic branch; nessun writer aggiuntivo necessario.
+- **Independently verified facts:** L'orchestrator stage esattamente i 27 file del manifest e i due record SDK, verifica hash del diff staged e whitespace, crea il commit convenzionale `504d82ebeaf35d08bb9a16d55fa194af3b8b0d9a`, esegue normale push del topic e apre [PR #18](https://github.com/digitalygo/envai-teams-sdk-php/pull/18). GitHub conferma stato OPEN, non draft, base main e head `feature/sync-teams-alpha-20261113` sul commit pubblicato. Nessuna modifica del monorepo inclusa; indice e worktree SDK erano puliti dopo il commit.
+- **Decision and impact:** Nessun force push, merge, tag, release o cambio di policy. Questo aggiornamento di traccia è solo Markdown e non cambia il pacchetto di codice già approvato; test e coverage aggiuntivi N/A. I check remoti sono consultabili dalla PR e saranno verificati prima della consegna.
+- **Next action:** Registrare il riferimento PR nelle sole tracce SDK e controllare la CI, senza autorizzare merge automatici.
+
 ## Plan-variation ledger
 
 ### Variation V-001: pubblicazione della pull request SDK
@@ -161,13 +169,13 @@ Solo l'orchestrator aggiorna snapshot e checkpoint. La baseline resta immutabile
 - **Decision:** Accettata la sola pubblicazione del lavoro già verificato tramite commit, normale push del topic branch e PR verso main.
 - **Scope and downstream impact:** Metadati Git e due record SDK; nessun nuovo file eseguibile, dipendenza, workflow, test o contratto. Nessuna pubblicazione del monorepo o modifica runtime.
 - **Approval:** Richiesta utente del 2026-11-14. Merge, tag, release, policy e push su main restano non autorizzati.
-- **Resolution:** In corso; chiusura dopo verifica del riferimento remoto e della PR effettiva.
+- **Resolution:** Conclusa: normale push del topic branch e PR #18 aperta verso main, head verificato su `504d82e`. Nessuna pubblicazione di tag o merge.
 
 ## Closure evidence
 
 ### Final outcome
 
-SDK allineato alla revisione alpha `7133cae`: modello per turno, strict normale indipendente dai task nativi, selectability informativa, metadati artifact e snapshot correnti. Conservati i costruttori, lo scope progetto, gli opt-in, la modalità storica e i metadati wiki in `extra`. La preview era già stata aggiornata e verificata prima di riprendere questi cambiamenti.
+SDK allineato alla revisione alpha `7133cae`: modello per turno, strict normale indipendente dai task nativi, selectability informativa, metadati artifact e snapshot correnti. Conservati i costruttori, lo scope progetto, gli opt-in, la modalità storica e i metadati wiki in `extra`. La preview era già stata aggiornata e verificata prima di riprendere questi cambiamenti. Su successiva autorizzazione dell'utente, lavoro pubblicato nella [PR #18](https://github.com/digitalygo/envai-teams-sdk-php/pull/18) verso main, senza merge o release.
 
 ### Quality and security evidence
 
