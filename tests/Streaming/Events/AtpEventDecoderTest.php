@@ -63,6 +63,43 @@ final class AtpEventDecoderTest extends TestCase
         return json_encode($envelope, JSON_THROW_ON_ERROR);
     }
 
+    public function test_artifact_metadata_is_typed_and_unknown_data_is_preserved(): void
+    {
+        $wire = Fixtures::sample('agent.artifact');
+        $wire['data'] += ['path' => '/images/a.png', 'generation_id' => 'gen', 'expires_at' => '2026-01-01T00:00:00Z', 'future' => 7];
+        $event = $this->decoder->decode($this->json($wire));
+        self::assertInstanceOf(AgentArtifactEvent::class, $event);
+        self::assertSame('/images/a.png', $event->path);
+        self::assertSame('gen', $event->generationId);
+        self::assertSame('2026-01-01T00:00:00Z', $event->expiresAt);
+        self::assertSame(['future' => 7], $event->extra);
+        foreach (['path', 'generation_id', 'expires_at'] as $field) {
+            $invalid = $wire;
+            $invalid['data'][$field] = 123;
+            self::assertInstanceOf(ProtocolViolationEvent::class, $this->decoder->decode($this->json($invalid)));
+        }
+    }
+
+    public function test_artifact_metadata_is_optional_and_never_fetched(): void
+    {
+        $wire = Fixtures::sample('agent.artifact');
+        $event = $this->decoder->decode($this->json($wire));
+        self::assertInstanceOf(AgentArtifactEvent::class, $event);
+        self::assertNull($event->path);
+        self::assertNull($event->generationId);
+        self::assertNull($event->expiresAt);
+        self::assertSame([], $event->extra);
+        self::assertSame($wire, $event->raw());
+
+        $wire['data'] += ['generation_id' => 'gen_01j5abcdefghjkmnpqrstvwxyz', 'expires_at' => '2026-11-13T12:00:00Z'];
+        $event = $this->decoder->decode($this->json($wire));
+        self::assertInstanceOf(AgentArtifactEvent::class, $event);
+        self::assertNull($event->path);
+        self::assertSame('gen_01j5abcdefghjkmnpqrstvwxyz', $event->generationId);
+        self::assertSame('2026-11-13T12:00:00Z', $event->expiresAt);
+        self::assertSame($wire, $event->raw());
+    }
+
     public function test_malformed_json_throws_protocol_violation(): void
     {
         $this->expectException(ProtocolViolationException::class);

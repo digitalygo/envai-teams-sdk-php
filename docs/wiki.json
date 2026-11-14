@@ -200,6 +200,72 @@
       },
       "additionalProperties": true
     },
+    "WorkspaceFileWikiSource": {
+      "type": "object",
+      "description": "Functional source metadata projected by managed wiki directory reads. It excludes storage handles, costs and private ownership fields.",
+      "required": [
+        "id",
+        "file_id",
+        "kind",
+        "name",
+        "original_name",
+        "path",
+        "canonical_raw_path",
+        "mime_type",
+        "byte_size",
+        "lifecycle",
+        "status",
+        "source_revision",
+        "revision",
+        "conversion",
+        "indexing",
+        "error_code",
+        "recoverable",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "file_id": { "type": "string" },
+        "kind": { "const": "source" },
+        "name": { "type": "string" },
+        "original_name": { "type": "string" },
+        "path": { "type": ["string", "null"] },
+        "canonical_raw_path": { "type": ["string", "null"] },
+        "mime_type": { "type": "string" },
+        "byte_size": { "type": "integer", "minimum": 0 },
+        "lifecycle": { "$ref": "#/$defs/WikiSource/properties/lifecycle" },
+        "status": { "$ref": "#/$defs/WikiSource/properties/lifecycle" },
+        "source_revision": { "type": "integer", "minimum": 0 },
+        "revision": { "type": "integer", "minimum": 0 },
+        "conversion": { "$ref": "#/$defs/ConversionState" },
+        "indexing": { "$ref": "#/$defs/IndexingState" },
+        "error_code": { "type": ["string", "null"] },
+        "recoverable": { "type": "boolean" },
+        "created_at": { "type": ["string", "null"], "format": "date-time" },
+        "updated_at": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "WorkspaceFileWikiEntry": {
+      "type": "object",
+      "description": "Identity and lifecycle state attached to a real managed wiki file descriptor.",
+      "required": [
+        "kind",
+        "id",
+        "revision",
+        "status"
+      ],
+      "properties": {
+        "kind": { "enum": ["source", "artifact"] },
+        "id": { "type": "string" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["raw", "live"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
     "WikiSource": {
       "type": "object",
       "required": [

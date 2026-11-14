@@ -7,6 +7,7 @@ namespace Digitalygo\Envai\Tests\Client;
 use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
 use Digitalygo\Envai\Tests\Streaming\Atp\FakeEventStreamConnection;
@@ -118,6 +119,57 @@ final class ChatRuntimeTest extends TestCase
             static fn ($event): int => $event->envelope->seq,
             $events,
         ));
+    }
+
+    public function test_model_and_attachment_policy_is_sent_by_every_send_helper(): void
+    {
+        foreach (['sendMessage', 'sendAndStream', 'sendAndWait'] as $method) {
+            $transport = new FakeTransport;
+            if ($method !== 'sendMessage') {
+                $transport->connection = FakeEventStreamConnection::fromEnvelopes([Fixtures::ping(), ...Fixtures::simpleTurn()]);
+            }
+            $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3'], json_encode(['protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3], 'legacy_v2_mode' => 'historical_reads_replay_only', 'features' => ['chat_attachments'], 'families' => [], 'event_types' => [], 'tool_kinds' => []])));
+            $transport->queueResponse($this->topLevelResponse(['status' => 'accepted', 'turn_id' => Fixtures::TURN_ID, 'attachment_ids' => ['att_b', 'att_a']]));
+            $chat = $this->client($transport)->chat(self::WORKSPACE, self::CHAT);
+            $result = $chat->$method('hi', ['att_b', 'att_a'], 'key-1', false, 'Vendor/Model');
+            if ($result instanceof \Generator) {
+                iterator_to_array($result);
+            }
+            $this->assertCount(2, $transport->requests);
+            $request = $transport->requests[1];
+            $this->assertSame([
+                'message' => 'hi',
+                'strict_model' => false,
+                'model' => 'Vendor/Model',
+                'attachment_ids' => ['att_b', 'att_a'],
+            ], json_decode((string) $request->body, true, 512, JSON_THROW_ON_ERROR));
+            $this->assertSame(['key-1'], $request->headers['idempotency-key']);
+            $this->assertArrayNotHasKey('x-envai-extensions', $request->headers);
+            $this->assertCount($method === 'sendMessage' ? 0 : 1, $transport->streamRequests);
+
+            $transport->queueResponse($this->topLevelResponse(['status' => 'accepted', 'turn_id' => Fixtures::TURN_ID]));
+            $chat->sendMessage('next');
+            $this->assertSame(['message' => 'next'], json_decode((string) $transport->requests[2]->body, true, 512, JSON_THROW_ON_ERROR));
+        }
+    }
+
+    public function test_stream_helpers_confirm_live_subscription_before_sending(): void
+    {
+        foreach (['sendAndStream', 'sendAndWait'] as $method) {
+            $transport = new FakeTransport;
+            $transport->connection = FakeEventStreamConnection::fromEnvelopes(Fixtures::simpleTurn());
+            try {
+                $chat = $this->client($transport)->chat(self::WORKSPACE, self::CHAT);
+                $result = $chat->$method('hi', [], 'key-1', true, 'Vendor/Model');
+                if ($result instanceof \Generator) {
+                    iterator_to_array($result);
+                }
+                $this->fail('Unconfirmed stream sent a message.');
+            } catch (TransportException) {
+                $this->assertSame([], $transport->requests);
+                $this->assertNotEmpty($transport->streamRequests);
+            }
+        }
     }
 
     private function client(FakeTransport $transport): EnvaiClient

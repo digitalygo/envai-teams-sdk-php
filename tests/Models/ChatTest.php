@@ -146,6 +146,10 @@ final class ChatTest extends TestCase
     {
         $this->assertSame(['team_id' => 'team_01j5abcdefghjkmnpqrstvwxyz'], (new ChatCreateRequest('team_01j5abcdefghjkmnpqrstvwxyz'))->toArray());
         $this->assertSame(['message' => 'Summarize the last week of traffic'], (new ChatMessageRequest('Summarize the last week of traffic'))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => false, 'model' => ' Provider/Model ', 'attachment_ids' => ['a', 'b']], (new ChatMessageRequest('hello', ['a', 'b'], false, ' Provider/Model '))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => true], (new ChatMessageRequest('hello', strictModel: true))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => false], (new ChatMessageRequest('hello', strictModel: false))->toArray());
+        $this->assertSame(['message' => 'hello', 'model' => 'Vendor/Model'], (new ChatMessageRequest('hello', model: 'Vendor/Model'))->toArray());
         $this->assertSame(['destination_chat_id' => 'cht_01j5abcdefghjkmnpqrstuvwxyZ'], (new ForkChatRequest('cht_01j5abcdefghjkmnpqrstuvwxyZ'))->toArray());
     }
 

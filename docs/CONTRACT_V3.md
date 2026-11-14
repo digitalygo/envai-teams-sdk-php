@@ -10,6 +10,16 @@ $client = new EnvaiClient(new EnvaiConfig(
 ));
 ```
 
+## Current alpha source snapshot
+
+This unreleased source is pinned to backend commit
+`7133cae3042873073e3897f6733aa55314feca0d`. The bundled contract lists 147 server
+operations, while `OperationInventory` keeps its explicit 78-operation SDK
+subset (75 callable project-key operations; three API-key management methods
+fail locally). The inventory excludes the backend image-notification receiver,
+which is not a consumer SDK method. This source does not imply a new tag,
+Packagist version, deployment or live paid turn.
+
 ## Safe negotiation
 
 ATP uses `/api/v1/atp/v3/capabilities` and `/api/v1/atp/v3/chats/{chat_id}/...`, with `X-Envai-Contract-Version: 3`. Completion GET/list and every public wiki method use the same selector. Every successful negotiated response must acknowledge the exact selected version before hydration or stream consumption.
@@ -43,6 +53,41 @@ Legacy replay is fully buffered and validated before any raw bytes or typed even
 Legacy completion pages are likewise checked before hydration. Totals must be finite nonnegative numbers, and reserved cost fields nested under usage cannot be null, negative, strings or infinite. A malformed row rejects the whole selected page.
 
 Laravel connections accept integer `contract_version` (default 3) and `max_legacy_replay_bytes` (default 67108864).
+
+## Per-turn model selection
+
+Ordinary chat messages accept an optional final `model` argument in
+`ChatMessageRequest`, `ChatRuntime::sendMessage()`, `sendAndStream()` and
+`sendAndWait()`. It is an exact, case-sensitive catalog `id`; the SDK does not
+trim, alias, look it up or replace it. `null` omits it and the next send omits
+it unless supplied again.
+
+An explicit `model` pins the root for that turn with `strict_model` omitted,
+`false` or `true`. `strict_model: true` without `model` remains a valid request
+for the server-configured root policy; it is not an SDK-invalid pair. Ordinary
+message posts need no native extension or `strict_model` capability. Other
+native routes and fields keep their gates, and `nativeTasks` remains opt-in.
+
+Ordered attachments and stable idempotency keys are unchanged. Model policy
+failures are explicit: `422` `invalid_model`, `unknown_model`,
+`model_unavailable`, `model_incompatible` or `strict_model_unavailable`, `409`
+idempotency conflict, and `503` `model_catalog_unavailable`. None is
+automatically resubmitted.
+
+`LlmModelEntry::$selectable` is optional advisory metadata, not permission or a
+client allowlist; `false` and absence are distinct.
+
+## Additive artifact and wiki metadata
+
+`AgentArtifactEvent` exposes optional `path`, `generationId` and `expiresAt`
+strings after `extra`. They are data only: no download, storage, URL resolution,
+fetch or rendering is implied. Unknown fields stay in `extra`, and malformed
+known metadata is a protocol violation.
+
+Managed workspace directory responses may include `wiki_sources` and `wiki`,
+including on child entries. The existing `extra` map preserves them. The
+contract adds no `read_only` field, and no generic managed-wiki write barrier is
+relaxed.
 
 ## Events and immutable terminal metadata
 

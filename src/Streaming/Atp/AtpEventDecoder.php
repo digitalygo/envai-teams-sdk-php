@@ -838,6 +838,9 @@ final class AtpEventDecoder
         $name = Payload::string($data, 'name', $violations, 'agent.artifact');
         $mediaType = Payload::string($data, 'media_type', $violations, 'agent.artifact');
         $size = Payload::int($data, 'size', $violations, 'agent.artifact');
+        $path = Payload::nullableString($data, 'path', $violations, 'agent.artifact');
+        $generationId = Payload::nullableString($data, 'generation_id', $violations, 'agent.artifact');
+        $expiresAt = Payload::nullableString($data, 'expires_at', $violations, 'agent.artifact');
 
         if ($violations !== []) {
             return new ProtocolViolationEvent($envelope, $violations, $data);
@@ -845,7 +848,7 @@ final class AtpEventDecoder
 
         assert($artifactId !== null && $name !== null && $mediaType !== null && $size !== null);
 
-        return new AgentArtifactEvent($envelope, $artifactId, $name, $mediaType, $size, Payload::extra($data, ['artifact_id', 'name', 'media_type', 'size']));
+        return new AgentArtifactEvent($envelope, $artifactId, $name, $mediaType, $size, Payload::extra($data, ['artifact_id', 'name', 'media_type', 'size', 'path', 'generation_id', 'expires_at']), $path, $generationId, $expiresAt);
     }
 
     /**

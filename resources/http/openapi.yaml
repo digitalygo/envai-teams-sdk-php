@@ -40,6 +40,20 @@ servers:
 security:
 - bearerAuth: []
 paths:
+  /atp/v3/image-generations/notifications:
+    post:
+      operationId: acknowledgeImageGenerationNotification
+      summary: Acknowledge an image generation notification
+      description: Stateless receipt endpoint used by the runtime image bridge. The body is ignored and never persisted or trusted. Completion is determined only through authenticated control-plane status polling. No notification can complete a tool, alter generation state or supply a download URL.
+      security: []
+      responses:
+        '204':
+          description: Notification acknowledged without processing its payload
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
   /atp/v3/chats/{chat_id}/deliveries:
     post:
       operationId: deliverWorkflowResult
@@ -582,6 +596,20 @@ paths:
         The request is rejected with 409 when a turn is already in progress for the chat, with 503 `server_error`/`gateway_draining`
         while the gateway is draining, and with 404 when the chat does not exist.
 
+        Optional `model` is an exact, case-sensitive, nonempty catalog `id` copied from an llm entry of `GET /models`.
+        The gateway never trims, coerces, lowercases, strips a prefix or accepts a provider, host, route or candidate list.
+        It pins the root for every ordinary orchestrator call of the admitted turn, including tool continuations and synthesis.
+        Omitted `model` keeps the configured or default cascade. With `strict_model: true` and no `model`, the exact configured
+        root is required and an unavailable or unverifiable configuration returns 422 `strict_model_unavailable`. An explicit
+        `model` is exact with `strict_model` omitted, false or true and does not require the configured root. Children keep their
+        availability-aware cascade and the override never mutates a cached default or a later turn.
+
+        Existing `Idempotency-Key` lookup and policy comparison happen before fresh catalog or model checks. The exact
+        `model`, `strict_model` and native-task policy participate in idempotency; a different or omitted model returns 409.
+        New admissions check catalog health, then known id, availability and compatibility. 422 validation errors use
+        `invalid_model`, `unknown_model`, `model_unavailable` and `model_incompatible`; an unreadable Teams catalog returns
+        503 `server_error`/`model_catalog_unavailable`. There is no `model_not_selectable` error and no client-list gate.
+
         '
       tags:
       - Chat execution
@@ -597,7 +625,7 @@ paths:
           minLength: 1
           maxLength: 255
           pattern: ^[!-~]+$
-        description: Required with attachment_ids; reuse on deliberate retry to recover the same accepted turn.
+        description: Required with attachment_ids; reuse on deliberate retry to recover the same accepted turn. The exact model, strict_model and native-task policy are bound to the durable admission and replay before fresh catalog selection.
       requestBody:
         required: true
         content:
@@ -621,7 +649,29 @@ paths:
                 type: string
                 example: X-Envai-Contract-Version
         '400':
-          $ref: '#/components/responses/UnsupportedContractVersion'
+          description: Malformed JSON body or unsupported contract selector
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_request:
+                  value:
+                    error:
+                      type: invalid_request
+                      code: invalid_request
+                      message: invalid request
+                unsupported_contract_version:
+                  value:
+                    error:
+                      type: invalid_request
+                      code: unsupported_contract_version
+                      message: unsupported contract version
+          headers:
+            X-Envai-Required-Contract-Version:
+              schema:
+                type: string
+                const: '3'
         '401':
           $ref: '#/components/responses/UnauthenticatedError'
         '404':
@@ -639,9 +689,61 @@ paths:
                   message: A turn is already in progress for this chat.
                   details: null
         '422':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid message or exact model selection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_model:
+                  value:
+                    error:
+                      type: validation_error
+                      code: invalid_model
+                      message: model is invalid
+                unknown_model:
+                  value:
+                    error:
+                      type: validation_error
+                      code: unknown_model
+                      message: model is unknown
+                model_unavailable:
+                  value:
+                    error:
+                      type: validation_error
+                      code: model_unavailable
+                      message: model unavailable
+                model_incompatible:
+                  value:
+                    error:
+                      type: validation_error
+                      code: model_incompatible
+                      message: model incompatible
+                strict_model_unavailable:
+                  value:
+                    error:
+                      type: validation_error
+                      code: strict_model_unavailable
+                      message: configured model is unavailable for strict execution
         '503':
-          $ref: '#/components/responses/GatewayDrainingError'
+          description: Gateway draining or Teams model catalog unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                gateway_draining:
+                  value:
+                    error:
+                      type: server_error
+                      code: gateway_draining
+                      message: gateway draining
+                model_catalog_unavailable:
+                  value:
+                    error:
+                      type: server_error
+                      code: model_catalog_unavailable
+                      message: model catalog unavailable
         '426':
           $ref: '#/components/responses/ContractUpgradeRequired'
   /atp/v3/chats/{chat_id}/events:
@@ -1884,10 +1986,14 @@ paths:
     get:
       operationId: indexWorkspaceFiles
       summary: Read a workspace file or directory
-      description: 'Reads a single workspace file or directory through the fake filesystem api. Files answer the
-        descriptor plus `content`, directories answer the descriptor plus alphabetically sorted `entries` (at most
-        500). The root `/` is allowed only here and lists the top level entries (`MEMORY.md`, `wiki`, `skills`).
-        A missing file answers 404 with type `file_not_found`; a missing workspace answers 404 with type `not_found`.
+      description: 'Reads a single workspace file or directory through the fake filesystem api. Ordinary files answer
+        the descriptor plus `content`; ordinary directories answer the descriptor plus alphabetically sorted `entries`
+        (at most 500). The root `/` is allowed only here and lists the top level entries (`MEMORY.md`, `wiki`, `skills`).
+        The managed `/wiki` root always projects `raw`, `artifacts` and `outbox`. `/wiki/raw` carries functional source
+        metadata in `wiki_sources` and descriptors only for non-withdrawn RAW; `/wiki/artifacts` lists every live
+        artifact; `/wiki/outbox` carries lifecycle metadata only. Managed listings are complete within explicit
+        budgets and fail with 409 or 503 instead of returning a partial 200. A missing file answers 404 with type
+        `file_not_found`; a missing workspace answers 404 with type `not_found`.
 
         '
       tags:
@@ -1911,6 +2017,8 @@ paths:
           $ref: '#/components/responses/AccessDeniedError'
         '404':
           $ref: '#/components/responses/FileNotFoundError'
+        '409':
+          $ref: '#/components/responses/FileConflictError'
         '422':
           $ref: '#/components/responses/ValidationError'
         '503':
@@ -1922,7 +2030,8 @@ paths:
         The response is the 201 descriptor without `content`. An existing file or directory at the path answers
         409 with type `file_conflict`. Content must be non empty, valid UTF-8, at most 1048576 bytes and at most
         1000 lines; `/MEMORY.md` is additionally capped at 12000 characters. The root `/` and the protected `/wiki`
-        and `/skills` paths are accepted as existing directories only, so create answers 409 for them. A missing
+        and `/skills` paths are accepted as existing directories only, so create answers 409 for them. Protected
+        managed wiki namespaces reject generic writes with 403 and type `managed_wiki_namespace`. A missing
         workspace answers 404 with type `not_found`.
 
         '
@@ -2036,11 +2145,14 @@ paths:
     get:
       operationId: downloadWorkspaceFile
       summary: Download a workspace file
-      description: 'Downloads the raw bytes of a file as an attachment. The content type comes from the extension
-        map (markdown, text, pdf, json, csv, html, xml, yaml, image and archive types) with `application/octet-stream`
-        as fallback; `text/*` types get `charset=utf-8` appended by the framework. Targeting a directory answers
-        409 with type `file_conflict`; a file too large to read answers 422 with type `file_too_large`; a malformed
-        service response answers 422 with type `file_service_error`. Errors answer the standard JSON envelope.
+      description: 'Downloads the raw bytes of a file as an attachment, or streams authorized managed wiki Markdown.
+        For ordinary files the content type comes from the extension map (markdown, text, pdf, json, csv, html, xml,
+        yaml, image and archive types) with `application/octet-stream` as fallback; `text/*` types get `charset=utf-8`
+        appended by the framework. Managed downloads stream Markdown chunks with repeated lifecycle gates, verify the
+        final checksum, and carry `Cache-Control: private, no-store`. Pending, withdrawn and tombstoned paths are not
+        readable. Targeting a directory answers 409 with type `file_conflict`; a file too large to read answers 422
+        with type `file_too_large`; a malformed service response answers 422 with type `file_service_error`. Errors
+        answer the standard JSON envelope.
 
         '
       tags:
@@ -2083,6 +2195,11 @@ paths:
               schema:
                 type: string
                 example: nosniff
+            Cache-Control:
+              description: Always `private, no-store`
+              schema:
+                type: string
+                example: private, no-store
         '401':
           $ref: '#/components/responses/UnauthenticatedError'
         '403':
@@ -2448,11 +2565,13 @@ paths:
       operationId: listModels
       summary: List the LLM model catalog
       description: 'Returns the global LLM model catalog with team entries and the platform defaults per role.
-        LLM entries report `deprecated` and `sunset_at` and carry the informational OpenRouter metadata synchronized
+        LLM entries report `deprecated`, `selectable` and `sunset_at` and carry the informational OpenRouter metadata synchronized
         from the upstream catalog; models unavailable upstream and models past sunset never appear, deprecated models
         appear with `deprecated: true`. The catalog itself is platform level and never project scoped; team entries
         are filtered to the teams of the caller project when the request carries a project context. The optional
-        project header is accepted here and nowhere else changes the catalog rows. The response is a top-level
+        project header is accepted here and nowhere else changes the catalog rows. `selectable` is technical guidance for llm
+        entries only, never permission, filtering or client-list membership; `owned_by` remains the model vendor, not the
+        execution adapter. The response is a top-level
         `{object, data, defaults}` object without a data wrapper.
 
         '
@@ -2644,6 +2763,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '429':
           $ref: '#/components/responses/TooManyRequestsError'
+        '503':
+          $ref: '#/components/responses/ProviderConfigurationError'
         '500':
           $ref: '#/components/responses/ServerError'
   /images/generations/{record}:
@@ -6001,9 +6122,11 @@ paths:
       summary: Reserve a billing hold
       description: 'Internal service-to-service reservation of the quoted maximum for one source-bound paid step.
         The request carries the source provenance and, when the caller holds one, the journal claim pair captured
-        from the active lease. An LLM reservation answers with canonical per-million rates and a positive token
-        bound; a tool reservation answers `max_tokens` 0 and an empty `max_price` object, and only a Sprite
-        reservation carries `tool_limits`. `max_amount` is the EUR hold, never a budget total. The claim pair is
+        from the active lease. An LLM reservation answers with canonical per-million rates and the required legacy
+        `max_tokens` field; a tool reservation answers `max_tokens` 0 and an empty `max_price` object, and only a Sprite
+        reservation carries `tool_limits`. Current Go OpenRouter Chat, ChatStream, and wiki Decisions clients decode but
+        ignore the legacy field and send no automatic output cap or replacement token parameter. PHP quote producer rules
+        remain unchanged for older peers. `max_amount` is the EUR hold, never a budget total. The claim pair is
         stored on the reservation and must be repeated exactly at settlement and release, even after the lease
         expires or the key is revoked. A quote or budget refusal creates no reservation and invents no amount.
         The route is marked `x-internal`, is not part of the public `/api/v1` surface, and is never authorized by a
@@ -10023,9 +10146,11 @@ components:
     InternalBillingReservation:
       type: object
       description: 'Successful reserve response data for one source-bound paid step. An LLM reservation carries the
-        canonical per-million rates and a positive token bound. A tool reservation, including Exa and Sprite, carries
-        `max_tokens` 0 and an empty `max_price` object; only a Sprite reservation also carries `tool_limits`. The EUR
-        `max_amount` is the hold, not a customer budget total.
+        canonical per-million rates and the required legacy `max_tokens` field. A tool reservation, including Exa and Sprite, carries
+        `max_tokens` 0 and an empty `max_price` object; only a Sprite reservation also carries `tool_limits`. Current Go
+        OpenRouter Chat, ChatStream, and wiki Decisions clients decode but ignore `max_tokens`; the field is retained for older
+        peers and is not sent to the provider by current Go, which adds no replacement token parameter. PHP quote producer rules
+        remain unchanged. The EUR `max_amount` is the hold, not a customer budget total.
 
         '
       additionalProperties: false
@@ -10051,7 +10176,9 @@ components:
         max_tokens:
           type: integer
           minimum: 0
-          description: 'LLM completion token bound. Tool reservations return 0 and use unit prices instead.
+          description: 'Legacy LLM completion token bound retained for older peers. Tool reservations return 0 and use unit
+            prices instead. Current Go OpenRouter clients decode but ignore this value and do not send it or a replacement token
+            parameter to the provider.
 
             '
         max_price:
@@ -10571,6 +10698,7 @@ components:
               - validation_error
               - access_denied
               - provider_error
+              - provider_configuration_error
               - server_error
               - internal_error
               - file_not_found
@@ -10809,6 +10937,7 @@ components:
       description: User text and IDs of ready native original attachments from this chat. Requires chat_attachments
         capability and Idempotency-Key when IDs are supplied. Native originals are delivered to compatible models as
         private content parts; no conversion, OCR or transcription is requested and no file is silently omitted.
+        Optional `model` is an exact catalog id and never a provider selector.
       required:
       - message
       properties:
@@ -10824,13 +10953,20 @@ components:
           maxItems: 10
           items:
             type: string
+        model:
+          type: string
+          minLength: 1
+          pattern: ^\S(?:.*\S)?$
+          description: Exact case-sensitive nonempty llm catalog id that pins this turn. Omitted keeps the configured or default cascade. No trimming, coercion, normalization, prefix stripping, provider, host or route selection is applied.
+          example: vendor/not-in-client-list
         strict_model:
           type: boolean
           default: false
-          description: Requires strict_model capability. True requires the explicitly configured root orchestrator
-            model to be available without resolver fallback before inference or tools. Unavailable or unverifiable
-            configuration returns 422 strict_model_unavailable. Child model selection is unchanged. The effective
-            flag participates in idempotency; omitted and false are equivalent, and changed policy returns 409.
+          description: Requires strict_model capability. True without model requires the explicitly configured root orchestrator
+            model without resolver fallback and returns 422 strict_model_unavailable when missing, unavailable or unverifiable. An explicit
+            model is exact with strict_model omitted, false or true, does not require the configured root and pins the root without fallback.
+            Children keep their existing cascade. The effective flag participates in idempotency; omitted and false are equivalent, and
+            a changed policy returns 409.
     ChatMessageAccepted:
       type: object
       description: 'Acknowledgment for an accepted message. The message opened a turn identified by `turn_id` (the
@@ -12929,7 +13065,7 @@ components:
       type: object
       description: 'LLM entry of the catalog. `owned_by` is the model provider. Models that are unavailable upstream
         or past sunset are removed from the catalog and never appear; deprecated models appear with `deprecated:
-        true` until sunset. The OpenRouter metadata fields are informational copies of the upstream catalog: `pricing`
+        true` until sunset. `owned_by` is the model vendor, not the execution adapter. The OpenRouter metadata fields are informational copies of the upstream catalog: `pricing`
         never drives billing, which uses the provider `usage.cost`.
 
         '
@@ -12940,6 +13076,7 @@ components:
       - owned_by
       - type
       - deprecated
+      - selectable
       - sunset_at
       properties:
         id:
@@ -12966,6 +13103,10 @@ components:
           type: boolean
           description: Whether the model is in the deprecation period before sunset
           example: false
+        selectable:
+          type: boolean
+          description: Technical guidance for llm entries only. True when the runtime entry is available, not past sunset, has a known positive context window and known base text input, text output and tool support. It never filters the catalog, grants permission, requires client-list membership or requires price data.
+          example: true
         sunset_at:
           type:
           - string
@@ -13993,7 +14134,8 @@ components:
       type: object
       description: 'Workspace file or directory representation returned inside the `{data: ...}` wrapper. The first
         six fields form the descriptor; `content` is added for files and `entries` for directories by the resource.
-        Create and update responses return the descriptor only.
+        Optional managed wiki keys are preserved by the SDK in `extra`. Create and update responses return the
+        descriptor only.
 
         '
       required:
@@ -14049,6 +14191,13 @@ components:
           description: Child descriptors, present only when the target is a directory
           items:
             $ref: '#/components/schemas/WorkspaceFileEntry'
+        wiki_sources:
+          type: array
+          description: Functional source metadata for managed raw and outbox directory projections
+          items:
+            $ref: '#/components/schemas/WorkspaceFileWikiSource'
+        wiki:
+          $ref: '#/components/schemas/WorkspaceFileWikiEntry'
     WorkspaceFileEntry:
       type: object
       description: Descriptor of a single child of a directory listing
@@ -14090,6 +14239,133 @@ components:
           - 'null'
           description: Mime type of a file, always null for directories
           example: text/markdown
+        wiki:
+          $ref: '#/components/schemas/WorkspaceFileWikiEntry'
+    WorkspaceFileWikiSource:
+      type: object
+      description: Functional source metadata projected by managed wiki directory reads, without storage handles, costs or private ownership fields
+      required:
+      - id
+      - file_id
+      - kind
+      - name
+      - original_name
+      - path
+      - canonical_raw_path
+      - mime_type
+      - byte_size
+      - lifecycle
+      - status
+      - source_revision
+      - revision
+      - conversion
+      - indexing
+      - error_code
+      - recoverable
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+        file_id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - source
+        name:
+          type: string
+        original_name:
+          type: string
+        path:
+          type:
+          - string
+          - 'null'
+        canonical_raw_path:
+          type:
+          - string
+          - 'null'
+        mime_type:
+          type: string
+        byte_size:
+          type: integer
+          minimum: 0
+        lifecycle:
+          type: string
+          enum:
+          - uploaded
+          - inbox
+          - raw
+          - outbox
+          - deleting
+          - deleted
+        status:
+          type: string
+          enum:
+          - uploaded
+          - inbox
+          - raw
+          - outbox
+          - deleting
+          - deleted
+        source_revision:
+          type: integer
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 0
+        conversion:
+          $ref: '#/components/schemas/ConversionState'
+        indexing:
+          $ref: '#/components/schemas/IndexingState'
+        error_code:
+          type:
+          - string
+          - 'null'
+        recoverable:
+          type: boolean
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+    WorkspaceFileWikiEntry:
+      type: object
+      description: Identity and lifecycle state attached to a real managed wiki file descriptor
+      required:
+      - kind
+      - id
+      - revision
+      - status
+      properties:
+        kind:
+          type: string
+          enum:
+          - source
+          - artifact
+        id:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - raw
+          - live
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
     WorkspaceFileResource:
       type: object
       description: Laravel JsonResource wrapper for a workspace file or directory
@@ -14802,6 +15078,18 @@ components:
             error:
               type: file_service_unavailable
               message: The file service is temporarily unavailable.
+              details: null
+    ProviderConfigurationError:
+      description: A provider in the authorized image routing chain is not configured
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              type: provider_configuration_error
+              code: provider_configuration_error
+              message: Image generation is temporarily unavailable because its provider is not configured.
               details: null
     ProviderAuthError:
       description: Provider webhook authentication failed

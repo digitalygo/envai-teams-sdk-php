@@ -7,7 +7,9 @@ namespace Digitalygo\Envai\Tests\Client;
 use Digitalygo\Envai\Client\EnvaiClient;
 use Digitalygo\Envai\Configuration\EnvaiConfig;
 use Digitalygo\Envai\Configuration\SensitiveString;
+use Digitalygo\Envai\Exceptions\ApiException;
 use Digitalygo\Envai\Exceptions\ServerException;
+use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Http\RetrySafety;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
@@ -62,6 +64,43 @@ final class CurrentServerCompatibilityTest extends TestCase
         } catch (ServerException $exception) {
             $this->assertSame(503, $exception->httpStatus);
             $this->assertSame('gateway_draining', $exception->apiError()->code);
+            $this->assertCount(1, $transport->requests);
+        }
+    }
+
+    public function test_model_selection_errors_are_preserved_without_resubmission(): void
+    {
+        foreach ([
+            'invalid_model' => [422, 'validation_error'],
+            'unknown_model' => [422, 'validation_error'],
+            'model_unavailable' => [422, 'validation_error'],
+            'model_incompatible' => [422, 'validation_error'],
+            'strict_model_unavailable' => [422, 'validation_error'],
+            'idempotency_conflict' => [409, 'conflict'],
+            'model_catalog_unavailable' => [503, 'server_error'],
+        ] as $code => [$status, $type]) {
+            $transport = new FakeTransport;
+            $transport->queueResponse(new HttpResponse($status, ['content-type' => ['application/json']], json_encode(['error' => ['type' => $type, 'code' => $code, 'message' => 'rejected', 'details' => null]])));
+            try {
+                self::client($transport)->chats()->sendMessage('cht_example', new ChatMessageRequest('hello', strictModel: true, model: 'Vendor/Model'), 'stable-key');
+                $this->fail('Expected model rejection for '.$code.'.');
+            } catch (ApiException $exception) {
+                $this->assertSame($status, $exception->httpStatus, $code);
+                $this->assertSame($code, $exception->apiError()?->code, $code);
+                $this->assertCount(1, $transport->requests, $code);
+            }
+        }
+    }
+
+    public function test_ambiguous_model_submission_is_never_retried(): void
+    {
+        $transport = new FakeTransport;
+        $transport->queueException(new TransportException('connection reset by peer'));
+        try {
+            self::client($transport)->chats()->sendMessage('cht_example', new ChatMessageRequest('hello', model: 'Vendor/Model'), 'stable-key');
+            $this->fail('Ambiguous submission reported as accepted.');
+        } catch (TransportException $exception) {
+            $this->assertSame('connection reset by peer', $exception->getMessage());
             $this->assertCount(1, $transport->requests);
         }
     }

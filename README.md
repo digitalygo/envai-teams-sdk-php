@@ -627,6 +627,51 @@ Stream details:
 
 Turn helpers open their own stream per call, wait for live confirmation, send the message and only yield events of the accepted turn (matched by `turn_id`), while the shared cursor keeps advancing over everything.
 
+### Per-turn model selection
+
+This is unreleased source on top of release tag `v1.3.0`, pinned to backend
+commit `7133cae3042873073e3897f6733aa55314feca0d`. It is not part of a
+published package, and it does not claim a live paid turn or a deployed server.
+
+Pass an exact catalog `id` as the appended final argument of `sendMessage()`,
+`sendAndStream()` or `sendAndWait()`, or as the fourth `ChatMessageRequest`
+argument:
+
+```php
+use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+
+$result = $chat->sendAndWait('Summarize the project.', [], 'summary-1', null, 'Vendor/Model');
+$next = $chat->sendAndWait('And the risks?');
+
+$accepted = $envai->chats()->sendMessage(
+    $chatId,
+    new ChatMessageRequest('Draft a reply.', model: 'Vendor/Model'),
+);
+```
+
+- The value is transmitted exactly. The SDK does not trim, fold case, rewrite
+  an alias or provider, prefetch the catalog, require client-list membership or
+  keep a model allowlist. A padded value is preserved in the default mode; the
+  optional strict HTTP validation rejects it against the canonical schema
+  before any request is sent.
+- `null` omits `model`; `strict_model: false` remains an explicit false. The
+  model applies to one turn and is not carried to the next send unless passed
+  again.
+- `strict_model: true` without `model` requests the server-configured root
+  policy and is not an SDK-invalid pair. An explicit model pins the root
+  whether `strict_model` is omitted, `false` or `true`. Ordinary message posts
+  do not require the native task extension or a `strict_model` capability; the
+  other native routes and fields keep their existing gates.
+- `LlmModelEntry::$selectable` is optional technical guidance. It retains
+  `false` and absence as distinct values and never filters or blocks a request.
+- Ordered attachment IDs still require an `Idempotency-Key`. Reuse the same
+  key, model and strict policy on a deliberate retry. A changed or omitted
+  model answers `409`.
+- Model failures keep their typed HTTP error and are never resubmitted:
+  `422` `invalid_model`, `unknown_model`, `model_unavailable`,
+  `model_incompatible` or `strict_model_unavailable`, and `503`
+  `model_catalog_unavailable`.
+
 ## Client tools
 
 The client tool runtime verifies signed `agent.tool.request` events, executes the registered handlers and delivers the outputs back to the chat.
@@ -781,7 +826,7 @@ MIT. See [LICENSE](LICENSE). Bundled JSON Schema metaschemas retain their
 
 ## Managed wiki and provider usage
 
-The wiki V1 client supports durable source upload/status/download, explicit inbox/outbox/sync operations, immediate withdrawal and revisioned catalog reads. It includes Ed25519 webhook verification and transactional PDO receipt + application outbox persistence. See [the integration guide](docs/WIKI.md). Provider usage is tracked with inactive billing; legacy cost fields are nullable when unknown.
+The wiki V1 client supports durable source upload/status/download, explicit inbox/outbox/sync operations, immediate withdrawal and revisioned catalog reads. It includes Ed25519 webhook verification and transactional PDO receipt + application outbox persistence. Managed directory responses may carry `wiki_sources` and a `wiki` descriptor, including on child entries; the SDK preserves them through the existing `extra` map and invents no `read_only` field or write bypass. See [the integration guide](docs/WIKI.md). Provider usage is tracked with inactive billing; legacy cost fields are nullable when unknown.
 
 See [chat attachments](docs/CHAT_ATTACHMENTS.md) for upload, conversion, retry and streaming with files. This surface is unreleased until the matching backend is deployed.
 
@@ -791,6 +836,6 @@ Opt in with `EnvaiConfig(nativeTasks: true)` for typed deliveries, delegations, 
 
 ### Project tenancy and supported API surface
 
-The embedded contract describes all 146 server operations. `OperationInventory` deliberately tracks the existing 78 SDK operations, including three API-key management methods that fail locally as unsupported (75 callable operations). The current ATP contract declares 39 event types. Human administration and internal APIs are not supported merely because they appear in the source contract.
+The embedded contract describes all 147 server operations. `OperationInventory` deliberately tracks the existing 78 SDK operations, including three API-key management methods that fail locally as unsupported (75 callable operations). The current ATP contract declares 39 event types. Human administration and internal APIs are not supported merely because they appear in the source contract.
 
 The five `/tools` operations are now named `createProjectTool`, `listProjectTools`, `getProjectTool`, `updateProjectTool` and `deleteProjectTool` in the canonical inventory. The existing `tools()` methods and legacy `UserTool` model/request names remain compatible aliases for these same routes and payloads. **Their scope has changed:** tools belong to the API key's project, not all workspaces owned by a person. Do not use the old names to infer user-wide access or ownership.

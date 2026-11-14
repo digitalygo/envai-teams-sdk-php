@@ -54,7 +54,7 @@ final class InventoryTest extends TestCase
 
     public function test_full_server_contract_and_sdk_subset_sizes_are_explicit(): void
     {
-        $this->assertCount(146, self::openApiOperations());
+        $this->assertCount(147, self::openApiOperations());
         $this->assertCount(78, OperationInventory::OPERATIONS);
     }
 

@@ -6,12 +6,16 @@ snapshots do not establish compatibility of previously published SDK packages.
 
 ## Contract snapshots
 
-[`openapi.yaml`](openapi.yaml) covers 76 HTTP operations. [`events.json`](events.json)
-and [`smidja-native.json`](smidja-native.json) describe ATP v3 and native task
-semantics, including explicit `native-tasks-v1` negotiation. The exact server
-revision, source paths, SHA-256 hashes, Git blob IDs and byte counts for all six
-contract snapshots are recorded in
-[`provenance.json`](../tests/fixtures/current-server/provenance.json).
+[`openapi.yaml`](openapi.yaml) covers 147 HTTP operations; the explicit SDK
+subset remains 78 operations, of which 75 are callable project-key operations.
+[`events.json`](events.json) and [`smidja-native.json`](smidja-native.json)
+describe ATP v3 and native task semantics, including explicit
+`native-tasks-v1` negotiation. The exact server revision, source paths,
+SHA-256 hashes, Git blob IDs and byte counts for all six contract snapshots are
+recorded in
+[`provenance.json`](../tests/fixtures/current-server/provenance.json) and
+pinned to backend commit
+`7133cae3042873073e3897f6733aa55314feca0d`.
 See [native background task usage](BACKGROUND_TASKS.md) for opt-in behavior.
 
 The manifest separately records locally generated fixtures. Their events and
@@ -81,14 +85,55 @@ remain `JsonObject` values for source compatibility; current entries carry
 `artifact_id`, `mime_type`, `size`, and `download_url`, not storage disk/path or
 public URL. Expired artifacts and unknown generations can return generic 404s.
 
+## Per-turn model selection
+
+The current source snapshot adds an optional, exact `model` to ordinary chat
+message submissions. It is the appended final argument of
+`ChatRuntime::sendMessage()`, `sendAndStream()` and `sendAndWait()`, and the
+fourth `ChatMessageRequest` argument. `null` omits the wire field.
+
+- The value is case-sensitive and transmitted exactly. There is no client trim,
+  alias or provider rewrite, catalog lookup, mandatory membership list or
+  default mutation. The optional strict HTTP transport applies the canonical
+  schema before sending.
+- `strict_model: true` without `model` asks the server for its configured root
+  policy and remains valid. An explicit model pins the root regardless of an
+  omitted, `false` or `true` strict flag; `strict_model: false` is still sent
+  explicitly when supplied.
+- Ordinary message posts do not need the native task extension or an
+  advertised `strict_model` capability. Deliveries, delegations and other
+  native routes and fields keep their existing capability and acknowledgment
+  gates, and the native extension remains opt-in.
+- The selection applies to one root turn and is not retained for the next send.
+  Ordered attachments and the stable idempotency key retain their existing
+  behavior; a changed or omitted model on replay answers `409`.
+- Model rejection is explicit and never automatically resubmitted: `422`
+  `invalid_model`, `unknown_model`, `model_unavailable`, `model_incompatible`,
+  `strict_model_unavailable`; `409` idempotency conflict; and `503`
+  `model_catalog_unavailable`.
+- `LlmModelEntry::$selectable` is optional technical guidance. `false` and
+  absence remain distinct, and it never filters the catalog or blocks a send.
+
 ## Additive model and event data
 
 - `LlmModelEntry` now exposes the upstream display name, description, canonical
   slug, Hugging Face ID, context/completion limits, architecture, supported/default
   parameters, reasoning, knowledge cutoff, upstream expiration, alias target,
-  moderation flag, and sync time. Pricing is an informational `JsonObject`:
-  decimal strings and nested overrides are preserved without float conversion.
-  Billing remains based on server usage, not model catalog prices.
+  moderation flag, sync time and optional `selectable`. Pricing is an
+  informational `JsonObject`: decimal strings and nested overrides are
+  preserved without float conversion. Billing remains based on server usage,
+  not model catalog prices. `selectable` is guidance only and is never a
+  permission or client allowlist.
+- `AgentArtifactEvent` exposes optional `path`, `generationId` and `expiresAt`
+  strings after its existing `extra` argument. Generic registered outputs and
+  generation-scoped media remain data-only: the SDK does not download, store,
+  resolve URLs, fetch or render them. Unknown fields remain in `extra`, and a
+  malformed known metadata value produces a protocol violation instead of a
+  crash.
+- Managed workspace directory responses preserve `wiki_sources` and `wiki`
+  through the existing `extra` map, including on child entries. The source
+  contract does not add `read_only`; the SDK invents no new DTO field and keeps
+  the generic managed-wiki write barriers unchanged.
 - Compaction events expose optional turn, reason, context/window/threshold
   telemetry. Missing telemetry remains valid.
 - Usage exposes optional `spriteRamGbMs` and `toolCalls`.

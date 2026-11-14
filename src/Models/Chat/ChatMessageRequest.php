@@ -15,6 +15,7 @@ final readonly class ChatMessageRequest
         public string $message,
         public array $attachmentIds = [],
         public ?bool $strictModel = null,
+        public ?string $model = null,
     ) {
         if (! array_is_list($attachmentIds)) {
             throw new \InvalidArgumentException('Attachment IDs must be a list.');
@@ -33,6 +34,6 @@ final readonly class ChatMessageRequest
      */
     public function toArray(): array
     {
-        return ['message' => $this->message] + ($this->strictModel === null ? [] : ['strict_model' => $this->strictModel]) + ($this->attachmentIds === [] ? [] : ['attachment_ids' => $this->attachmentIds]);
+        return ['message' => $this->message] + ($this->strictModel === null ? [] : ['strict_model' => $this->strictModel]) + ($this->model === null ? [] : ['model' => $this->model]) + ($this->attachmentIds === [] ? [] : ['attachment_ids' => $this->attachmentIds]);
     }
 }
