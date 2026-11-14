@@ -47,6 +47,7 @@ final readonly class LlmModelEntry implements ArrayHydratable, ModelListEntry
         public ?JsonObject $aliasTarget = null,
         public ?bool $isModerated = null,
         public ?string $syncedAt = null,
+        public ?bool $selectable = null,
     ) {}
 
     /**
@@ -64,7 +65,7 @@ final readonly class LlmModelEntry implements ArrayHydratable, ModelListEntry
             type: Wire::string($data, 'type', $context),
             deprecated: Wire::bool($data, 'deprecated', $context),
             sunsetAt: Wire::nullableString($data, 'sunset_at', $context),
-            extra: Wire::extra($data, ['id', 'object', 'created', 'owned_by', 'type', 'deprecated', 'sunset_at', 'display_name', 'description', 'canonical_slug', 'hugging_face_id', 'context_length', 'max_completion_tokens', 'pricing', 'architecture', 'supported_parameters', 'default_parameters', 'reasoning', 'knowledge_cutoff', 'upstream_expiration_date', 'alias_target', 'is_moderated', 'synced_at']),
+            extra: Wire::extra($data, ['id', 'object', 'created', 'owned_by', 'type', 'deprecated', 'sunset_at', 'display_name', 'description', 'canonical_slug', 'hugging_face_id', 'context_length', 'max_completion_tokens', 'pricing', 'architecture', 'supported_parameters', 'default_parameters', 'reasoning', 'knowledge_cutoff', 'upstream_expiration_date', 'alias_target', 'is_moderated', 'synced_at', 'selectable']),
             displayName: Wire::nullableString($data, 'display_name', $context),
             description: Wire::nullableString($data, 'description', $context),
             canonicalSlug: Wire::nullableString($data, 'canonical_slug', $context),
@@ -81,6 +82,7 @@ final readonly class LlmModelEntry implements ArrayHydratable, ModelListEntry
             aliasTarget: Wire::nullableJsonObject($data, 'alias_target', $context),
             isModerated: isset($data['is_moderated']) ? Wire::bool($data, 'is_moderated', $context) : null,
             syncedAt: Wire::nullableString($data, 'synced_at', $context),
+            selectable: isset($data['selectable']) ? Wire::bool($data, 'selectable', $context) : null,
         );
     }
 
@@ -191,6 +193,10 @@ final readonly class LlmModelEntry implements ArrayHydratable, ModelListEntry
 
         if ($this->syncedAt !== null) {
             $payload['synced_at'] = $this->syncedAt;
+        }
+
+        if ($this->selectable !== null) {
+            $payload['selectable'] = $this->selectable;
         }
 
         return array_merge($payload, $this->extra);

@@ -102,7 +102,14 @@ final class ContractTransport implements EventStreamTransport, HttpTransport
                 if ($nativeFeature === 'native_deliveries' && ($nativeBody['origin_turn_id'] ?? '') === '' && ! $this->hasFeature('originless_deliveries')) {
                     throw new UnsupportedCapabilityException('Server does not advertise originless_deliveries.');
                 }
+                $path = parse_url($request->uri, PHP_URL_PATH);
+                $ordinaryMessage = strtoupper($request->method) === 'POST'
+                    && is_string($path)
+                    && preg_match('#^/api/v1/atp/v3/chats/[^/]+/messages$#D', $path) === 1;
                 foreach (['strict_model' => 'strict_model', 'notify_origin' => 'delegation_notify_origin'] as $field => $feature) {
+                    if ($field === 'strict_model' && $ordinaryMessage) {
+                        continue;
+                    }
                     if (array_key_exists($field, $nativeBody) && (! $this->nativeTasks || ! $this->hasFeature($feature))) {
                         throw new UnsupportedCapabilityException('Server does not advertise '.$feature.'.');
                     }

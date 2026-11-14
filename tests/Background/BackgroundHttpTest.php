@@ -11,6 +11,9 @@ use Digitalygo\Envai\Exceptions\ContractCompatibilityException;
 use Digitalygo\Envai\Exceptions\NotFoundException;
 use Digitalygo\Envai\Exceptions\ServerException;
 use Digitalygo\Envai\Exceptions\UnsupportedCapabilityException;
+use Digitalygo\Envai\Http\Client\ContractTransport;
+use Digitalygo\Envai\Http\Client\UriResolver;
+use Digitalygo\Envai\Http\HttpRequest;
 use Digitalygo\Envai\Http\HttpResponse;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
 use Digitalygo\Envai\Models\Chat\ChoiceClassificationRequest;
@@ -336,6 +339,99 @@ final class BackgroundHttpTest extends TestCase
         } catch (UnsupportedCapabilityException) {
             self::assertCount(1, $transport->requests);
         }
+    }
+
+    public function test_ordinary_strict_message_needs_no_native_extension(): void
+    {
+        $transport = new ContractTestTransport;
+        $transport->responses = [self::response(ContractNegotiationTest::capabilities()), self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202)];
+        $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('test')), $transport);
+        $client->chats()->sendMessage('c', new ChatMessageRequest('hi', strictModel: true, model: 'exact/Model'));
+        self::assertSame(['message' => 'hi', 'strict_model' => true, 'model' => 'exact/Model'], json_decode($transport->requests[1]->body, true));
+        foreach ($transport->requests as $request) {
+            self::assertArrayNotHasKey('x-envai-extensions', $request->headers);
+        }
+    }
+
+    public function test_ordinary_strict_model_policy_matrix_needs_no_native_extension(): void
+    {
+        foreach ([[null, null], [true, null], [false, null], [null, 'Vendor/Model'], [true, 'Vendor/Model'], [false, 'Vendor/Model']] as [$strict, $model]) {
+            $transport = new ContractTestTransport;
+            $transport->responses = [self::response(ContractNegotiationTest::capabilities()), self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202)];
+            $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('test')), $transport);
+            $client->chats()->sendMessage('c', new ChatMessageRequest('hi', strictModel: $strict, model: $model));
+            $expected = ['message' => 'hi'];
+            if ($strict !== null) {
+                $expected['strict_model'] = $strict;
+            }
+            if ($model !== null) {
+                $expected['model'] = $model;
+            }
+            self::assertSame($expected, json_decode($transport->requests[1]->body, true));
+            foreach ($transport->requests as $request) {
+                self::assertArrayNotHasKey('x-envai-extensions', $request->headers);
+            }
+        }
+    }
+
+    public function test_ordinary_strict_message_is_not_gated_by_native_features(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background']);
+        $transport->responses[] = self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202);
+        $client->chats()->sendMessage('c', new ChatMessageRequest('hi', strictModel: true, model: 'Vendor/Model'));
+        self::assertSame(['message' => 'hi', 'strict_model' => true, 'model' => 'Vendor/Model'], json_decode($transport->requests[1]->body, true));
+    }
+
+    public function test_non_message_native_strict_policy_still_requires_its_feature(): void
+    {
+        [$client, $transport] = $this->setupClient(['detached_background', 'cross_team_delegation']);
+        try {
+            $client->chats()->delegate('c', new DelegationRequest('w', 'e', 'o', 'target', 'prompt', strictModel: true));
+            self::fail('Missing native strict_model capability accepted.');
+        } catch (UnsupportedCapabilityException) {
+            self::assertCount(1, $transport->requests);
+        }
+    }
+
+    public function test_non_message_native_flags_still_require_their_features(): void
+    {
+        foreach ([
+            ['detached_background', 'cross_team_delegation'],
+            ['detached_background', 'cross_team_delegation', 'delegation_notify_origin'],
+        ] as $features) {
+            [$client, $transport] = $this->setupClient($features);
+            try {
+                $client->chats()->delegate('c', new DelegationRequest('w', 'e', 'o', 'target', 'prompt', notifyOrigin: false, strictModel: true));
+                self::fail('Missing native flag capability accepted.');
+            } catch (UnsupportedCapabilityException) {
+                self::assertCount(1, $transport->requests);
+            }
+        }
+    }
+
+    public function test_ordinary_message_exemption_is_limited_to_the_exact_canonical_post(): void
+    {
+        foreach ([
+            ['POST', '/api/v1/atp/v3/chats/c/messages/'],
+            ['POST', '/api/v1/atp/v3/chats/c/messages/extra'],
+            ['PUT', '/api/v1/atp/v3/chats/c/messages'],
+            ['PATCH', '/api/v1/atp/v3/chats/c/messages'],
+        ] as [$method, $path]) {
+            $transport = new ContractTestTransport;
+            $transport->responses = [self::response(ContractNegotiationTest::capabilities())];
+            $guard = new ContractTransport($transport, new UriResolver('https://envai.example'));
+            try {
+                $guard->send(new HttpRequest($method, 'https://envai.example'.$path, body: '{"message":"hi","strict_model":true}'));
+                self::fail('Near-match mutation was exempted: '.$method.' '.$path);
+            } catch (UnsupportedCapabilityException) {
+                self::assertCount(1, $transport->requests);
+            }
+        }
+
+        $transport = new ContractTestTransport;
+        $transport->responses = [self::response(ContractNegotiationTest::capabilities()), self::response(['status' => 'accepted', 'turn_id' => 't'], status: 202)];
+        $guard = new ContractTransport($transport, new UriResolver('https://envai.example'));
+        self::assertSame(202, $guard->send(new HttpRequest('POST', 'https://envai.example/api/v1/atp/v3/chats/c/messages?retry=1', body: '{"message":"hi","strict_model":true}'))->status);
     }
 
     public function test_strict_message_is_negotiated(): void

@@ -1,5 +1,11 @@
 [
   {
+    "id": "acknowledgeImageGenerationNotification",
+    "method": "POST",
+    "path": "/atp/v3/image-generations/notifications",
+    "authenticated": false
+  },
+  {
     "id": "deliverWorkflowResult",
     "method": "POST",
     "path": "/atp/v3/chats/{chat_id}/deliveries",
