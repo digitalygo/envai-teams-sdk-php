@@ -236,6 +236,33 @@ $health = $envai->capabilities()->healthCheck();
 
 Reads return typed DTOs (or `ResourceCollection` for lists) and are retry-safe; mutations take typed request models, are classified as ambiguous and are never retried automatically. The low-level client is usable with explicit remote ids without any synchronization.
 
+### Image generation idempotency
+
+`ImagesService::generate(ImageGenerationRequest $request, ?string $idempotencyKey = null): ImageGenerationAcceptedRecord` accepts an optional `$idempotencyKey`. This feature is available in the current source tree and is not yet part of a released package version.
+
+```php
+use Digitalygo\Envai\Models\Image\ImageGenerationRequest;
+
+$request = new ImageGenerationRequest(
+    model: 'openai/gpt-image-1',
+    prompt: 'Isometric diagram of a solar microgrid',
+    webhookUrl: 'https://app.example.com/webhooks/envai-images',
+);
+
+// Caller-provided stable key for one logical generation operation.
+$operationKey = 'img-gen-order-1042-hero-v1';
+$accepted = $envai->images()->generate($request, idempotencyKey: $operationKey);
+
+// Or omit the key to send no Idempotency-Key header (existing one-argument behavior):
+// $accepted = $envai->images()->generate($request);
+```
+
+You own the key: the SDK never generates or normalizes it. When `$idempotencyKey` is omitted or `null`, no `Idempotency-Key` header is sent and existing one-argument calls behave as before. When provided, central validation requires 1 to 255 printable non-space ASCII bytes (`^[!-~]+$`). `EnvaiConfig::$headers` rejects `Idempotency-Key` as an SDK-controlled header; pass it only through the per-call argument.
+
+The SDK never replays or retries `generate()` automatically, even when `RetryPolicy` is configured. Network errors (`TransportException`) and existing typed API errors propagate unchanged (for example `ConflictException` on `409`, `ServerException` for `server_error` or generic `5xx` responses, and `ProviderException` when the error `type` is `provider_error`).
+
+In the bundled `docs/openapi.yaml` contract, server deduplication is scoped to the project and the live generation lifetime (two hours from creation, until expiry or purge). Deliberate re-submission of the same logical operation must reuse both the same key and the same payload, while different operations must use different keys. Within the live lifetime, a matching payload replays the original generation and origin API key without a new provider dispatch or charge, and a changed payload with the same key may return `409` (`ConflictException`). After expiry or purge, the server forgets the key and the same key may start a new operation, so there is no indefinite exactly-once guarantee. Those server semantics are taken from `docs/openapi.yaml`; SDK tests use transport fakes to verify client request and header behavior, and no live server behavior has been verified.
+
 ## Local definitions
 
 The declarative source of truth lives in the `envai/` directory by default:
