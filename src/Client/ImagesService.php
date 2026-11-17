@@ -69,7 +69,11 @@ final readonly class ImagesService
         );
     }
 
-    public function generate(ImageGenerationRequest $request): ImageGenerationAcceptedRecord
+    /**
+     * Creates an asynchronous image generation (POST /images/generations,
+     * HTTP 202) with an optional Idempotency-Key header.
+     */
+    public function generate(ImageGenerationRequest $request, ?string $idempotencyKey = null): ImageGenerationAcceptedRecord
     {
         $violations = $request->validate();
 
@@ -95,6 +99,7 @@ final readonly class ImagesService
             EnvelopeMode::Envelope,
             AuthenticationMode::Bearer,
             RetrySafety::NeverRetry,
+            idempotencyKey: $idempotencyKey,
         );
 
         /** @var ImageGenerationAcceptedRecord $result */
