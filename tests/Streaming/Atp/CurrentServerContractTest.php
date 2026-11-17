@@ -30,9 +30,10 @@ final class CurrentServerContractTest extends TestCase
     {
         $provenance = self::fixture('provenance.json');
         $this->assertSame('digitalygo/envai-teams', $provenance->repository);
-        $this->assertSame('f970714c0a358ff94b14f15eabde197c55861e74', $provenance->commit);
+        $this->assertSame('83979ec1ce939f0313dffefcc586cac7d3426301', $provenance->commit);
         $this->assertSame('c907371b252244cf7a2475d6326e90a28da82880', $provenance->base_commit);
         $this->assertSame('pinned backend commit', $provenance->snapshot_status);
+        $this->assertSame(147, $provenance->operations);
         $this->assertSame(file_get_contents(dirname(__DIR__, 3).'/docs/openapi.yaml'), file_get_contents(dirname(__DIR__, 3).'/resources/http/openapi.yaml'));
         $this->assertSame(file_get_contents(dirname(__DIR__, 3).'/docs/events.json'), file_get_contents(dirname(__DIR__, 2).'/fixtures/current-server/events.json'));
         $this->assertSame(['openapi.yaml', 'events.json', 'wiki.json', 'terminal-snapshot.json', 'events-v2.json', 'smidja-native.json'], array_keys(get_object_vars($provenance->sources)));

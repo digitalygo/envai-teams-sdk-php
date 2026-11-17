@@ -40,6 +40,20 @@ servers:
 security:
 - bearerAuth: []
 paths:
+  /atp/v3/image-generations/notifications:
+    post:
+      operationId: acknowledgeImageGenerationNotification
+      summary: Acknowledge an image generation notification
+      description: Stateless receipt endpoint used by the runtime image bridge. The body is ignored and never persisted or trusted. Completion is determined only through authenticated control-plane status polling. No notification can complete a tool, alter generation state or supply a download URL.
+      security: []
+      responses:
+        '204':
+          description: Notification acknowledged without processing its payload
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
   /atp/v3/chats/{chat_id}/deliveries:
     post:
       operationId: deliverWorkflowResult
@@ -1972,10 +1986,14 @@ paths:
     get:
       operationId: indexWorkspaceFiles
       summary: Read a workspace file or directory
-      description: 'Reads a single workspace file or directory through the fake filesystem api. Files answer the
-        descriptor plus `content`, directories answer the descriptor plus alphabetically sorted `entries` (at most
-        500). The root `/` is allowed only here and lists the top level entries (`MEMORY.md`, `wiki`, `skills`).
-        A missing file answers 404 with type `file_not_found`; a missing workspace answers 404 with type `not_found`.
+      description: 'Reads a single workspace file or directory through the fake filesystem api. Ordinary files answer
+        the descriptor plus `content`; ordinary directories answer the descriptor plus alphabetically sorted `entries`
+        (at most 500). The root `/` is allowed only here and lists the top level entries (`MEMORY.md`, `wiki`, `skills`).
+        The managed `/wiki` root always projects `raw`, `artifacts` and `outbox`. `/wiki/raw` carries functional source
+        metadata in `wiki_sources` and descriptors only for non-withdrawn RAW; `/wiki/artifacts` lists every live
+        artifact; `/wiki/outbox` carries lifecycle metadata only. Managed listings are complete within explicit
+        budgets and fail with 409 or 503 instead of returning a partial 200. A missing file answers 404 with type
+        `file_not_found`; a missing workspace answers 404 with type `not_found`.
 
         '
       tags:
@@ -1999,6 +2017,8 @@ paths:
           $ref: '#/components/responses/AccessDeniedError'
         '404':
           $ref: '#/components/responses/FileNotFoundError'
+        '409':
+          $ref: '#/components/responses/FileConflictError'
         '422':
           $ref: '#/components/responses/ValidationError'
         '503':
@@ -2010,7 +2030,8 @@ paths:
         The response is the 201 descriptor without `content`. An existing file or directory at the path answers
         409 with type `file_conflict`. Content must be non empty, valid UTF-8, at most 1048576 bytes and at most
         1000 lines; `/MEMORY.md` is additionally capped at 12000 characters. The root `/` and the protected `/wiki`
-        and `/skills` paths are accepted as existing directories only, so create answers 409 for them. A missing
+        and `/skills` paths are accepted as existing directories only, so create answers 409 for them. Protected
+        managed wiki namespaces reject generic writes with 403 and type `managed_wiki_namespace`. A missing
         workspace answers 404 with type `not_found`.
 
         '
@@ -2124,11 +2145,14 @@ paths:
     get:
       operationId: downloadWorkspaceFile
       summary: Download a workspace file
-      description: 'Downloads the raw bytes of a file as an attachment. The content type comes from the extension
-        map (markdown, text, pdf, json, csv, html, xml, yaml, image and archive types) with `application/octet-stream`
-        as fallback; `text/*` types get `charset=utf-8` appended by the framework. Targeting a directory answers
-        409 with type `file_conflict`; a file too large to read answers 422 with type `file_too_large`; a malformed
-        service response answers 422 with type `file_service_error`. Errors answer the standard JSON envelope.
+      description: 'Downloads the raw bytes of a file as an attachment, or streams authorized managed wiki Markdown.
+        For ordinary files the content type comes from the extension map (markdown, text, pdf, json, csv, html, xml,
+        yaml, image and archive types) with `application/octet-stream` as fallback; `text/*` types get `charset=utf-8`
+        appended by the framework. Managed downloads stream Markdown chunks with repeated lifecycle gates, verify the
+        final checksum, and carry `Cache-Control: private, no-store`. Pending, withdrawn and tombstoned paths are not
+        readable. Targeting a directory answers 409 with type `file_conflict`; a file too large to read answers 422
+        with type `file_too_large`; a malformed service response answers 422 with type `file_service_error`. Errors
+        answer the standard JSON envelope.
 
         '
       tags:
@@ -2171,6 +2195,11 @@ paths:
               schema:
                 type: string
                 example: nosniff
+            Cache-Control:
+              description: Always `private, no-store`
+              schema:
+                type: string
+                example: private, no-store
         '401':
           $ref: '#/components/responses/UnauthenticatedError'
         '403':
@@ -14106,7 +14135,8 @@ components:
       type: object
       description: 'Workspace file or directory representation returned inside the `{data: ...}` wrapper. The first
         six fields form the descriptor; `content` is added for files and `entries` for directories by the resource.
-        Create and update responses return the descriptor only.
+        Optional managed wiki keys are preserved by the SDK in `extra`. Create and update responses return the
+        descriptor only.
 
         '
       required:
@@ -14162,6 +14192,13 @@ components:
           description: Child descriptors, present only when the target is a directory
           items:
             $ref: '#/components/schemas/WorkspaceFileEntry'
+        wiki_sources:
+          type: array
+          description: Functional source metadata for managed raw and outbox directory projections
+          items:
+            $ref: '#/components/schemas/WorkspaceFileWikiSource'
+        wiki:
+          $ref: '#/components/schemas/WorkspaceFileWikiEntry'
     WorkspaceFileEntry:
       type: object
       description: Descriptor of a single child of a directory listing
@@ -14203,6 +14240,133 @@ components:
           - 'null'
           description: Mime type of a file, always null for directories
           example: text/markdown
+        wiki:
+          $ref: '#/components/schemas/WorkspaceFileWikiEntry'
+    WorkspaceFileWikiSource:
+      type: object
+      description: Functional source metadata projected by managed wiki directory reads, without storage handles, costs or private ownership fields
+      required:
+      - id
+      - file_id
+      - kind
+      - name
+      - original_name
+      - path
+      - canonical_raw_path
+      - mime_type
+      - byte_size
+      - lifecycle
+      - status
+      - source_revision
+      - revision
+      - conversion
+      - indexing
+      - error_code
+      - recoverable
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+        file_id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - source
+        name:
+          type: string
+        original_name:
+          type: string
+        path:
+          type:
+          - string
+          - 'null'
+        canonical_raw_path:
+          type:
+          - string
+          - 'null'
+        mime_type:
+          type: string
+        byte_size:
+          type: integer
+          minimum: 0
+        lifecycle:
+          type: string
+          enum:
+          - uploaded
+          - inbox
+          - raw
+          - outbox
+          - deleting
+          - deleted
+        status:
+          type: string
+          enum:
+          - uploaded
+          - inbox
+          - raw
+          - outbox
+          - deleting
+          - deleted
+        source_revision:
+          type: integer
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 0
+        conversion:
+          $ref: '#/components/schemas/ConversionState'
+        indexing:
+          $ref: '#/components/schemas/IndexingState'
+        error_code:
+          type:
+          - string
+          - 'null'
+        recoverable:
+          type: boolean
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+    WorkspaceFileWikiEntry:
+      type: object
+      description: Identity and lifecycle state attached to a real managed wiki file descriptor
+      required:
+      - kind
+      - id
+      - revision
+      - status
+      properties:
+        kind:
+          type: string
+          enum:
+          - source
+          - artifact
+        id:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - raw
+          - live
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
     WorkspaceFileResource:
       type: object
       description: Laravel JsonResource wrapper for a workspace file or directory

@@ -1,29 +1,29 @@
 {
   "repository": "digitalygo/envai-teams",
-  "commit": "f970714c0a358ff94b14f15eabde197c55861e74",
+  "commit": "83979ec1ce939f0313dffefcc586cac7d3426301",
   "protocol_version": 3,
-  "operations": 146,
+  "operations": 147,
   "sources": {
     "openapi.yaml": {
       "repository_path": "packages/contracts/openapi.yaml",
       "snapshot_path": "docs/openapi.yaml",
-      "bytes": 500235,
-      "sha256": "13a177fd31dc61e108e61c5209b1395e57735ca6049f3737e33e3be9eb3109e0",
-      "git_blob_sha": "388995332129814273560703eb16a36cb51e4d73"
+      "bytes": 505225,
+      "sha256": "a627c5a455771f6a3e702a41167f7b2df383ae91f9c1fff5c89149f709c94f2b",
+      "git_blob_sha": "4f3466738d74c0f3bcd36940be37b92d51c3a647"
     },
     "events.json": {
       "repository_path": "packages/contracts/events.json",
       "snapshot_path": "docs/events.json",
-      "bytes": 68376,
-      "sha256": "7522d63756d624e7ebc7a2a5787f8ab2d6fc0099c5c70e56e65cf08e93daae85",
-      "git_blob_sha": "e4713436407e2c27cdecb8d49dd3f815cc2e5870"
+      "bytes": 68953,
+      "sha256": "662bf6234c0469ac2252509e7241457c707537df65ba363d8d86b55610322b57",
+      "git_blob_sha": "f5445f4799d89dfe3ebdc441e2dba805e9cf9b57"
     },
     "wiki.json": {
       "repository_path": "packages/contracts/wiki.json",
       "snapshot_path": "docs/wiki.json",
-      "bytes": 19558,
-      "sha256": "e360060a42c1d69a6cd15de3ea33745567d23166785efcb08f161c7acb38d30c",
-      "git_blob_sha": "3d495bbe3b4cf53af3cab29d86d3a032a7fa8b8c"
+      "bytes": 21977,
+      "sha256": "60dba54f287dd9233a9908b6989b166f9f04f334794177709a7fb79097130015",
+      "git_blob_sha": "839e5ea2813178d03faa6f8d5f95091dec6f8198"
     },
     "terminal-snapshot.json": {
       "repository_path": "packages/contracts/terminal-snapshot.json",
@@ -60,7 +60,7 @@
     },
     "operations.json": {
       "snapshot_path": "tests/fixtures/current-server/operations.json",
-      "sha256": "34c9edc5ff077ee2807976a9f259a645b8906fdb5013985bc1e353a89a569553",
+      "sha256": "5c4cf3bbc0b414130c6b527c7abb93fb07ab7ad9389c6a00e2d59549932b03f7",
       "origin": "Derived operation and authentication inventory from the pinned OpenAPI snapshot."
     },
     "signatures.json": {

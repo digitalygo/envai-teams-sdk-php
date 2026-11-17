@@ -159,6 +159,24 @@ final class ModelTest extends TestCase
         $this->assertSame(['context_window' => 200000], $entry->extra);
     }
 
+    public function test_llm_selectable_is_optional_and_preserves_false_and_extra(): void
+    {
+        $wire = ['id' => 'x', 'object' => 'model', 'created' => 1, 'owned_by' => 'p', 'type' => 'llm', 'deprecated' => false, 'sunset_at' => null, 'future' => 'value'];
+        foreach ([true, false] as $selectable) {
+            $payload = $wire + ['selectable' => $selectable];
+            $entry = LlmModelEntry::fromArray($payload);
+            self::assertSame($selectable, $entry->selectable);
+            self::assertArrayNotHasKey('selectable', $entry->extra);
+            self::assertEquals($payload, $entry->toArray());
+        }
+        $entry = LlmModelEntry::fromArray($wire);
+        self::assertNull($entry->selectable);
+        self::assertEquals($wire, $entry->toArray());
+        self::assertNull(LlmModelEntry::fromArray($wire + ['selectable' => null])->selectable);
+        self::assertArrayNotHasKey('selectable', LlmModelEntry::fromArray($wire + ['selectable' => null])->toArray());
+        self::assertNull((new LlmModelEntry('x', 'model', 1, 'p', 'llm', false, null, ['future' => 'value']))->selectable);
+    }
+
     public function test_model_list_round_trips_entries_and_defaults(): void
     {
         $payload = [

@@ -7,14 +7,14 @@ ATP v3 (with historical v2 replay) runtime for chats, event streaming, declarati
 configuration synchronization, and verified client tools. Laravel integration
 is optional.
 
-The latest reviewed release baseline is Git tag `v1.3.0` (commit `6957f70`).
+The latest reviewed release baseline is Git tag `v1.4.0` (commit `e14f205`).
 This source tree is unreleased work on top of that tag: it adds project
 resources, chat crons, cleanup deletions, billing events and exceptions that
-`v1.3.0` does not contain. No newer tag, Packagist version or deployment is
+`v1.4.0` does not contain. No newer tag, Packagist version or deployment is
 implied. See [release baseline and unreleased source](#release-baseline-and-unreleased-source).
 
 The SDK supports the contract snapshots bundled in the repository, pinned to
-backend commit `f970714c0a358ff94b14f15eabde197c55861e74`; optional features also
+backend commit `83979ec1ce939f0313dffefcc586cac7d3426301`; optional features also
 depend on the server capabilities. See the [documentation index](docs/README.md),
 [examples](docs/EXAMPLES.md), [project resources](docs/project-resources.md) and
 [compatibility and safety guide](docs/CURRENT_SERVER_COMPATIBILITY.md).
@@ -28,10 +28,10 @@ needed only for their corresponding state stores.
 Install the reviewed stable 1.x baseline with Composer:
 
 ```bash
-composer require digitalygo/envai-teams-sdk-php:^1.3
+composer require digitalygo/envai-teams-sdk-php:^1.4
 ```
 
-The `^1.3` constraint selects stable 1.x releases from 1.3.0 upward. It does not
+The `^1.4` constraint selects stable 1.x releases from 1.4.0 upward. It does not
 include the unreleased additions described below. Confirm that the version you
 need is listed on [Packagist](https://packagist.org/packages/digitalygo/envai-teams-sdk-php)
 before depending on it. Packages from the old 0.2 line predate 1.x and must not
@@ -44,7 +44,7 @@ remove that entry to use Packagist; retain entries needed by other packages.
 Never commit Composer authentication files.
 
 To evaluate the unreleased additions, use a source checkout of this branch
-(`feature/current-branch-sdk-alignment`) and run `composer install` there.
+(`feature/user-company-projects`) and run `composer install` there.
 Do not pin production applications to a development branch; wait for a tagged
 release that lists these changes in its release notes.
 
@@ -107,15 +107,15 @@ loop does not execute tools. See [client tools](#client-tools).
 
 ## Versioning
 
-Install tagged releases and review their release notes before upgrading. A `^1.3` Composer constraint selects stable 1.x releases starting at 1.3.0 rather than a development branch.
+Install tagged releases and review their release notes before upgrading. A `^1.4` Composer constraint selects stable 1.x releases starting at 1.4.0 rather than a development branch.
 
 ### Release baseline and unreleased source
 
 | Item | State |
 | --- | --- |
-| Reviewed release baseline | Git tag `v1.3.0`, commit `6957f70` |
-| This source tree | Unreleased changes on top of `v1.3.0` |
-| Contract snapshots | Backend commit `f970714c0a358ff94b14f15eabde197c55861e74` |
+| Reviewed release baseline | Git tag `v1.4.0`, commit `e14f205` |
+| This source tree | Unreleased changes on top of `v1.4.0` |
+| Contract snapshots | Backend commit `83979ec1ce939f0313dffefcc586cac7d3426301` |
 | New tag, Packagist version, deployment | None implied by this documentation |
 
 The unreleased source adds 14 operations to the canonical inventory (92 in
@@ -123,7 +123,7 @@ total, 89 callable): workspace and chat deletion, chat rename, four chat cron
 operations, five project skill operations, and project usage and logs reports.
 It also adds four typed events (`chat.title.updated`, `chat.cron.wakeup`,
 `billing.limit_reached`, `billing.credit_exhausted`) and
-`PaymentRequiredException`. Nothing in this list is available in `v1.3.0`.
+`PaymentRequiredException`. Nothing in this list is available in `v1.4.0`.
 The [changelog](CHANGELOG.md) records the delta under Unreleased.
 
 Requirements: PHP `^8.2`; the `curl`, `json`, `mbstring`, `pdo` and `sodium` extensions; a PSR-3 logger if you want log injection; Symfony Console and Symfony YAML for the core CLI.
@@ -140,7 +140,7 @@ otherwise compatible version range, use a package-specific stability flag:
 ```json
 {
     "require": {
-        "digitalygo/envai-teams-sdk-php": "^1.3@beta"
+        "digitalygo/envai-teams-sdk-php": "^1.4@beta"
     }
 }
 ```
@@ -666,45 +666,49 @@ Turn helpers open their own stream per call, wait for live confirmation, send th
 
 ### Per-turn model selection
 
-Unreleased source, verified with offline tests and fake providers only. The contract snapshots are fixed at `digitalygo/envai-teams` commit `f970714c0a358ff94b14f15eabde197c55861e74`; that is a source pin, not a claim about any deployed server.
+Per-turn model selection is available in release tag `v1.4.0`. This branch
+retains that behavior and refreshes the strict-validation schema to backend
+commit `83979ec1ce939f0313dffefcc586cac7d3426301`, including Unicode boundary
+whitespace rejection. This source pin does not establish a deployed server.
 
-Pass a model to pin the root orchestrator model for one turn. It is the appended last argument (`$model`) of `ChatRuntime::sendMessage()`, `sendAndStream()` and `sendAndWait()`, and the fourth argument of `ChatMessageRequest`:
+Pass an exact catalog `id` as the appended final argument of `sendMessage()`,
+`sendAndStream()` or `sendAndWait()`, or as the fourth `ChatMessageRequest`
+argument:
 
 ```php
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
-use Digitalygo\Envai\Models\Common\OptionalField;
-use Digitalygo\Envai\Models\Model\LlmModelEntry;
 
-$model = null;
-foreach ($envai->models()->listModels()->data as $entry) {
-    if ($entry instanceof LlmModelEntry && $entry->selectable === true) {
-        $model = $entry->id;
-        break;
-    }
-}
-if ($model === null) {
-    throw new RuntimeException('No model reported as selectable');
-}
-
-$result = $chat->sendAndWait('Summarize the project.', [], 'summary-1', null, $model);
+$result = $chat->sendAndWait('Summarize the project.', [], 'summary-1', null, 'Vendor/Model');
 $next = $chat->sendAndWait('And the risks?');
 
 $accepted = $envai->chats()->sendMessage(
     $chatId,
-    new ChatMessageRequest('Draft a reply.', model: OptionalField::of($model)),
+    new ChatMessageRequest('Draft a reply.', model: 'Vendor/Model'),
 );
 ```
 
-- Use an exact, case-sensitive `id` copied from an `llm` entry of `GET /models`. The SDK does not trim, fold case, translate aliases or prefetch the catalog. It keeps no client-side model list and applies no allowlist.
-- `selectable` is guidance only. `LlmModelEntry::$selectable` is `null` when absent and `false` is retained as received. The SDK does not block a request because of it; the server decides.
-- The model applies to the root of that one turn. It never changes team, agent, chat or default configuration and is not carried to the next call. Omit it for the normal configured cascade.
-- A `null` parameter and `OptionalField::absent()` both mean unset. `OptionalField::of(null)`, a non-string, an empty string or a padded string (including Unicode spaces) throws `InvalidArgumentException` before message submission, so no message POST is sent. Observation and read requests such as opening the live event stream can precede validation. None is treated as omission or a fallback.
-- An explicit model needs no native tasks or `strict_model`. If you also pass `$strictModel` (including explicit `false`, whose presence in the request is gated), its existing gates (`nativeTasks` and the advertised `strict_model` feature) apply. With `$strictModel` null, false or true, an explicit model is pinned exactly with no fallback.
-- Attachment IDs require an idempotency key. On a deliberate retry send the same model, strict and native policy with the same key. A changed or omitted model answers `409 idempotency_conflict`. The SDK never resends or falls back to another model on its own.
-- Failures are `ApiException` with `httpStatus` and `apiError->code`: `422` `invalid_model`, `unknown_model`, `model_unavailable`, `model_incompatible`, and `503` `model_catalog_unavailable`. There is no `model_not_selectable` error.
-- `agent.started` `model` reports the selected logical id. On `agent.done`, `requested_model` (the logical request) and `model` (the provider-reported model) are separate fields and can differ. Their existing native-task gating is unchanged.
-- Server restart or eviction loses the resident buffer with no paid rerun; completion terminal snapshot metadata is available only when recorded. Reconcile with the original key and policy.
-- Only chat messages select a model. Jobs, delegation, deliveries and wiki endpoints have no model selection.
+- The value is transmitted exactly. The SDK does not trim, fold case, rewrite
+  an alias or provider, prefetch the catalog, require client-list membership or
+  keep a model allowlist. A padded value is preserved in the default mode; the
+  optional strict HTTP validation rejects it against the canonical schema
+  before any request is sent.
+- `null` omits `model`; `strict_model: false` remains an explicit false. The
+  model applies to one turn and is not carried to the next send unless passed
+  again.
+- `strict_model: true` without `model` requests the server-configured root
+  policy and is not an SDK-invalid pair. An explicit model pins the root
+  whether `strict_model` is omitted, `false` or `true`. Ordinary message posts
+  do not require the native task extension or a `strict_model` capability; the
+  other native routes and fields keep their existing gates.
+- `LlmModelEntry::$selectable` is optional technical guidance. It retains
+  `false` and absence as distinct values and never filters or blocks a request.
+- Ordered attachment IDs still require an `Idempotency-Key`. Reuse the same
+  key, model and strict policy on a deliberate retry. A changed or omitted
+  model answers `409`.
+- Model failures keep their typed HTTP error and are never resubmitted:
+  `422` `invalid_model`, `unknown_model`, `model_unavailable`,
+  `model_incompatible` or `strict_model_unavailable`, and `503`
+  `model_catalog_unavailable`.
 
 ## Client tools
 
@@ -871,7 +875,7 @@ Opt in with `EnvaiConfig(nativeTasks: true)` for typed deliveries, delegations, 
 
 ### Project tenancy and supported API surface
 
-The embedded contract describes all 146 server operations. In the unreleased
+The embedded contract describes all 147 server operations. In the unreleased
 source, `OperationInventory` tracks 92 SDK operations, including three API-key
 management methods that fail locally as unsupported because the server accepts
 human browser sessions only (89 callable operations). The bundled ATP contract

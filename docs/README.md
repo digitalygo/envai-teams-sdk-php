@@ -5,7 +5,7 @@ The SDK provides typed HTTP services, ATP v3 event streaming with historical v2
 replay, declarative resource synchronization, client-tool verification and
 optional Laravel integration.
 
-The reviewed release baseline is Git tag `v1.3.0` (commit `6957f70`). This
+The reviewed release baseline is Git tag `v1.4.0` (commit `e14f205`). This
 source tree is unreleased work on top of it; these docs describe that unreleased
 source where marked, and imply no new tag, Packagist version or deployment. See
 [release baseline and unreleased source](../README.md#release-baseline-and-unreleased-source).
@@ -38,8 +38,8 @@ features through `capabilities()`.
 
 The [provenance manifest](../tests/fixtures/current-server/provenance.json)
 records the exact upstream revision and content hashes of all six source
-snapshots (146 operations, six sources), pinned to backend commit
-`f970714c0a358ff94b14f15eabde197c55861e74`. Locally generated regression
+snapshots (147 operations, six sources), pinned to backend commit
+`83979ec1ce939f0313dffefcc586cac7d3426301`. Locally generated regression
 fixtures are listed separately. The tests verify the retained bytes without
 contacting a production service. Contract examples, resource IDs and
 cryptographic test vectors are synthetic and are not credentials or customer

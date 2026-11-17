@@ -22,7 +22,7 @@ final readonly class ChatsMessageSender implements MessageSender
         private array $attachmentIds = [],
         private ?string $idempotencyKey = null,
         private ?bool $strictModel = null,
-        private mixed $model = null,
+        private ?string $model = null,
     ) {}
 
     public function send(string $chatId, string $message): ChatMessageAccepted

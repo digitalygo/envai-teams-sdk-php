@@ -1,10 +1,10 @@
 # Project resources
 
 > [!note]
-> Everything on this page is unreleased source on top of tag `v1.3.0`. It is
+> Everything on this page is unreleased source on top of tag `v1.4.0`. It is
 > not part of any tagged release, and no Packagist version or backend
 > deployment is implied. Contract snapshots are pinned to backend commit
-> `f970714c0a358ff94b14f15eabde197c55861e74`.
+> `83979ec1ce939f0313dffefcc586cac7d3426301`.
 
 All examples assume `$envai` is an `EnvaiClient` and that IDs belong to the
 project of the configured key.

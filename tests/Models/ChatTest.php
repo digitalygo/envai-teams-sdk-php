@@ -18,7 +18,6 @@ use Digitalygo\Envai\Models\Chat\RestoreChatRequest;
 use Digitalygo\Envai\Models\Chat\SteerRequest;
 use Digitalygo\Envai\Models\Chat\ToolOutputRequest;
 use Digitalygo\Envai\Models\Chat\TurnAccepted;
-use Digitalygo\Envai\Models\Common\OptionalField;
 use PHPUnit\Framework\TestCase;
 
 final class ChatTest extends TestCase
@@ -147,37 +146,22 @@ final class ChatTest extends TestCase
     {
         $this->assertSame(['team_id' => 'team_01j5abcdefghjkmnpqrstvwxyz'], (new ChatCreateRequest('team_01j5abcdefghjkmnpqrstvwxyz'))->toArray());
         $this->assertSame(['message' => 'Summarize the last week of traffic'], (new ChatMessageRequest('Summarize the last week of traffic'))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => false, 'model' => ' Provider/Model ', 'attachment_ids' => ['a', 'b']], (new ChatMessageRequest('hello', ['a', 'b'], false, ' Provider/Model '))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => true], (new ChatMessageRequest('hello', strictModel: true))->toArray());
+        $this->assertSame(['message' => 'hello', 'strict_model' => false], (new ChatMessageRequest('hello', strictModel: false))->toArray());
+        $this->assertSame(['message' => 'hello', 'model' => 'Vendor/Model'], (new ChatMessageRequest('hello', model: 'Vendor/Model'))->toArray());
         $this->assertSame(['destination_chat_id' => 'cht_01j5abcdefghjkmnpqrstuvwxyZ'], (new ForkChatRequest('cht_01j5abcdefghjkmnpqrstuvwxyZ'))->toArray());
     }
 
-    public function test_message_model_presence_and_validation(): void
+    public function test_message_model_values_are_preserved_for_server_validation(): void
     {
-        $absent = OptionalField::absent();
-        $this->assertSame(['message' => 'hi'], (new ChatMessageRequest('hi', model: $absent))->toArray());
-        foreach ([null, false, true] as $strict) {
-            $wire = (new ChatMessageRequest('hi', ['att_1'], $strict, 'Vendor/Model'))->toArray();
-            $this->assertSame('Vendor/Model', $wire['model']);
-            $this->assertSame(['att_1'], $wire['attachment_ids']);
-            $this->assertSame($strict, $wire['strict_model'] ?? null);
-        }
-        foreach ([OptionalField::of(null), 1, false, [], '', ' x', "x\n", "\u{00a0}x"] as $invalid) {
-            try {
-                new ChatMessageRequest('hi', model: $invalid);
-                $this->fail('Invalid model accepted');
-            } catch (\InvalidArgumentException) {
-                $this->assertTrue(true);
-            }
-        }
-        $this->assertSame('x', (new ChatMessageRequest('hi', model: OptionalField::of('x')))->toArray()['model']);
-        $this->assertSame("Vendor/模型\ninternal", (new ChatMessageRequest('hi', model: "Vendor/模型\ninternal"))->toArray()['model']);
-        foreach (["\n", "\r\n", "\t", "\u{0085}", "\u{00a0}"] as $space) {
-            foreach ([$space.'model', 'model'.$space] as $invalid) {
-                try {
-                    new ChatMessageRequest('hi', model: $invalid);
-                    $this->fail('Padded model accepted');
-                } catch (\InvalidArgumentException) {
-                    $this->assertTrue(true);
-                }
+        foreach ([null, '', ' Vendor/Model ', "\u{00a0}model", "model\u{3000}", "Vendor/模型\ninternal"] as $model) {
+            foreach ([null, false, true] as $strict) {
+                $wire = (new ChatMessageRequest('hi', ['att_1'], $strict, $model))->toArray();
+                $this->assertSame($model, $wire['model'] ?? null);
+                $this->assertSame($model !== null, array_key_exists('model', $wire));
+                $this->assertSame($strict, $wire['strict_model'] ?? null);
+                $this->assertSame(['att_1'], $wire['attachment_ids']);
             }
         }
     }

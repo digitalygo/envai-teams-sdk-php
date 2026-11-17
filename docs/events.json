@@ -807,6 +807,20 @@
           "type": "string",
           "description": "Artifact id."
         },
+        "path": {
+          "type": "string",
+          "pattern": "^/artifact/.+",
+          "description": "Workspace path for generic registered output, absent for generation-scoped media."
+        },
+        "generation_id": {
+          "type": "string",
+          "description": "Generation-scoped media identifier; resolve through the authenticated images status API."
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Immutable generation expiry, not renewed by registration or replay."
+        },
         "name": {
           "type": "string",
           "description": "Artifact file name."

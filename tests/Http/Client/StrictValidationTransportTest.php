@@ -52,13 +52,32 @@ final class StrictValidationTransportTest extends TestCase
     {
         $fake = new FakeTransport;
         $strict = new StrictValidationTransport($fake, new UriResolver('https://example.test'));
-        self::assertCount(146, $strict->operationIds());
+        self::assertCount(147, $strict->operationIds());
         try {
             $strict->send(new HttpRequest('POST', 'https://example.test/api/v1/agents', body: '{}'));
             self::fail('Invalid request accepted');
         } catch (\InvalidArgumentException) {
             self::assertCount(0, $fake->requests);
             self::assertCount(0, $fake->preflightRequests);
+        }
+    }
+
+    public function test_canonical_message_model_selection_is_validated(): void
+    {
+        $fake = new FakeTransport;
+        $strict = new StrictValidationTransport($fake, new UriResolver('https://example.test'));
+        $uri = 'https://example.test/api/v1/atp/v3/chats/cht_01ARZ3NDEKTSV4RRFFQ69G5FAV/messages';
+        foreach ([['message' => 'hi', 'strict_model' => true], ['message' => 'hi', 'model' => 'Vendor/Model'], ['message' => 'hi', 'strict_model' => false, 'model' => 'Vendor/Model']] as $body) {
+            $fake->queueResponse(new HttpResponse(202, [], '{"status":"accepted","turn_id":"cmpl_01j5abcdefghjkmnpqrstvwxyz"}'));
+            self::assertSame(202, $strict->send(new HttpRequest('POST', $uri, body: json_encode($body, JSON_THROW_ON_ERROR)))->status);
+        }
+        foreach ([['message' => 'hi', 'model' => ''], ['message' => 'hi', 'model' => ' Vendor/Model '], ['message' => 'hi', 'strict_model' => 'true']] as $body) {
+            try {
+                $strict->send(new HttpRequest('POST', $uri, body: json_encode($body, JSON_THROW_ON_ERROR)));
+                self::fail('Invalid message policy accepted.');
+            } catch (\InvalidArgumentException) {
+                self::assertCount(3, $fake->requests);
+            }
         }
     }
 

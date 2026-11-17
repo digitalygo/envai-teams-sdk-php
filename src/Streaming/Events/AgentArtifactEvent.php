@@ -19,6 +19,9 @@ final readonly class AgentArtifactEvent extends AtpEvent
         public string $mediaType,
         public int $size,
         array $extra = [],
+        public ?string $path = null,
+        public ?string $generationId = null,
+        public ?string $expiresAt = null,
     ) {
         parent::__construct($envelope, $extra);
     }

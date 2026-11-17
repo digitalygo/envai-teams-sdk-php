@@ -17,7 +17,7 @@ active regardless of this option. Binary response bodies and SSE bytes retain
 their specialized handling; upload schema validation uses binary placeholders
 without reading files. Historical contract-2 replay and completion validation
 retains its historical schema rather than applying contract-3 schemas.
-`StrictValidationTransport` builds routes from all 146 OpenAPI operations in the
+`StrictValidationTransport` builds routes from all 147 OpenAPI operations in the
 canonical specification, not from `OperationInventory`. It only validates
 configured SDK services and custom requests explicitly routed through that
 transport; external requests such as signed download URLs are not schema
@@ -35,8 +35,8 @@ them. A project log entry whose `agent` or `data` is an empty JSON array is
 accepted as an empty object, so exact empty-array log metadata from the server
 stays compatible.
 
-The canonical OpenAPI document (146 operations) is pinned to backend commit
-`f970714c0a358ff94b14f15eabde197c55861e74`. The repository tracks six contract
+The canonical OpenAPI document (147 operations) is pinned to backend commit
+`83979ec1ce939f0313dffefcc586cac7d3426301`. The repository tracks six contract
 snapshots pinned to that commit, but the HTTP validator reads only the single
 OpenAPI snapshot offline.
 
