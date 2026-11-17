@@ -13,9 +13,9 @@ $client = new EnvaiClient(new EnvaiConfig(
 ## Current alpha source snapshot
 
 This unreleased source is pinned to backend commit
-`7133cae3042873073e3897f6733aa55314feca0d`. The bundled contract lists 147 server
-operations, while `OperationInventory` keeps its explicit 78-operation SDK
-subset (75 callable project-key operations; three API-key management methods
+`83979ec1ce939f0313dffefcc586cac7d3426301`. The bundled contract lists 147 server
+operations, while `OperationInventory` keeps its explicit 92-operation SDK
+subset (89 callable project-key operations; three API-key management methods
 fail locally). The inventory excludes the backend image-notification receiver,
 which is not a consumer SDK method. This source does not imply a new tag,
 Packagist version, deployment or live paid turn.

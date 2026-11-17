@@ -10,10 +10,15 @@ use Digitalygo\Envai\Exceptions\TransportException;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
 use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
+use Digitalygo\Envai\Streaming\Atp\TurnAwait;
 use Digitalygo\Envai\Streaming\Events\AgentDoneEvent;
 use Digitalygo\Envai\Streaming\Events\AgentStartedEvent;
 use Digitalygo\Envai\Streaming\Events\AgentToolRequestEvent;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\BillingCreditExhaustedEvent;
+use Digitalygo\Envai\Streaming\Events\BillingLimitReachedEvent;
+use Digitalygo\Envai\Streaming\Events\ChatCronWakeupEvent;
+use Digitalygo\Envai\Streaming\Events\ChatTitleUpdatedEvent;
 use Digitalygo\Envai\Streaming\Events\PingEvent;
 use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
 use Digitalygo\Envai\Streaming\Events\UnknownEvent;
@@ -187,6 +192,15 @@ final class ChatEventStreamTest extends TestCase
         return $envelope;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function additionalWire(int $seq, string $type, array $data, ?string $turnId = Fixtures::TURN_ID): array
+    {
+        return Fixtures::envelope($seq, sprintf('evt_%02d', $seq), '2026-08-17T14:00:00Z', $type, $data, null, $turnId);
+    }
+
     public function test_exhausted_reconnect_attempts_throw_transport_exception(): void
     {
         $turn = Fixtures::simpleTurn();
@@ -345,6 +359,47 @@ final class ChatEventStreamTest extends TestCase
 
         $this->assertTrue($confirmed);
         $this->assertSame(1, $stream->lastCursor());
+    }
+
+    public function test_wait_live_confirmation_dispatches_new_events_without_terminal_behavior(): void
+    {
+        $frames = [
+            self::additionalWire(1, 'chat.title.updated', ['title' => 'Title']),
+            self::additionalWire(2, 'chat.cron.wakeup', [
+                'cron_id' => 'cron_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'occurrence_id' => 'occ_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'scheduled_at' => '2026-01-01T00:00:00Z',
+                'delivered_at' => '2026-01-01T00:01:00Z',
+                'prompt' => 'Do it',
+                'target_mode' => 'same_chat',
+                'dispatch_mode' => 'turn_injected',
+            ]),
+            self::additionalWire(3, 'billing.limit_reached', ['reason' => 'limit_reached', 'scope' => 'project', 'currency' => 'EUR'], null),
+            self::additionalWire(4, 'billing.credit_exhausted', ['reason' => 'credit_exhausted', 'scope' => 'company', 'currency' => 'EUR'], null),
+            Fixtures::ping(),
+        ];
+        $stream = new ChatEventStream(FakeEventStreamConnection::fromEnvelopes($frames), chatId: Fixtures::CHAT_ID);
+        $seen = [];
+        $await = new TurnAwait(Fixtures::TURN_ID);
+        $terminal = false;
+
+        $confirmed = $stream->waitLiveConfirmation(onReplay: function (AtpEvent $event) use (&$seen, $await, &$terminal): void {
+            $seen[] = $event;
+            $terminal = $await->push($event) || $terminal;
+        });
+
+        $this->assertTrue($confirmed);
+        $this->assertCount(4, $seen);
+        $this->assertInstanceOf(ChatTitleUpdatedEvent::class, $seen[0]);
+        $this->assertInstanceOf(ChatCronWakeupEvent::class, $seen[1]);
+        $this->assertInstanceOf(BillingLimitReachedEvent::class, $seen[2]);
+        $this->assertInstanceOf(BillingCreditExhaustedEvent::class, $seen[3]);
+        $this->assertNull($seen[0]->envelope->agent);
+        $this->assertNull($seen[1]->envelope->agent);
+        $this->assertNull($seen[2]->envelope->turnId);
+        $this->assertNull($seen[3]->envelope->turnId);
+        $this->assertFalse($terminal);
+        $this->assertSame(4, $stream->lastCursor());
     }
 
     public function test_wait_live_confirmation_returns_false_on_terminal_event(): void

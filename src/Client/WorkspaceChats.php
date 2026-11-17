@@ -6,6 +6,8 @@ namespace Digitalygo\Envai\Client;
 
 use Digitalygo\Envai\Models\Chat\Chat;
 use Digitalygo\Envai\Models\Chat\ChatCreateRequest;
+use Digitalygo\Envai\Models\Chat\ChatUpdateRequest;
+use Digitalygo\Envai\Models\Common\CleanupResult;
 use Digitalygo\Envai\Models\Common\ResourceCollection;
 
 /**
@@ -44,6 +46,16 @@ final readonly class WorkspaceChats
     public function list(): ResourceCollection
     {
         return $this->chats->listChats($this->workspaceId);
+    }
+
+    public function update(string $chatId, ChatUpdateRequest $request): Chat
+    {
+        return $this->chats->updateChat($this->workspaceId, $chatId, $request);
+    }
+
+    public function delete(string $chatId): CleanupResult
+    {
+        return $this->chats->deleteChat($this->workspaceId, $chatId);
     }
 
     /**

@@ -90,6 +90,25 @@ final class ChatAttachmentsTest extends TestCase
         $client->chats()->sendMessage('c', $request);
     }
 
+    public function test_message_model_with_attachments_and_strict_policies(): void
+    {
+        foreach ([null, false, true] as $strict) {
+            $transport = new FakeTransport;
+            $features = ['chat_attachments' => true, 'detached_background' => true, 'strict_model' => true];
+            $transport->queueResponse(new HttpResponse(200, ['X-Envai-Contract-Version' => '3', 'X-Envai-Extensions' => 'native-tasks-v1'], json_encode(['protocol_version' => 3, 'contract_version' => 3, 'supported_contract_versions' => [2, 3], 'legacy_v2_mode' => 'historical_reads_replay_only', 'features' => $features])));
+            $transport->queueResponse(new HttpResponse(202, ['X-Envai-Extensions' => 'native-tasks-v1'], json_encode(['status' => 'accepted', 'turn_id' => 'cmpl_test', 'attachment_ids' => ['a']])));
+            $client = new EnvaiClient(new EnvaiConfig('https://envai.example', new SensitiveString('synthetic'), nativeTasks: true), $transport);
+            $client->chats()->sendMessage('c', new ChatMessageRequest('Read', ['a'], $strict, 'vendor/model'), 'stable');
+            $request = end($transport->requests);
+            $body = json_decode($request->body, true);
+            self::assertSame('vendor/model', $body['model']);
+            self::assertSame(['a'], $body['attachment_ids']);
+            self::assertSame($strict, $body['strict_model'] ?? null);
+            self::assertSame(['stable'], $request->headers['idempotency-key']);
+            self::assertSame(RetrySafety::NeverRetry, $request->retrySafety);
+        }
+    }
+
     public function test_original_ready_attachment_returns_without_an_extra_poll(): void
     {
         $transport = new FakeTransport;

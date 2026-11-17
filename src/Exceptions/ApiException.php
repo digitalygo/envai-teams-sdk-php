@@ -100,6 +100,14 @@ class ApiException extends EnvaiException
     {
         $message = $apiError->message !== '' ? $apiError->message : self::statusMessage($response->status);
 
+        if ($response->status === 402) {
+            return new PaymentRequiredException($message, $response->status, $apiError, $response->headers, $context);
+        }
+
+        if ($response->status === 503 && $apiError->type === 'provider_configuration_error') {
+            return new ServerException($message, $response->status, $apiError, $response->headers, $context);
+        }
+
         return match ($apiError->type) {
             'unauthenticated' => new AuthenticationException($message, $response->status, $apiError, $response->headers, $context),
             'access_denied' => new AccessDeniedException($message, $response->status, $apiError, $response->headers, $context),

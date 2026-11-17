@@ -8,6 +8,7 @@ use Digitalygo\Envai\Client\AgentsService;
 use Digitalygo\Envai\Client\ApiKeysService;
 use Digitalygo\Envai\Client\CapabilitiesService;
 use Digitalygo\Envai\Client\ChatAttachmentsService;
+use Digitalygo\Envai\Client\ChatCronsService;
 use Digitalygo\Envai\Client\ChatRuntime;
 use Digitalygo\Envai\Client\ChatsService;
 use Digitalygo\Envai\Client\ChatsToolOutputSender;
@@ -15,6 +16,8 @@ use Digitalygo\Envai\Client\ClientToolRuntime;
 use Digitalygo\Envai\Client\CompletionsService;
 use Digitalygo\Envai\Client\ImagesService;
 use Digitalygo\Envai\Client\ModelsService;
+use Digitalygo\Envai\Client\ProjectReportsService;
+use Digitalygo\Envai\Client\ProjectSkillsService;
 use Digitalygo\Envai\Client\TeamsService;
 use Digitalygo\Envai\Client\ToolsService;
 use Digitalygo\Envai\Client\WikiOperationsService;
@@ -70,6 +73,12 @@ final class ServiceContainer
     private ?ChatsService $chats = null;
 
     private ?CompletionsService $completions = null;
+
+    private ?ChatCronsService $chatCrons = null;
+
+    private ?ProjectSkillsService $projectSkills = null;
+
+    private ?ProjectReportsService $projectReports = null;
 
     private ?AgentsService $agents = null;
 
@@ -178,6 +187,36 @@ final class ServiceContainer
     public function completions(): CompletionsService
     {
         return $this->completions ??= new CompletionsService(
+            $this->executor,
+            $this->uris,
+            $this->connectTimeoutSeconds,
+            $this->requestTimeoutSeconds,
+        );
+    }
+
+    public function chatCrons(): ChatCronsService
+    {
+        return $this->chatCrons ??= new ChatCronsService(
+            $this->executor,
+            $this->uris,
+            $this->connectTimeoutSeconds,
+            $this->requestTimeoutSeconds,
+        );
+    }
+
+    public function projectSkills(): ProjectSkillsService
+    {
+        return $this->projectSkills ??= new ProjectSkillsService(
+            $this->executor,
+            $this->uris,
+            $this->connectTimeoutSeconds,
+            $this->requestTimeoutSeconds,
+        );
+    }
+
+    public function projectReports(): ProjectReportsService
+    {
+        return $this->projectReports ??= new ProjectReportsService(
             $this->executor,
             $this->uris,
             $this->connectTimeoutSeconds,

@@ -9,6 +9,10 @@ use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Streaming\Atp\ChatEventStream;
 use Digitalygo\Envai\Streaming\Atp\ChatTurnRuntime;
 use Digitalygo\Envai\Streaming\Events\AtpEvent;
+use Digitalygo\Envai\Streaming\Events\BillingCreditExhaustedEvent;
+use Digitalygo\Envai\Streaming\Events\BillingLimitReachedEvent;
+use Digitalygo\Envai\Streaming\Events\ChatCronWakeupEvent;
+use Digitalygo\Envai\Streaming\Events\ChatTitleUpdatedEvent;
 use Digitalygo\Envai\Streaming\Events\ProtocolViolationEvent;
 use Digitalygo\Envai\Streaming\Events\TurnCancelledEvent;
 use Digitalygo\Envai\Streaming\Events\TurnCompletedEvent;
@@ -114,6 +118,56 @@ final class ChatTurnRuntimeTest extends TestCase
         $this->assertInstanceOf(TurnStartedEvent::class, $events[0]);
         $this->assertInstanceOf(TurnCompletedEvent::class, $events[6]);
         $this->assertSame(7, $stream->lastCursor());
+    }
+
+    public function test_additional_events_do_not_terminate_the_turn(): void
+    {
+        $terminal = Fixtures::sample('turn.completed');
+        $terminal['seq'] = 6;
+        $frames = [
+            Fixtures::sample('turn.started'),
+            self::additionalWire(2, 'chat.title.updated', ['title' => 'Title']),
+            self::additionalWire(3, 'chat.cron.wakeup', [
+                'cron_id' => 'cron_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'occurrence_id' => 'occ_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                'scheduled_at' => '2026-01-01T00:00:00Z',
+                'delivered_at' => '2026-01-01T00:01:00Z',
+                'prompt' => 'Do it',
+                'target_mode' => 'same_chat',
+                'dispatch_mode' => 'turn_injected',
+            ]),
+            self::additionalWire(4, 'billing.limit_reached', [
+                'reason' => 'limit_reserved',
+                'scope' => 'api_key',
+                'currency' => 'EUR',
+                'amount' => '1.000000000001',
+                'remaining' => '0.000000000000',
+                'reset_at' => null,
+            ]),
+            self::additionalWire(5, 'billing.credit_exhausted', ['reason' => 'credit_reserved', 'scope' => 'company', 'currency' => 'EUR']),
+            $terminal,
+        ];
+        [$stream, , $runtime] = $this->runtime($frames);
+
+        $events = iterator_to_array($runtime->sendAndStream(self::MESSAGE));
+
+        $this->assertCount(6, $events);
+        $this->assertInstanceOf(TurnStartedEvent::class, $events[0]);
+        $this->assertInstanceOf(ChatTitleUpdatedEvent::class, $events[1]);
+        $this->assertInstanceOf(ChatCronWakeupEvent::class, $events[2]);
+        $this->assertInstanceOf(BillingLimitReachedEvent::class, $events[3]);
+        $this->assertInstanceOf(BillingCreditExhaustedEvent::class, $events[4]);
+        $this->assertInstanceOf(TurnCompletedEvent::class, $events[5]);
+        $this->assertSame(6, $stream->lastCursor());
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function additionalWire(int $seq, string $type, array $data, ?string $turnId = Fixtures::TURN_ID): array
+    {
+        return Fixtures::envelope($seq, sprintf('evt_%02d', $seq), '2026-08-17T14:00:00Z', $type, $data, null, $turnId);
     }
 
     public function test_send_and_wait_aggregates_terminal_usage_and_orchestrator_text(): void

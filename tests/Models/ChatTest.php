@@ -153,6 +153,19 @@ final class ChatTest extends TestCase
         $this->assertSame(['destination_chat_id' => 'cht_01j5abcdefghjkmnpqrstuvwxyZ'], (new ForkChatRequest('cht_01j5abcdefghjkmnpqrstuvwxyZ'))->toArray());
     }
 
+    public function test_message_model_values_are_preserved_for_server_validation(): void
+    {
+        foreach ([null, '', ' Vendor/Model ', "\u{00a0}model", "model\u{3000}", "Vendor/模型\ninternal"] as $model) {
+            foreach ([null, false, true] as $strict) {
+                $wire = (new ChatMessageRequest('hi', ['att_1'], $strict, $model))->toArray();
+                $this->assertSame($model, $wire['model'] ?? null);
+                $this->assertSame($model !== null, array_key_exists('model', $wire));
+                $this->assertSame($strict, $wire['strict_model'] ?? null);
+                $this->assertSame(['att_1'], $wire['attachment_ids']);
+            }
+        }
+    }
+
     public function test_tool_output_request_serializes_is_error_default(): void
     {
         $request = new ToolOutputRequest(

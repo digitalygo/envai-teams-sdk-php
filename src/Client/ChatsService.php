@@ -23,6 +23,7 @@ use Digitalygo\Envai\Models\Chat\ChatCreateRequest;
 use Digitalygo\Envai\Models\Chat\ChatForked;
 use Digitalygo\Envai\Models\Chat\ChatMessageAccepted;
 use Digitalygo\Envai\Models\Chat\ChatMessageRequest;
+use Digitalygo\Envai\Models\Chat\ChatUpdateRequest;
 use Digitalygo\Envai\Models\Chat\ChoiceClassificationRequest;
 use Digitalygo\Envai\Models\Chat\ChoiceClassificationResult;
 use Digitalygo\Envai\Models\Chat\DelegationAccepted;
@@ -41,6 +42,7 @@ use Digitalygo\Envai\Models\Chat\TaskCancelled;
 use Digitalygo\Envai\Models\Chat\TaskSnapshot;
 use Digitalygo\Envai\Models\Chat\ToolOutputRequest;
 use Digitalygo\Envai\Models\Chat\TurnAccepted;
+use Digitalygo\Envai\Models\Common\CleanupResult;
 use Digitalygo\Envai\Models\Common\ResourceCollection;
 use Digitalygo\Envai\Models\System\Capabilities;
 
@@ -418,6 +420,30 @@ final readonly class ChatsService
         );
 
         /** @var ResourceCollection<Chat> $result */
+        return $result;
+    }
+
+    public function updateChat(string $workspaceId, string $chatId, ChatUpdateRequest $request): Chat
+    {
+        $result = $this->requests->request(
+            'PUT',
+            $this->requests->resolve('/workspaces/{workspace_id}/chats/{chat_id}', ['workspace_id' => $workspaceId, 'chat_id' => $chatId]),
+            [], $request->toArray(), Chat::class, EnvelopeMode::Envelope, AuthenticationMode::Bearer, RetrySafety::NeverRetry,
+        );
+        assert($result instanceof Chat);
+
+        return $result;
+    }
+
+    public function deleteChat(string $workspaceId, string $chatId): CleanupResult
+    {
+        $result = $this->requests->request(
+            'DELETE',
+            $this->requests->resolve('/workspaces/{workspace_id}/chats/{chat_id}', ['workspace_id' => $workspaceId, 'chat_id' => $chatId]),
+            [], null, CleanupResult::class, EnvelopeMode::Envelope, AuthenticationMode::Bearer, RetrySafety::NeverRetry,
+        );
+        assert($result instanceof CleanupResult);
+
         return $result;
     }
 
